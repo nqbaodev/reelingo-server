@@ -140,13 +140,46 @@ quits.
 | `npm run prisma:migrate` | Run migrations (dev) |
 | `npm run prisma:studio` | Open Prisma Studio |
 
-## Example API (feature `users`)
+## API
+
+### Public
 
 | Method | Path | Description |
 | --- | --- | --- |
+| `POST` | `/api/v1/auth/login/google` | Exchange a Google ID token for an access + refresh token pair |
+| `POST` | `/api/v1/auth/refresh` | Rotate a refresh token into a new pair |
+| `GET` | `/health` | Health check |
+
+### Requires `Authorization: Bearer <accessToken>`
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/me` | Current authenticated user |
+| `POST` | `/api/v1/auth/logout` | Revoke the current session |
 | `POST` | `/api/v1/users` | Create a user |
 | `GET` | `/api/v1/users?page=&pageSize=` | List users (paginated) |
 | `GET` | `/api/v1/users/:id` | Get a user |
 | `PATCH` | `/api/v1/users/:id` | Update a user |
 | `DELETE` | `/api/v1/users/:id` | Delete a user |
-| `GET` | `/health` | Health check |
+
+## Authentication
+
+The client obtains a Google ID token (Google Identity Services) and posts it to
+`/api/v1/auth/login/google`. The server verifies the token's signature with
+`google-auth-library`, then finds or creates the matching user and issues its
+own JWT pair.
+
+Both tokens of a login share one session id (`sid`), so revoking the session
+invalidates the access token and its refresh token together:
+
+- **Access token** — short-lived (`ACCESS_TOKEN_TTL_MINUTES`), sent as
+  `Authorization: Bearer <token>`. It never outlives its session.
+- **Refresh token** — lives until the session expires
+  (`SESSION_TTL_MINUTES`) and is **single-use**: `/auth/refresh` records its
+  `jti` in `revoked_keys`, so replaying a stolen refresh token returns 401.
+- **Logout** — records the `sid` in `revoked_keys`, which immediately rejects
+  every token issued for that session.
+
+`GOOGLE_CLIENT_ID` must be a real OAuth client ID from the Google Cloud
+console for login to succeed; the other auth variables have working defaults
+in `.env.example`.

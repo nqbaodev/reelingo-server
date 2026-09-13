@@ -11,8 +11,21 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String
+  googleId  String?  @unique @map("google_id")
+  avatarUrl String?  @map("avatar_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+/// One row per revoked refresh token (`token:<jti>`) or revoked session
+/// (`session:<sid>`). Rows outlive their token only until `expiresAt`, after
+/// which they carry no meaning and can be deleted.
+model RevokedKey {
+  key       String   @id
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("revoked_keys")
 }
