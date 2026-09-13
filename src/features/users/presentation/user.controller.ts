@@ -1,16 +1,16 @@
 import type { Request, Response } from "express";
+import { sendSuccess } from "@/core/http";
 import type { PaginationParams } from "@/core/types/pagination";
 import type {
-  CreateUserUseCase,
   DeleteUserUseCase,
   GetUserUseCase,
   ListUsersUseCase,
   UpdateUserUseCase,
 } from "../application";
 import { toUserListResponse, toUserResponse } from "./user.presenter";
+import { I18n } from "@/core/i18n";
 
 interface UserControllerDeps {
-  createUser: CreateUserUseCase;
   getUser: GetUserUseCase;
   listUsers: ListUsersUseCase;
   updateUser: UpdateUserUseCase;
@@ -20,29 +20,21 @@ interface UserControllerDeps {
 export class UserController {
   constructor(private readonly deps: UserControllerDeps) {}
 
-  create = async (req: Request, res: Response) => {
-    const user = await this.deps.createUser.execute(req.body);
-    res.status(201).json(toUserResponse(user));
-  };
-
   getById = async (req: Request, res: Response) => {
     const user = await this.deps.getUser.execute(req.params.id as string);
-    res.status(200).json(toUserResponse(user));
+    sendSuccess(res, toUserResponse(user));
   };
 
   list = async (req: Request, res: Response) => {
     const result = await this.deps.listUsers.execute(
       req.validatedQuery as PaginationParams,
     );
-    res.status(200).json(toUserListResponse(result));
+    sendSuccess(res, toUserListResponse(result));
   };
 
   update = async (req: Request, res: Response) => {
-    const user = await this.deps.updateUser.execute(
-      req.params.id as string,
-      req.body,
-    );
-    res.status(200).json(toUserResponse(user));
+    const user = await this.deps.updateUser.execute(req.params.id as string, req.body);
+    sendSuccess(res, toUserResponse(user), I18n.updated);
   };
 
   delete = async (req: Request, res: Response) => {

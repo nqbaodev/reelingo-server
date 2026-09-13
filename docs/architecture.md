@@ -1,8 +1,8 @@
 # Architecture guidelines
 
 Organize code by feature first, then by layer within each feature. The app
-currently composes a `health` feature and a `users` feature (demonstrating the
-full layering) on top of shared Express/Prisma infrastructure.
+currently composes `health`, `auth`, `users`, and `ai` features on top of
+shared Express/Prisma infrastructure.
 
 ## Responsibilities and dependencies
 
@@ -14,10 +14,30 @@ full layering) on top of shared Express/Prisma infrastructure.
 | `features/<feature>/presentation` | Express router, controller, Zod validators, response presenter |
 | `features/<feature>/<feature>.module.ts` | Composition root: wires the adapter into use cases and exposes a router |
 | `config` | `env.ts` validates raw environment variables; `config.ts` groups them by domain and is what the rest of the app imports |
-| `core` | Cross-cutting abstractions independent of any feature (`AppError`, `asyncHandler`, `validate`, pagination) |
+| `core` | Cross-cutting abstractions independent of any feature (`AppError`, `asyncHandler`, `validate`, pagination, `i18n`) |
+| `core/i18n` | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
 | `shared` | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware) |
 | `app.ts` | Mounts feature routers and cross-cutting middleware |
 | `server.ts` | Starts the HTTP server and handles graceful shutdown |
+
+## HTTP conventions
+
+- `core/i18n` owns the pure language resolver, typed message catalogs, and
+  parameter interpolation. It does not import Express or access request state.
+- `shared/middlewares/language.ts` selects a language per request. `AppError`
+  carries a typed message key and parameters; the global error handler translates
+  it and returns `{ success: false, message, error: { code } }`. No error details
+  are exposed.
+- Feature controllers pass presenter output to `core/http/sendSuccess`, which
+  returns `{ success: true, message, data }`. Responses are built explicitly;
+  Express's `res.json` is not replaced or intercepted. A 204 stays empty.
+- `openapi.ts` composes the public API contract from feature validators;
+  `shared/http/docs.routes.ts` only serves the document and Swagger UI.
+- The `health` feature owns probe routes and the readiness interface/Prisma
+  adapter. `health.module.ts` wires the real database; probes do not require
+  a domain entity, repository table, or HTTP response envelope.
+- `app.ts` mounts the API rate limiter once and composes protected feature
+  routers behind one authentication middleware. Public probes/docs are separate.
 
 ## Dependency rule
 
@@ -46,7 +66,8 @@ responsibility until one is added.
 Implement domain/application/infrastructure/presentation only for a concrete
 business requirement — do not add sample logic to fill out a layer. Express
 serves the HTTP API; Prisma is the only persistence adapter currently wired
-up. No auth, queue, or external service integration has been added.
+up. Google Identity and Gemini are the wired external services, and the `auth`
+feature owns authentication. No queue or background worker has been added.
 
 For a service integration (email, storage, a third-party API), define the
 interface in `application`, or in `infrastructure` next to its adapter

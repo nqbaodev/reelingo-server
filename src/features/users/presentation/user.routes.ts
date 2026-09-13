@@ -2,7 +2,6 @@ import { Router } from "express";
 import { asyncHandler, validate } from "@/core/http";
 import type { UserController } from "./user.controller";
 import {
-  createUserSchema,
   listUsersQuerySchema,
   updateUserSchema,
   userIdParamsSchema,
@@ -10,12 +9,6 @@ import {
 
 export function createUserRouter(controller: UserController): Router {
   const router = Router();
-
-  router.post(
-    "/users",
-    validate({ body: createUserSchema }),
-    asyncHandler(controller.create),
-  );
 
   router.get(
     "/users",

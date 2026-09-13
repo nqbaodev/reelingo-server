@@ -25,6 +25,46 @@ Prisma `P1010: User was denied access`. Setup steps and connection checks are in
 The `reelingo` role needs `CREATEDB` — `prisma migrate dev` provisions a shadow
 database and fails with `P3014` without it.
 
+## Authentication
+
+Routers mounted under `/api/v1` in `app.ts` sit behind `authModule.authenticate`,
+so **a new route is authenticated by default** and returns 401 without an
+`Authorization: Bearer <accessToken>` header. Reach the caller through
+`req.auth` (`{ user, claims }`), never by decoding the token again. To expose a
+route publicly, mount it on the auth module's own unguarded router.
+
+Google login is the **only** way a user row is created — there is no
+`POST /users` on purpose. Accounts are matched by Google `sub` (`googleId`)
+alone, never by email; do not add an email-based lookup or link step, and do
+not add another creation path. Email is written once at creation and left
+alone afterwards (`syncProfile` refreshes only name and avatar).
+
+Sessions, single-use refresh tokens, and the `revoked_keys` table are described
+in [README.md](README.md#authentication).
+
+## Configuration
+
+Every setting is read from `config` (`@/config`). Add one by validating it in
+`src/config/env.ts`, then exposing it through the matching group in
+`src/config/config.ts`; do not read `process.env` elsewhere. When you add a
+variable, update all three of `.env.example`, the README table, and
+`tests/setup.ts` (required variables only) in the same change.
+
+## Secrets
+
+`JWT_SECRET`, `GEMINI_API_KEY`, and any Google *client secret* are secrets.
+The full list, sources, and generation command are in
+[README.md](README.md#secrets).
+
+- Never print a secret's value into the conversation, a log line, a commit, or
+  a PR description — not even to "confirm it is set". Check length or prefix
+  instead (the README shows how).
+- Generate new secrets with `crypto.randomBytes`; never invent or reuse one.
+- `.env` is gitignored and is the only local home for real values;
+  `.env.example` holds placeholders only.
+- Do not change `JWT_SECRET` as a side effect of other work: rotating it signs
+  every user out.
+
 ## Working guidelines
 
 **Think before coding.** State assumptions that affect the outcome; ask when missing

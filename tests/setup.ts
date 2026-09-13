@@ -3,4 +3,5 @@ process.env.DATABASE_URL ??=
 process.env.NODE_ENV ??= "test";
 process.env.LOG_LEVEL ??= "silent";
 process.env.GOOGLE_CLIENT_ID ??= "test-google-client-id.apps.googleusercontent.com";
+process.env.GEMINI_API_KEY ??= "test-gemini-api-key";
 process.env.JWT_SECRET ??= "test-jwt-secret-that-is-long-enough-for-zod";

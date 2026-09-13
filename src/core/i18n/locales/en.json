@@ -1,0 +1,25 @@
+{
+  "requestCompleted": "Request completed successfully",
+  "updated": "Updated successfully",
+  "signedIn": "Signed in successfully",
+  "sessionRefreshed": "Session refreshed successfully",
+  "signedOut": "Signed out successfully",
+  "textGenerated": "Text generated successfully",
+
+  "routeNotFound": "Route not found",
+  "validationFailed": "Request validation failed",
+  "somethingWentWrong": "Something went wrong",
+  "invalidJson": "Request body must be valid JSON",
+  "payloadTooLarge": "Request body is too large",
+  "unsupportedEncoding": "Unsupported request encoding or character set",
+  "invalidRequest": "Invalid request",
+  "tooManyRequests": "Too many requests. Please try again later",
+
+  "missingToken": "Missing bearer token",
+  "invalidToken": "Invalid or expired token",
+  "invalidGoogleToken": "Invalid Google ID token",
+
+  "userNotFound": "User not found",
+  "emailInUse": "Email {email} is already in use",
+  "serviceUnavailable": "{service} is unavailable"
+}

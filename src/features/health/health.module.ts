@@ -1,5 +1,7 @@
-import { healthRouter } from "./presentation/health.routes";
+import type { PrismaClient } from "@/generated/prisma/client";
+import { PrismaReadiness } from "./infrastructure/prisma-readiness";
+import { createHealthRouter } from "./presentation/health.routes";
 
-export const healthModule = {
-  router: healthRouter,
-};
+export function createHealthModule(prisma: PrismaClient) {
+  return { router: createHealthRouter(new PrismaReadiness(prisma)) };
+}

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { ServiceUnavailableError, UnauthorizedError } from "@/core/errors";
+import { sendSuccess } from "@/core/http";
 import type {
   LoginWithGoogleUseCase,
   LogoutUseCase,
@@ -15,6 +16,7 @@ import {
   toCurrentUserResponse,
   toTokenPairResponse,
 } from "./auth.presenter";
+import { I18n } from "@/core/i18n";
 
 interface AuthControllerDeps {
   googleIdentity: GoogleIdentityClient;
@@ -34,23 +36,23 @@ export class AuthController {
       identity = await this.deps.googleIdentity.verifyIdToken(idToken);
     } catch (err) {
       if (err instanceof GoogleIdentityUnavailableError) {
-        throw new ServiceUnavailableError("Google identity is unavailable");
+        throw new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Google Identity" }, cause: err });
       }
-      throw new UnauthorizedError("Invalid Google ID token");
+      throw new UnauthorizedError(I18n.invalidGoogleToken, { cause: err });
     }
 
     const { user, tokens } = await this.deps.loginWithGoogle.execute(identity);
-    res.status(200).json(toAuthResponse(user, tokens));
+    sendSuccess(res, toAuthResponse(user, tokens), I18n.signedIn);
   };
 
   refresh = async (req: Request, res: Response) => {
     const { refreshToken } = req.body as { refreshToken: string };
     try {
       const tokens = await this.deps.refreshSession.execute(refreshToken);
-      res.status(200).json(toTokenPairResponse(tokens));
+      sendSuccess(res, toTokenPairResponse(tokens), I18n.sessionRefreshed);
     } catch (err) {
       throw err instanceof TokenRevocationStoreError
-        ? new ServiceUnavailableError("Session store is unavailable")
+        ? new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Session store" }, cause: err })
         : err;
     }
   };
@@ -61,20 +63,20 @@ export class AuthController {
       await this.deps.logout.execute(auth.claims);
     } catch (err) {
       throw err instanceof TokenRevocationStoreError
-        ? new ServiceUnavailableError("Session store is unavailable")
+        ? new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Session store" }, cause: err })
         : err;
     }
-    res.status(200).json({ loggedOut: true });
+    sendSuccess(res, { loggedOut: true }, I18n.signedOut);
   };
 
   me = async (req: Request, res: Response) => {
-    res.status(200).json(toCurrentUserResponse(requireAuth(req).user));
+    sendSuccess(res, toCurrentUserResponse(requireAuth(req).user));
   };
 }
 
 function requireAuth(req: Request) {
   if (!req.auth) {
-    throw new UnauthorizedError("Missing bearer token");
+    throw new UnauthorizedError(I18n.missingToken);
   }
   return req.auth;
 }
