@@ -57,6 +57,13 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 - Throw `AppError` subclasses (`core/errors`) for expected failures
   (not found, conflict, validation, unauthorized). Let unexpected errors reach
   `errorHandler` — do not catch-and-swallow them in a use case or controller.
+- Only `AppError` subclasses reach the client, so only they take an `I18n`
+  key. Errors thrown inside infrastructure (`GoogleIdentityError`,
+  `TokenRevocationStoreError`, plain `new Error(...)`) are log-only: keep
+  their messages in plain English, as specific as possible, and never route
+  them through `I18n`. Several distinct internal failures may map to one
+  client message on purpose (e.g. every Google token problem →
+  `invalidGoogleToken`) so the response does not reveal which check failed.
 - When translating an infrastructure failure into an `AppError`, pass the
   original as `{ cause: err }`. `errorHandler` logs the full cause chain, so a
   wrapped 503 still tells on-call *why* (bad API key, quota, timeout); without

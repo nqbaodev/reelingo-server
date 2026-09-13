@@ -224,7 +224,10 @@ quits.
 The client obtains a Google ID token (Google Identity Services) and posts it to
 `/api/v1/auth/login/google`. The server verifies the token's signature with
 `google-auth-library`, then finds or creates the matching user and issues its
-own JWT pair.
+own JWT pair. Users are matched by Google's permanent `sub` claim only, never
+by email, and this login is the sole way an account comes into existence. On
+later logins the stored name and avatar follow Google; the email is fixed at
+creation.
 
 Both tokens of a login share one session id (`sid`), so revoking the session
 invalidates the access token and its refresh token together:

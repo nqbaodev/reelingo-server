@@ -33,6 +33,12 @@ so **a new route is authenticated by default** and returns 401 without an
 `req.auth` (`{ user, claims }`), never by decoding the token again. To expose a
 route publicly, mount it on the auth module's own unguarded router.
 
+Google login is the **only** way a user row is created — there is no
+`POST /users` on purpose. Accounts are matched by Google `sub` (`googleId`)
+alone, never by email; do not add an email-based lookup or link step, and do
+not add another creation path. Email is written once at creation and left
+alone afterwards (`syncProfile` refreshes only name and avatar).
+
 Sessions, single-use refresh tokens, and the `revoked_keys` table are described
 in [README.md](README.md#authentication).
 
