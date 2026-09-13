@@ -8,6 +8,8 @@ function toDomain(record: PrismaUser): User {
     id: record.id,
     email: record.email,
     name: record.name,
+    googleId: record.googleId,
+    avatarUrl: record.avatarUrl,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -23,6 +25,11 @@ export class UserPrismaRepository implements UserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const record = await this.prisma.user.findUnique({ where: { email } });
+    return record ? toDomain(record) : null;
+  }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    const record = await this.prisma.user.findUnique({ where: { googleId } });
     return record ? toDomain(record) : null;
   }
 

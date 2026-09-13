@@ -1,12 +1,14 @@
 import { createApp } from "@/app";
-import { env } from "@/config/env";
+import { config } from "@/config";
 import { prisma } from "@/shared/database";
 import { logger } from "@/shared/logger";
 
 const app = createApp();
 
-const server = app.listen(env.PORT, () => {
-  logger.info(`Server listening on port ${env.PORT} (${env.NODE_ENV})`);
+const server = app.listen(config.server.port, () => {
+  logger.info(
+    `Server listening on port ${config.server.port} (${config.nodeEnv})`,
+  );
 });
 
 async function shutdown(signal: string) {

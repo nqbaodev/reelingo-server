@@ -8,6 +8,7 @@ import type { NewUser, User, UserUpdate } from "../domain/user.entity";
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  findByGoogleId(googleId: string): Promise<User | null>;
   list(pagination: PaginationParams): Promise<PaginatedResult<User>>;
   create(data: NewUser): Promise<User>;
   update(id: string, data: UserUpdate): Promise<User>;

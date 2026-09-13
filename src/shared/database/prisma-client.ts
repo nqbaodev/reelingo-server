@@ -1,10 +1,10 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
-import { env } from "@/config/env";
+import { config } from "@/config";
 
-const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
+const adapter = new PrismaPg({ connectionString: config.database.url });
 
 export const prisma = new PrismaClient({
   adapter,
-  log: env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  log: config.isDevelopment ? ["warn", "error"] : ["error"],
 });
