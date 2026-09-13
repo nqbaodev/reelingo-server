@@ -47,6 +47,11 @@ reference rather than loading every document:
 `npm run check` runs `typecheck` and `lint`. `npm run verify` additionally runs
 the test suite and the production build; it stops on failure.
 
+The current project intentionally contains no `*.test.ts` files. Vitest is
+configured with `passWithNoTests`, so a successful `verify` currently proves
+static checks and compilation, not automated behavior coverage. Until tests
+are reintroduced, exercise changed HTTP behavior manually and record results.
+
 This project has no automated architecture boundary checker (e.g.
 dependency-cruiser) yet — the dependency rule in [architecture.md](architecture.md)
 is enforced by review, not by `check`. Treat this as a documented gap, not a

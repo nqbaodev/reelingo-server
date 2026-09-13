@@ -1,0 +1,25 @@
+{
+  "requestCompleted": "Yêu cầu đã được xử lý thành công",
+  "updated": "Cập nhật thành công",
+  "signedIn": "Đăng nhập thành công",
+  "sessionRefreshed": "Làm mới phiên đăng nhập thành công",
+  "signedOut": "Đăng xuất thành công",
+  "textGenerated": "Tạo văn bản thành công",
+
+  "routeNotFound": "Không tìm thấy đường dẫn",
+  "validationFailed": "Dữ liệu yêu cầu không hợp lệ",
+  "somethingWentWrong": "Đã xảy ra lỗi",
+  "invalidJson": "Nội dung yêu cầu phải là JSON hợp lệ",
+  "payloadTooLarge": "Nội dung yêu cầu quá lớn",
+  "unsupportedEncoding": "Định dạng mã hoá hoặc bảng mã không được hỗ trợ",
+  "invalidRequest": "Yêu cầu không hợp lệ",
+  "tooManyRequests": "Quá nhiều yêu cầu. Vui lòng thử lại sau",
+
+  "missingToken": "Thiếu bearer token",
+  "invalidToken": "Token không hợp lệ hoặc đã hết hạn",
+  "invalidGoogleToken": "Google ID token không hợp lệ",
+
+  "userNotFound": "Không tìm thấy người dùng",
+  "emailInUse": "Email {email} đã được sử dụng",
+  "serviceUnavailable": "{service} tạm thời không khả dụng"
+}

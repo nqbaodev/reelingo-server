@@ -1,5 +1,6 @@
 import { rateLimit } from "express-rate-limit";
 import { config } from "@/config";
+import { TooManyRequestsError } from "@/core/errors";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { UserPrismaRepository } from "@/features/users/infrastructure";
 import {
@@ -12,11 +13,8 @@ import {
   JwtService,
   TokenRevocationPrismaStore,
 } from "./infrastructure";
-import {
-  AuthController,
-  createAuthRouter,
-  createAuthenticate,
-} from "./presentation";
+import { AuthController, createAuthRouter, createAuthenticate } from "./presentation";
+import { I18n } from "@/core/i18n";
 
 export function createAuthModule(prisma: PrismaClient) {
   const users = new UserPrismaRepository(prisma);
@@ -36,6 +34,7 @@ export function createAuthModule(prisma: PrismaClient) {
     limit: config.rateLimit.auth.limit,
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (_req, _res, next) => next(new TooManyRequestsError(I18n.tooManyRequests)),
   });
 
   return {

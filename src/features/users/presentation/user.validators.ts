@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-export const createUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1).max(120),
-});
-
-export const updateUserSchema = createUserSchema.partial();
+export const updateUserSchema = z
+  .object({
+    email: z.string().email().transform((value) => value.trim().toLowerCase()),
+    name: z.string().min(1).max(120),
+  })
+  .partial();
 
 export const userIdParamsSchema = z.object({
   id: z.string().uuid(),

@@ -3,9 +3,10 @@ import { env } from "./env";
 const SECOND_MS = 1000;
 
 /**
- * The single place application code reads settings from. Modules depend on
- * these domain-shaped groups rather than on raw environment variable names,
- * so renaming a variable stays contained to `env.ts`.
+ * The single place application code reads settings from — both values that
+ * come from the environment and the static constants that define the API
+ * contract (header names). Modules depend on these
+ * domain-shaped groups rather than on raw variable names or string literals.
  */
 export const config = {
   nodeEnv: env.NODE_ENV,
@@ -18,12 +19,30 @@ export const config = {
     corsOrigin: env.CORS_ORIGIN,
   },
 
+  http: {
+    headers: {
+      /** Correlates a response with its log lines; echoed back if the client sends one. */
+      requestId: "X-Request-ID",
+    },
+  },
+
+  i18n: {
+    headers: {
+      /** Request header that explicitly selects the message language. */
+      language: "X-Language",
+      /** Response header announcing which language the message is in. */
+      contentLanguage: "Content-Language",
+    },
+  },
+
   logger: {
     level: env.LOG_LEVEL,
   },
 
   database: {
     url: env.DATABASE_URL,
+    connectTimeoutMs: env.DATABASE_CONNECT_TIMEOUT_MS,
+    queryTimeoutMs: env.DATABASE_QUERY_TIMEOUT_MS,
   },
 
   rateLimit: {
@@ -47,6 +66,14 @@ export const config = {
       audience: env.JWT_AUDIENCE,
       accessTtlMinutes: env.ACCESS_TOKEN_TTL_MINUTES,
       sessionTtlMinutes: env.SESSION_TTL_MINUTES,
+    },
+  },
+
+  ai: {
+    gemini: {
+      apiKey: env.GEMINI_API_KEY,
+      model: env.GEMINI_MODEL,
+      timeoutMs: env.GEMINI_TIMEOUT_MS,
     },
   },
 } as const;

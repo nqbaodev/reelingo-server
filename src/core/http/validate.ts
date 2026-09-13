@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { ZodError, type ZodType } from "zod";
 import { ValidationError } from "@/core/errors";
+import { I18n, zodErrorMap } from "@/core/i18n";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- augmenting Express's global types requires namespace syntax
@@ -17,9 +18,14 @@ interface Schemas {
   params?: ZodType;
 }
 
-function formatZodError(err: ZodError) {
+export interface ValidationIssue {
+  path: string;
+  message: string;
+}
+
+function toValidationIssues(err: ZodError): ValidationIssue[] {
   return err.issues.map((issue) => ({
-    path: issue.path.join("."),
+    path: issue.path.map(String).join("."),
     message: issue.message,
   }));
 }
@@ -33,20 +39,28 @@ function formatZodError(err: ZodError) {
  */
 export function validate(schemas: Schemas) {
   return (req: Request, _res: Response, next: NextFunction) => {
+    // Per-parse error map keeps Zod's issue messages in the request language
+    // without mutating Zod's global config across concurrent requests.
+    const options = { error: zodErrorMap(req.language) };
     try {
       if (schemas.body) {
-        req.body = schemas.body.parse(req.body);
+        req.body = schemas.body.parse(req.body, options);
       }
       if (schemas.query) {
-        req.validatedQuery = schemas.query.parse(req.query);
+        req.validatedQuery = schemas.query.parse(req.query, options);
       }
       if (schemas.params) {
-        req.params = schemas.params.parse(req.params) as typeof req.params;
+        req.params = schemas.params.parse(req.params, options) as typeof req.params;
       }
       next();
     } catch (err) {
       if (err instanceof ZodError) {
-        next(new ValidationError("Request validation failed", formatZodError(err)));
+        next(
+          new ValidationError(I18n.validationFailed, {
+            cause: err,
+            details: toValidationIssues(err),
+          }),
+        );
         return;
       }
       next(err);

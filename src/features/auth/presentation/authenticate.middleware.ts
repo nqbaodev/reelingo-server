@@ -8,6 +8,7 @@ import {
   type TokenRevocationStore,
   TokenRevocationStoreError,
 } from "../infrastructure";
+import { I18n } from "@/core/i18n";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- augmenting Express's global types requires namespace syntax
@@ -30,8 +31,8 @@ export function createAuthenticate(deps: {
       let claims: TokenClaims;
       try {
         claims = deps.jwt.verify(token, ACCESS_TOKEN_TYPE);
-      } catch {
-        throw new UnauthorizedError("Invalid or expired token");
+      } catch (err) {
+        throw new UnauthorizedError(I18n.invalidToken, { cause: err });
       }
 
       let revoked: boolean;
@@ -41,20 +42,20 @@ export function createAuthenticate(deps: {
           (await deps.revocations.isSessionRevoked(claims.sessionId));
       } catch (err) {
         if (err instanceof TokenRevocationStoreError) {
-          throw new ServiceUnavailableError("Session store is unavailable");
+          throw new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Session store" }, cause: err });
         }
         throw err;
       }
       if (revoked) {
-        throw new UnauthorizedError("Invalid or expired token");
+        throw new UnauthorizedError(I18n.invalidToken);
       }
 
       const user = await deps.users.findById(claims.userId);
       if (!user) {
-        throw new UnauthorizedError("User not found");
+        throw new UnauthorizedError(I18n.userNotFound);
       }
       if (claims.email !== user.email) {
-        throw new UnauthorizedError("Invalid token payload");
+        throw new UnauthorizedError(I18n.invalidToken);
       }
 
       req.auth = { user, claims };
@@ -68,7 +69,7 @@ export function createAuthenticate(deps: {
 function readBearerToken(header: string | undefined): string {
   const [scheme, value] = (header ?? "").split(" ");
   if (scheme?.toLowerCase() !== "bearer" || !value) {
-    throw new UnauthorizedError("Missing bearer token");
+    throw new UnauthorizedError(I18n.missingToken);
   }
   return value;
 }

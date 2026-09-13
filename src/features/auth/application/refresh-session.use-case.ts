@@ -2,6 +2,7 @@ import { UnauthorizedError } from "@/core/errors";
 import type { UserRepository } from "@/features/users/infrastructure";
 import { REFRESH_TOKEN_TYPE, type TokenPair } from "../domain";
 import type { JwtService, TokenRevocationStore } from "../infrastructure";
+import { I18n } from "@/core/i18n";
 
 export class RefreshSessionUseCase {
   constructor(
@@ -14,21 +15,21 @@ export class RefreshSessionUseCase {
     let claims;
     try {
       claims = this.jwt.verify(refreshToken, REFRESH_TOKEN_TYPE);
-    } catch {
-      throw new UnauthorizedError("Invalid or expired token");
+    } catch (err) {
+      throw new UnauthorizedError(I18n.invalidToken, { cause: err });
     }
 
     if (await this.revocations.isSessionRevoked(claims.sessionId)) {
-      throw new UnauthorizedError("Invalid or expired token");
+      throw new UnauthorizedError(I18n.invalidToken);
     }
 
     const user = await this.users.findById(claims.userId);
     if (!user) {
-      throw new UnauthorizedError("User not found");
+      throw new UnauthorizedError(I18n.userNotFound);
     }
     // A token minted before an email change must not survive it.
     if (claims.email !== user.email) {
-      throw new UnauthorizedError("Invalid token payload");
+      throw new UnauthorizedError(I18n.invalidToken);
     }
 
     const consumed = await this.revocations.consumeToken(
@@ -36,7 +37,7 @@ export class RefreshSessionUseCase {
       claims.expiresAt,
     );
     if (!consumed) {
-      throw new UnauthorizedError("Invalid or expired token");
+      throw new UnauthorizedError(I18n.invalidToken);
     }
 
     return this.jwt.createTokenPair(user.id, user.email, {

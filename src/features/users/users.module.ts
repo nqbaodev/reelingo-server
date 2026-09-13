@@ -1,6 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
-  CreateUserUseCase,
   DeleteUserUseCase,
   GetUserUseCase,
   ListUsersUseCase,
@@ -18,7 +17,6 @@ export function createUsersModule(prisma: PrismaClient) {
   const repository = new UserPrismaRepository(prisma);
 
   const controller = new UserController({
-    createUser: new CreateUserUseCase(repository),
     getUser: new GetUserUseCase(repository),
     listUsers: new ListUsersUseCase(repository),
     updateUser: new UpdateUserUseCase(repository),

@@ -39,6 +39,16 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 - Validate every external input (HTTP body/query/params) with Zod at the
   presentation boundary (`validate()` in `core/http`); do not trust `req.body`
   or `req.query` downstream of it.
+- Message keys are flat `camelCase` abbreviations of the English sentence
+  (`userNotFound`, `serviceUnavailable`) with no feature prefix; reuse an
+  existing key before adding one, and put variable parts in `params` with
+  `{name}` placeholders. Reference keys through `I18n.<camelCase>` from
+  `@/core/i18n`, never as a string literal. Only `core/i18n/translator.ts`
+  may import i18next.
+- Language codes come from `LANGUAGE` / `SUPPORTED_LANGUAGES` /
+  `DEFAULT_LANGUAGE` in `core/i18n`; HTTP header names come from
+  `config.http.headers` and `config.i18n.headers`. Do not write `"en"`,
+  `"vi"`, or a header name as a literal anywhere else.
 - Read a validated query string from `req.validatedQuery`, never from
   `req.query`. Express 5 defines `req.query` as a getter with no setter, so
   `validate()` cannot assign the parsed value back onto it — doing so throws
@@ -47,6 +57,11 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 - Throw `AppError` subclasses (`core/errors`) for expected failures
   (not found, conflict, validation, unauthorized). Let unexpected errors reach
   `errorHandler` — do not catch-and-swallow them in a use case or controller.
+- When translating an infrastructure failure into an `AppError`, pass the
+  original as `{ cause: err }`. `errorHandler` logs the full cause chain, so a
+  wrapped 503 still tells on-call *why* (bad API key, quota, timeout); without
+  it the log says only "unavailable". Put client-safe data in `details`, never
+  in `cause`.
 - Shape HTTP responses through a feature's `*.presenter.ts` rather than
   returning a domain entity directly, so internal-only fields never leak
   through the API by accident.

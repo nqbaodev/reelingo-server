@@ -9,43 +9,31 @@ export class LoginWithGoogleUseCase {
     private readonly jwt: JwtService,
   ) {}
 
-  async execute(
-    identity: GoogleIdentity,
-  ): Promise<{ user: User; tokens: TokenPair }> {
-    const email = identity.email.trim().toLowerCase();
-    const existing = await this.users.findByGoogleId(identity.googleId);
-
-    const user = existing
-      ? await this.users.update(existing.id, {
-          email,
-          name: identity.name,
-          avatarUrl: identity.avatarUrl,
-        })
-      : await this.linkOrCreate(identity, email);
-
+  async execute(identity: GoogleIdentity): Promise<{ user: User; tokens: TokenPair }> {
+    const user = await this.resolveUser(identity);
     return { user, tokens: this.jwt.createTokenPair(user.id, user.email) };
   }
 
   /**
-   * A user may already exist from the users CRUD feature without a Google
-   * identity; the first Google login adopts that row instead of failing on
-   * the unique email constraint.
+   * Google's `sub` is the only identity we match on. Login is the sole way an
+   * account is created, so an unknown `sub` is always a new user.
    */
-  private async linkOrCreate(
-    identity: GoogleIdentity,
-    email: string,
-  ): Promise<User> {
-    const byEmail = await this.users.findByEmail(email);
-    if (byEmail) {
-      return this.users.update(byEmail.id, {
-        name: identity.name,
-        googleId: identity.googleId,
-        avatarUrl: identity.avatarUrl,
-      });
-    }
+  private async resolveUser(identity: GoogleIdentity): Promise<User> {
+    const existing = await this.users.findByGoogleId(identity.googleId);
+    return existing ? this.syncProfile(existing, identity) : this.createFromGoogle(identity);
+  }
 
+  /** Returning user: refresh the display fields Google may have changed. Email is fixed at creation. */
+  private syncProfile(user: User, identity: GoogleIdentity): Promise<User> {
+    return this.users.update(user.id, {
+      name: identity.name,
+      avatarUrl: identity.avatarUrl,
+    });
+  }
+
+  private createFromGoogle(identity: GoogleIdentity): Promise<User> {
     return this.users.create({
-      email,
+      email: identity.email.trim().toLowerCase(),
       name: identity.name,
       googleId: identity.googleId,
       avatarUrl: identity.avatarUrl,
