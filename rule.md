@@ -2,10 +2,10 @@
 
 ## Language
 
-Write code identifiers, comments, project rules (`AGENTS.md`, `rule.md`,
-`docs/`), and agent skills in English. `README.md` may stay in the
-maintainer's language; keep it in sync with whichever harness doc it links to
-when structure changes.
+Write everything in English: code identifiers, comments, project rules
+(`AGENTS.md`, `rule.md`, `docs/`), agent skills, and `README.md`. Keep
+`README.md` in sync with whichever harness doc it links to when structure
+changes.
 
 ## Architecture
 
@@ -35,6 +35,11 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 - Validate every external input (HTTP body/query/params) with Zod at the
   presentation boundary (`validate()` in `core/http`); do not trust `req.body`
   or `req.query` downstream of it.
+- Read a validated query string from `req.validatedQuery`, never from
+  `req.query`. Express 5 defines `req.query` as a getter with no setter, so
+  `validate()` cannot assign the parsed value back onto it — doing so throws
+  `TypeError: Cannot set property query` and turns every affected endpoint
+  into a 500.
 - Throw `AppError` subclasses (`core/errors`) for expected failures
   (not found, conflict, validation, unauthorized). Let unexpected errors reach
   `errorHandler` — do not catch-and-swallow them in a use case or controller.
@@ -44,10 +49,11 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 
 ## Testing
 
-- Unit-test use cases against an in-memory fake repository (see
-  `tests/fakes/`); do not mock the ORM directly.
 - Integration-test HTTP behavior by booting the real app (`createApp()`) with
   supertest; do not start a real network listener in tests.
+- This project does not keep fake or in-memory repository implementations.
+  A test that needs persistence runs against a real PostgreSQL database; do
+  not mock the ORM to avoid one.
 - Add tests for meaningful business behavior and failure cases. Do not add
   tests that merely restate the implementation.
 
