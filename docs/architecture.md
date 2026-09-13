@@ -13,6 +13,7 @@ full layering) on top of shared Express/Prisma infrastructure.
 | `features/<feature>/infrastructure` | Repository interface (port) and its concrete adapter (Prisma) |
 | `features/<feature>/presentation` | Express router, controller, Zod validators, response presenter |
 | `features/<feature>/<feature>.module.ts` | Composition root: wires the adapter into use cases and exposes a router |
+| `config` | `env.ts` validates raw environment variables; `config.ts` groups them by domain and is what the rest of the app imports |
 | `core` | Cross-cutting abstractions independent of any feature (`AppError`, `asyncHandler`, `validate`, pagination) |
 | `shared` | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware) |
 | `app.ts` | Mounts feature routers and cross-cutting middleware |

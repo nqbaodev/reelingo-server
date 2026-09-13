@@ -7,7 +7,7 @@ organized as **feature-first Clean Architecture**.
 
 ```
 src/
-  config/            # Read & validate environment variables (Zod)
+  config/            # env.ts validates raw env vars (Zod); config.ts groups them by domain
   core/               # Shared abstractions, independent of any concrete framework
     errors/            # AppError and domain errors (NotFoundError, ConflictError, ...)
     http/               # asyncHandler, validate() middleware factory

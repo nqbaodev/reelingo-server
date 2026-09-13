@@ -1,8 +1,9 @@
 import { rateLimit } from "express-rate-limit";
+import { config } from "@/config";
 
 export const apiRateLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 100,
+  windowMs: config.rateLimit.api.windowMs,
+  limit: config.rateLimit.api.limit,
   standardHeaders: true,
   legacyHeaders: false,
 });

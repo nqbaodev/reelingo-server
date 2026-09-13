@@ -30,6 +30,10 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 
 - Keep TypeScript strict; do not use `any` or type assertions to hide type
   errors.
+- Read settings from `config` (`@/config`), never from `process.env` or
+  `@/config/env` outside the `config` directory. Add a new setting by
+  validating it in `env.ts` and exposing it through the matching group in
+  `config.ts`, so a renamed variable stays contained there.
 - Use `PascalCase` for classes/types, `camelCase` for functions/variables, and
   `kebab-case` for files/directories.
 - Validate every external input (HTTP body/query/params) with Zod at the

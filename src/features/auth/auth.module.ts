@@ -1,5 +1,5 @@
 import { rateLimit } from "express-rate-limit";
-import { env } from "@/config/env";
+import { config } from "@/config";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { UserPrismaRepository } from "@/features/users/infrastructure";
 import {
@@ -21,16 +21,10 @@ import {
 export function createAuthModule(prisma: PrismaClient) {
   const users = new UserPrismaRepository(prisma);
   const revocations = new TokenRevocationPrismaStore(prisma);
-  const jwt = new JwtService({
-    secret: env.JWT_SECRET,
-    issuer: env.JWT_ISSUER,
-    audience: env.JWT_AUDIENCE,
-    accessTtlMinutes: env.ACCESS_TOKEN_TTL_MINUTES,
-    sessionTtlMinutes: env.SESSION_TTL_MINUTES,
-  });
+  const jwt = new JwtService(config.auth.jwt);
 
   const controller = new AuthController({
-    googleIdentity: new GoogleIdentityClient(env.GOOGLE_CLIENT_ID),
+    googleIdentity: new GoogleIdentityClient(config.auth.google.clientId),
     loginWithGoogle: new LoginWithGoogleUseCase(users, jwt),
     refreshSession: new RefreshSessionUseCase(users, jwt, revocations),
     logout: new LogoutUseCase(revocations),
@@ -38,8 +32,8 @@ export function createAuthModule(prisma: PrismaClient) {
 
   const authenticate = createAuthenticate({ users, jwt, revocations });
   const loginRateLimiter = rateLimit({
-    windowMs: env.AUTH_RATE_WINDOW_SECONDS * 1000,
-    limit: env.AUTH_RATE_LIMIT,
+    windowMs: config.rateLimit.auth.windowMs,
+    limit: config.rateLimit.auth.limit,
     standardHeaders: true,
     legacyHeaders: false,
   });

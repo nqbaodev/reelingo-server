@@ -3,7 +3,7 @@ import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
-import { env } from "@/config/env";
+import { config } from "@/config";
 import { createAuthModule } from "@/features/auth/auth.module";
 import { healthModule } from "@/features/health/health.module";
 import { createUsersModule } from "@/features/users/users.module";
@@ -15,7 +15,7 @@ export function createApp(): Express {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: env.CORS_ORIGIN }));
+  app.use(cors({ origin: config.server.corsOrigin }));
   app.use(compression());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));

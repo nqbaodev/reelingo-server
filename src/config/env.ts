@@ -19,12 +19,16 @@ const envSchema = z.object({
   SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(10_080),
   AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(20),
   AUTH_RATE_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  API_RATE_LIMIT: z.coerce.number().int().positive().default(100),
+  API_RATE_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
 });
 
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("Invalid environment variables:", parsed.error.flatten().fieldErrors);
+  console.error(
+    `Invalid environment variables:\n${z.prettifyError(parsed.error)}`,
+  );
   throw new Error("Invalid environment variables");
 }
 
