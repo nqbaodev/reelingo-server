@@ -31,12 +31,10 @@ Zod. The repository **interface** (the port a use case codes against) lives in
 This is a deliberate deviation from the textbook Clean Architecture placement
 (interface in the inner layer, implementation in the outer layer). The
 trade-off: `application` is no longer independent of persistence details —
-swapping Prisma for another store touches the interface every use case
-depends on, and a use-case unit test imports the fake repository's type from
-`infrastructure` (see `tests/fakes/in-memory-user.repository.ts`). In exchange,
-the feature has one fewer folder/indirection. Follow this placement for new
-features unless a future decision revisits it — do not put some repository
-interfaces in `domain` and others in `infrastructure`.
+swapping Prisma for another store touches the interface every use case depends
+on. In exchange, the feature has one fewer folder/indirection. Follow this
+placement for new features unless a future decision revisits it — do not put
+some repository interfaces in `domain` and others in `infrastructure`.
 
 No automated boundary checker enforces this yet (see
 [development.md](development.md) verification table) — treat it as a review

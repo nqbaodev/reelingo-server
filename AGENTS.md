@@ -14,6 +14,17 @@ Read task-specific guidance as needed:
 - [Architecture](docs/architecture.md): feature ownership, layering, dependency
   rule, and how to add a feature.
 
+## Local database
+
+PostgreSQL runs as a **native Homebrew service on port 5432**, not the
+`docker-compose.yml` service. Starting the container conflicts on that port and
+connections silently reach the native server instead, surfacing as a misleading
+Prisma `P1010: User was denied access`. Setup steps and connection checks are in
+[README.md](README.md#database-local).
+
+The `reelingo` role needs `CREATEDB` — `prisma migrate dev` provisions a shadow
+database and fails with `P3014` without it.
+
 ## Working guidelines
 
 **Think before coding.** State assumptions that affect the outcome; ask when missing

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { PaginationParams } from "@/core/types/pagination";
 import type {
   CreateUserUseCase,
   DeleteUserUseCase,
@@ -30,11 +31,9 @@ export class UserController {
   };
 
   list = async (req: Request, res: Response) => {
-    const { page, pageSize } = req.query as unknown as {
-      page: number;
-      pageSize: number;
-    };
-    const result = await this.deps.listUsers.execute({ page, pageSize });
+    const result = await this.deps.listUsers.execute(
+      req.validatedQuery as PaginationParams,
+    );
     res.status(200).json(toUserListResponse(result));
   };
 
