@@ -1,10 +1,9 @@
 import type { PrismaClient } from "@/generated/prisma/client";
+import { isPrismaUniqueViolation } from "@/shared/database/prisma-error";
 import {
   type TokenRevocationStore,
   TokenRevocationStoreError,
 } from "./token-revocation.store";
-
-const UNIQUE_VIOLATION = "P2002";
 
 export class TokenRevocationPrismaStore implements TokenRevocationStore {
   constructor(private readonly prisma: PrismaClient) {}
@@ -25,7 +24,7 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
     } catch (err) {
       // The primary key turns a replayed refresh token into a conflict, which
       // is the signal that someone already used it.
-      if (isUniqueViolation(err)) {
+      if (isPrismaUniqueViolation(err)) {
         return false;
       }
       throw new TokenRevocationStoreError("Token revocation write failed");
@@ -68,13 +67,4 @@ function tokenKey(tokenId: string): string {
 
 function sessionKey(sessionId: string): string {
   return `session:${sessionId}`;
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: unknown }).code === UNIQUE_VIOLATION
-  );
 }

@@ -17,6 +17,7 @@ import {
   toTokenPairResponse,
 } from "./auth.presenter";
 import { I18n } from "@/core/i18n";
+import { requireAuth } from "./require-auth";
 
 interface AuthControllerDeps {
   googleIdentity: GoogleIdentityClient;
@@ -72,11 +73,4 @@ export class AuthController {
   me = async (req: Request, res: Response) => {
     sendSuccess(res, toCurrentUserResponse(requireAuth(req).user));
   };
-}
-
-function requireAuth(req: Request) {
-  if (!req.auth) {
-    throw new UnauthorizedError(I18n.missingToken);
-  }
-  return req.auth;
 }

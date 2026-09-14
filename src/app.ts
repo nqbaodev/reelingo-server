@@ -51,8 +51,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   app.use(healthModule.router);
   app.use(createDocsRouter(openApiDocument));
-  app.use("/api/v1", createApiRateLimiter(), authModule.router);
-  app.use("/api/v1", authModule.authenticate, usersModule.router, aiModule.router);
+  app.use(config.endpoints.apiPrefix, createApiRateLimiter(), authModule.router);
+  app.use(config.endpoints.apiPrefix, authModule.authenticate, usersModule.router, aiModule.router);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

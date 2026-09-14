@@ -1,5 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { ServiceUnavailableError, UnauthorizedError } from "@/core/errors";
+import { readBearerToken } from "./bearer-token";
 import type { User } from "@/features/users/domain";
 import type { UserRepository } from "@/features/users/infrastructure";
 import { ACCESS_TOKEN_TYPE, type TokenClaims } from "../domain";
@@ -27,6 +28,9 @@ export function createAuthenticate(deps: {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const token = readBearerToken(req.headers.authorization);
+      if (!token) {
+        throw new UnauthorizedError(I18n.missingToken);
+      }
 
       let claims: TokenClaims;
       try {
@@ -64,12 +68,4 @@ export function createAuthenticate(deps: {
       next(err);
     }
   };
-}
-
-function readBearerToken(header: string | undefined): string {
-  const [scheme, value] = (header ?? "").split(" ");
-  if (scheme?.toLowerCase() !== "bearer" || !value) {
-    throw new UnauthorizedError(I18n.missingToken);
-  }
-  return value;
 }

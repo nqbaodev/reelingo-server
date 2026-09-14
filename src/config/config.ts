@@ -18,6 +18,31 @@ export const config = {
     corsOrigin: env.CORS_ORIGIN,
   },
 
+  endpoints: {
+    apiPrefix: "/api/v1",
+    auth: {
+      googleLogin: "/auth/login/google",
+      refresh: "/auth/refresh",
+      logout: "/auth/logout",
+      me: "/me",
+    },
+    users: {
+      list: "/users",
+      byId: "/users/:id",
+    },
+    ai: {
+      generate: "/ai/generate",
+    },
+    health: {
+      liveness: "/health",
+      readiness: "/ready",
+    },
+    docs: {
+      ui: "/docs",
+      document: "/openapi.json",
+    },
+  },
+
   http: {
     headers: {
       /** Correlates a response with its log lines; echoed back if the client sends one. */

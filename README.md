@@ -197,6 +197,11 @@ quits.
 
 ## API
 
+`config.endpoints` defines the shared API prefix (`apiPrefix`, `/api/v1`)
+and paths grouped under `auth`, `users`, `ai`, `health`, and `docs`.
+Routers and OpenAPI reuse these values. API feature paths are relative to
+the prefix; health and documentation paths are mounted at the root.
+
 ### Public
 
 | Method | Path | Description |

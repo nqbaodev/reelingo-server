@@ -1,5 +1,6 @@
-import { Router } from "express";
-import { asyncHandler, validate } from "@/core/http";
+import { config } from "@/config";
+import type { Router } from "express";
+import { HttpMethod, createBaseRouter, validate } from "@/core/http";
 import type { UserController } from "./user.controller";
 import {
   listUsersQuerySchema,
@@ -8,31 +9,32 @@ import {
 } from "./user.validators";
 
 export function createUserRouter(controller: UserController): Router {
-  const router = Router();
-
-  router.get(
-    "/users",
-    validate({ query: listUsersQuerySchema }),
-    asyncHandler(controller.list),
-  );
-
-  router.get(
-    "/users/:id",
-    validate({ params: userIdParamsSchema }),
-    asyncHandler(controller.getById),
-  );
-
-  router.patch(
-    "/users/:id",
-    validate({ params: userIdParamsSchema, body: updateUserSchema }),
-    asyncHandler(controller.update),
-  );
-
-  router.delete(
-    "/users/:id",
-    validate({ params: userIdParamsSchema }),
-    asyncHandler(controller.delete),
-  );
-
-  return router;
+  return createBaseRouter([
+    {
+      method: HttpMethod.GET,
+      path: config.endpoints.users.list,
+      middlewares: [validate({ query: listUsersQuerySchema })],
+      handler: controller.list,
+    },
+    {
+      method: HttpMethod.GET,
+      path: config.endpoints.users.byId,
+      middlewares: [validate({ params: userIdParamsSchema })],
+      handler: controller.getById,
+    },
+    {
+      method: HttpMethod.PATCH,
+      path: config.endpoints.users.byId,
+      middlewares: [
+        validate({ params: userIdParamsSchema, body: updateUserSchema }),
+      ],
+      handler: controller.update,
+    },
+    {
+      method: HttpMethod.DELETE,
+      path: config.endpoints.users.byId,
+      middlewares: [validate({ params: userIdParamsSchema })],
+      handler: controller.delete,
+    },
+  ]);
 }

@@ -1,17 +1,18 @@
+import { config } from "@/config";
 import { Router } from "express";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 
 export function createDocsRouter(document: object) {
   const router = Router();
-  router.get("/openapi.json", (_req, res) => res.json(document));
+  router.get(config.endpoints.docs.document, (_req, res) => res.json(document));
   router.use(
-    "/docs",
+    config.endpoints.docs.ui,
     helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }),
     swaggerUi.serve,
     swaggerUi.setup(undefined, {
       swaggerOptions: {
-        url: "/openapi.json",
+        url: config.endpoints.docs.document,
         validatorUrl: null,
         persistAuthorization: false,
       },

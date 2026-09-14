@@ -149,7 +149,7 @@ export const openApiDocument = {
     },
   },
   paths: {
-    "/health": {
+    [config.endpoints.health.liveness]: {
       get: {
         tags: ["Health"],
         operationId: "getHealth",
@@ -163,7 +163,7 @@ export const openApiDocument = {
         },
       },
     },
-    "/ready": {
+    [config.endpoints.health.readiness]: {
       get: {
         tags: ["Health"],
         operationId: "getReadiness",
@@ -184,7 +184,7 @@ export const openApiDocument = {
         },
       },
     },
-    "/api/v1/auth/login/google": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.auth.googleLogin}`]: {
       post: {
         tags: ["Auth"],
         operationId: "loginWithGoogle",
@@ -198,7 +198,7 @@ export const openApiDocument = {
         },
       },
     },
-    "/api/v1/auth/refresh": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.auth.refresh}`]: {
       post: {
         tags: ["Auth"],
         operationId: "refreshSession",
@@ -209,7 +209,7 @@ export const openApiDocument = {
         responses: { 200: success(tokenPair), ...authErrors },
       },
     },
-    "/api/v1/auth/logout": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.auth.logout}`]: {
       post: {
         tags: ["Auth"],
         operationId: "logout",
@@ -221,7 +221,7 @@ export const openApiDocument = {
         },
       },
     },
-    "/api/v1/me": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.auth.me}`]: {
       get: {
         tags: ["Auth"],
         operationId: "getCurrentUser",
@@ -230,7 +230,7 @@ export const openApiDocument = {
         responses: { 200: success(currentUser), ...protectedErrors },
       },
     },
-    "/api/v1/users": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.users.list}`]: {
       get: {
         tags: ["Users"],
         operationId: "listUsers",
@@ -259,7 +259,7 @@ export const openApiDocument = {
         },
       },
     },
-    "/api/v1/users/{id}": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.users.byId.replace(":id", "{id}")}`]: {
       get: {
         tags: ["Users"],
         operationId: "getUser",
@@ -287,7 +287,7 @@ export const openApiDocument = {
         },
       },
     },
-    "/api/v1/ai/generate": {
+    [`${config.endpoints.apiPrefix}${config.endpoints.ai.generate}`]: {
       post: {
         tags: ["AI"],
         operationId: "generateText",
