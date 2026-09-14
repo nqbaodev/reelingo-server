@@ -176,7 +176,7 @@ export const openApiDocument = {
         parameters: languageParameters,
         requestBody: requestBody(googleLoginSchema),
         responses: {
-          200: success(tokenPair.extend({ user: currentUser })),
+          200: success(tokenPair),
           ...authErrors,
         },
       },

@@ -13,7 +13,7 @@ import {
   GoogleIdentityUnavailableError,
   TokenRevocationStoreError,
 } from "../infrastructure";
-import { toAuthResponse, toTokenPairResponse } from "./auth.presenter";
+import { toAuthTokensResponse } from "./auth.presenter";
 import { requireAuth } from "./require-auth";
 import type { GoogleLoginInput, RefreshTokenInput } from "./auth.validators";
 
@@ -46,8 +46,8 @@ export class AuthController {
       throw new UnauthorizedError(I18n.invalidGoogleToken, { cause: err });
     }
 
-    const { user, tokens } = await this.deps.loginWithGoogle.execute(identity);
-    sendSuccess(res, toAuthResponse(user, tokens), I18n.signedIn);
+    const tokens = await this.deps.loginWithGoogle.execute(identity);
+    sendSuccess(res, toAuthTokensResponse(tokens), I18n.signedIn);
   };
 
   refresh = async (
@@ -57,7 +57,7 @@ export class AuthController {
     const { refreshToken } = req.body;
     try {
       const tokens = await this.deps.refreshSession.execute(refreshToken);
-      sendSuccess(res, toTokenPairResponse(tokens), I18n.sessionRefreshed);
+      sendSuccess(res, toAuthTokensResponse(tokens), I18n.sessionRefreshed);
     } catch (err) {
       throw err instanceof TokenRevocationStoreError
         ? new ServiceUnavailableError(I18n.serviceUnavailable, {
