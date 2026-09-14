@@ -16,7 +16,7 @@ const service = new JwtService(options);
 
 describe("integer user IDs", () => {
   it("round-trips numeric user IDs through both token types", () => {
-    const pair = service.createTokenPair(123, "user@example.com");
+    const pair = service.createAuthTokens(123, "user@example.com");
     expect(service.verify(pair.accessToken, ACCESS_TOKEN_TYPE).userId).toBe(123);
     expect(service.verify(pair.refreshToken, REFRESH_TOKEN_TYPE).userId).toBe(123);
     expect(jwt.decode(pair.accessToken)).toMatchObject({ sub: "123" });

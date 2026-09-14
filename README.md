@@ -38,7 +38,9 @@ of `domain`, and the steps to add a new feature are in
 [docs/architecture.md](docs/architecture.md).
 
 For the day-to-day workflow (what to read, which check to run for a given
-change) see [AGENTS.md](AGENTS.md) and [docs/development.md](docs/development.md).
+change) see [AGENTS.md](AGENTS.md) and [docs/workflow.md](docs/workflow.md).
+The [documentation map](docs/README.md) explains how rules, detailed backend
+guidance, companion-app integration notes, and optional agent skills fit together.
 
 ## Getting started
 
@@ -191,7 +193,7 @@ quits.
 | `npm run format` | Prettier |
 | `npm run check` | typecheck + lint |
 | `npm test` / `test:watch` | Run/watch Vitest unit and HTTP integration tests |
-| `npm run verify` | TypeScript + lint + tests + production build; coverage limits are in docs/development.md |
+| `npm run verify` | TypeScript + lint + tests + production build; coverage limits are in docs/workflow.md |
 | `npm run prisma:generate` | Generate the Prisma Client |
 | `npm run prisma:migrate` | Run migrations (dev) |
 | `npm run prisma:studio` | Open Prisma Studio |

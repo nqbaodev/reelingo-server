@@ -1,6 +1,6 @@
 import type { User } from "@/features/users/domain";
 import type { UserRepository } from "@/features/users/infrastructure";
-import type { GoogleIdentity, TokenPair } from "../domain";
+import type { AuthTokens, GoogleIdentity } from "../domain";
 import type { JwtService } from "../infrastructure";
 
 export class LoginWithGoogleUseCase {
@@ -9,9 +9,9 @@ export class LoginWithGoogleUseCase {
     private readonly jwt: JwtService,
   ) {}
 
-  async execute(identity: GoogleIdentity): Promise<{ user: User; tokens: TokenPair }> {
+  async execute(identity: GoogleIdentity): Promise<AuthTokens> {
     const user = await this.resolveUser(identity);
-    return { user, tokens: this.jwt.createTokenPair(user.id, user.email) };
+    return this.jwt.createAuthTokens(user.id, user.email);
   }
 
   /**

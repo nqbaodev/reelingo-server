@@ -10,7 +10,7 @@ export interface GoogleIdentity {
   avatarUrl: string | null;
 }
 
-export interface TokenPair {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }

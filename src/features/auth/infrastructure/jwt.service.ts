@@ -6,7 +6,7 @@ import {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
   type TokenClaims,
-  type TokenPair,
+  type AuthTokens,
   type TokenType,
 } from "../domain";
 import { toEntity, type RawClaims } from "./jwt.mapper";
@@ -23,11 +23,11 @@ interface JwtServiceOptions {
 export class JwtService {
   constructor(private readonly options: JwtServiceOptions) {}
 
-  createTokenPair(
+  createAuthTokens(
     userId: number,
     email: string,
     session?: { id: string; expiresAt: Date },
-  ): TokenPair {
+  ): AuthTokens {
     const issuedAt = new Date();
     const sessionId = session?.id ?? randomUUID();
     const sessionExpiresAt =

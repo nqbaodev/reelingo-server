@@ -1,128 +1,78 @@
 # Project rules
 
-## Language
+## Language and coding style
 
-Write everything in English: code identifiers, comments, project rules
-(`AGENTS.md`, `rule.md`, `docs/`), agent skills, and `README.md`. Keep
-`README.md` in sync with whichever harness doc it links to when structure
-changes.
+Use idiomatic TypeScript with strict checking for application code. Follow
+[TypeScript conventions](docs/backend.md#language-and-coding-style) for naming,
+inference, public types, safe narrowing, and
+[function naming](docs/backend.md#function-naming-and-responsibility). Write
+identifiers, comments, documentation, and agent instructions in English.
+
+## Scope and simplicity
+
+Implement the current requirement with focused changes. Prefer readable functions
+and existing capabilities; introduce private methods, interfaces, base classes,
+or dependencies only when they clarify a responsibility or solve a concrete need.
+Give each function one cohesive responsibility and a name that states its exact
+outcome. Do not combine distinct commands in names or behavior such as
+`createOrUpdate`, `validateAndSave`, or `fetchAndTransform`; compose focused
+operations in the owning use case. Extract reusable logic only when its contract
+and ownership are clear; follow the
+[helper and utility rules](docs/architecture.md#shared-helpers-and-utilities).
 
 ## Architecture
 
-Use feature-first Clean Architecture. Layer responsibilities and the dependency
-rule are defined in [docs/architecture.md](docs/architecture.md).
+Use feature-first organization with the layer responsibilities in
+[architecture](docs/architecture.md). This is the project's chosen convention,
+not a requirement that every feature contain every layer.
 
-- Place code in the feature that owns the business behavior; do not move it into
-  `shared` or `core` to bypass feature boundaries.
-- Keep `domain` independent of Express, Prisma, Zod, and any other external
-  library — plain TypeScript entities only.
-- Define the repository interface (port) in `infrastructure`, next to its
-  concrete adapter; `application` (use cases) depends on that interface
-  directly. See [docs/architecture.md](docs/architecture.md) for why this
-  project keeps the interface in `infrastructure` instead of `domain`.
-- Wire concrete adapters into use cases inside `<feature>.module.ts`
-  (composition root). Do not construct a repository or call Prisma directly
-  from a use case, controller, or route.
-- Mount feature routers and cross-cutting middleware in `app.ts`; do not add
-  feature-specific routing logic there.
+- Keep business behavior with its owning feature. Choose placement by responsibility
+  and dependencies, not by suffixes such as `Service`.
+- Keep layer responsibilities separate. Presentation handles HTTP, application
+  coordinates use cases, domain defines business concepts and rules, infrastructure
+  implements persistence/providers, and the feature module wires dependencies.
+  A dependency on another layer does not transfer that layer's responsibility.
+- Communicate across layers through explicit inputs, outputs, and narrow contracts.
+  Do not pass Express requests, Prisma records/clients, SDK payloads, or raw provider
+  errors into domain/application behavior.
+- Keep repository ports beside their adapters in infrastructure and wire concrete
+  dependencies only in `<feature>.module.ts`.
+- Do not call Prisma or construct SDK clients in routes, controllers, or use cases.
+- Keep reusable feature logic in its owning feature. Put only feature-neutral pure
+  helpers in `core/utils` and feature-neutral technical infrastructure in `shared`.
+  Do not move feature policy into generic code to bypass ownership.
+- When changing an architectural decision, update its owning document and affected
+  imports together. External examples do not silently override project decisions.
+- Apply [SOLID and design patterns](docs/architecture.md#solid-and-design-patterns)
+  to keep responsibilities focused and dependencies explicit. Choose patterns for
+  concrete requirements; prefer composition and avoid speculative abstractions.
 
-## TypeScript and Node
+## TypeScript and backend
 
-- Keep TypeScript strict; do not use `any` or type assertions to hide type
-  errors.
-- Read settings from `config` (`@/config`), never from `process.env` outside
-  `app-config.ts`. Load, validate, and define all environment-backed settings
-  there, then expose the public facade in `config.ts`. Put shared static
-  settings in their owning group directly (for example,
-  `config.auth.jwt.algorithm` is the source for both signing and verification).
-  Do not turn every constant into an environment variable.
-- Reuse pure technical helpers from `core/utils`, including time conversions
-  and network-error classification. Keep their conversion constants and
-  recognized error codes with the helper, not in application config. Narrow
-  unknown error values with runtime checks, not casts. Helpers classify or
-  transform data; the owning feature decides the business/HTTP outcome.
-  See [Architecture → Shared utilities](docs/architecture.md#shared-utilities).
-- Put persistence/provider-to-entity mapping in the owning feature's
-  `infrastructure/*.mapper.ts` with a `toEntity` export. Validate in the
-  adapter before mapping; keep Prisma/SDK types out of `domain`. Import
-  mappers directly to avoid collisions between `toEntity` exports. Do not
-  create mappers for features that only return primitives.
-- Use `PascalCase` for classes/types, `camelCase` for functions/variables, and
-  `kebab-case` for files/directories.
-- Validate every external input (HTTP body/query/params) with Zod at the
-  presentation boundary (`validate()` in `core/http`); do not trust `req.body`
-  or `req.query` downstream of it.
-- Message keys are flat `camelCase` abbreviations of the English sentence
-  (`userNotFound`, `serviceUnavailable`) with no feature prefix; reuse an
-  existing key before adding one, and put variable parts in `params` with
-  `{name}` placeholders. Reference keys through `I18n.<camelCase>` from
-  `@/core/i18n`, never as a string literal. Only `core/i18n/translator.ts`
-  may import i18next.
-- Language codes come from `LANGUAGE` / `SUPPORTED_LANGUAGES` /
-  `DEFAULT_LANGUAGE` in `core/i18n`; HTTP header names come from
-  `config.http.headers` and `config.i18n.headers`. Do not write `"en"`,
-  `"vi"`, or a header name as a literal anywhere else.
-- Read a validated query string from `req.validatedQuery`, never from
-  `req.query`. Express 5 defines `req.query` as a getter with no setter, so
-  `validate()` cannot assign the parsed value back onto it — doing so throws
-  `TypeError: Cannot set property query` and turns every affected endpoint
-  into a 500.
-- Throw `AppError` subclasses (`core/errors`) for expected failures
-  (not found, conflict, validation, unauthorized). Let unexpected errors reach
-  `errorHandler` — do not catch-and-swallow them in a use case or controller.
-- Only `AppError` subclasses reach the client, so only they take an `I18n`
-  key. Errors thrown inside infrastructure (`GoogleIdentityError`,
-  `TokenRevocationStoreError`, plain `new Error(...)`) are log-only: keep
-  their messages in plain English, as specific as possible, and never route
-  them through `I18n`. Several distinct internal failures may map to one
-  client message on purpose (e.g. every Google token problem →
-  `invalidGoogleToken`) so the response does not reveal which check failed.
-- When translating an infrastructure failure into an `AppError`, pass the
-  original as `{ cause: err }`. `errorHandler` logs the full cause chain, so a
-  wrapped 503 still tells on-call *why* (bad API key, quota, timeout); without
-  it the log says only "unavailable". Put client-safe data in `details`, never
-  in `cause`.
-- Shape HTTP responses through a feature's `*.presenter.ts` rather than
-  returning a domain entity directly, so internal-only fields never leak
-  through the API by accident. Keep presenter names such as `toUserResponse`;
-  `toEntity` is for infrastructure mapping, not response serialization.
+Follow [backend guidance](docs/backend.md) for HTTP, configuration, async work,
+errors, localization, persistence, and security.
 
-## Testing
+- Read application settings from `@/config`; keep environment access and validation
+  in `app-config.ts`. Keep constants with their owner.
+- Validate external input at the boundary. Use presenters to explicitly select
+  response fields; keep OpenAPI aligned with the actual HTTP contract.
+- Catch errors only to recover, clean up, or translate a known failure. Preserve
+  causes and let unexpected failures reach the central error handler.
+- Localize client-facing messages through `I18n`; keep infrastructure diagnostics
+  in English and sensitive values out of logs and responses.
+- Enforce identity and resource ownership on the server. Follow the auth and
+  secrets invariants in [backend guidance](docs/backend.md#authentication-and-secrets).
 
-- Integration-test HTTP behavior by booting the real app (`createApp()`) with
-  supertest; do not start a real network listener in tests.
-- This project does not keep fake or in-memory repository implementations.
-  A test that needs persistence runs against a real PostgreSQL database; do
-  not mock the ORM to avoid one.
-- Add tests for meaningful business behavior and failure cases. Do not add
-  tests that merely restate the implementation.
+## Verification and maintenance
 
-## Security
+Use npm and [the engineering workflow](docs/workflow.md). Test meaningful
+behavior and failure cases; do not add tests merely to mirror implementation.
+Report the checks actually run and any verification gaps.
 
-- Never commit `.env`; keep secrets out of source, logs, and error responses.
-- Validate and sanitize external input at the boundary (Zod), not deep inside
-  a use case.
-- Do not bypass `errorHandler` to return raw error details (stack traces,
-  database errors, internal messages) to a client.
+Update the document that owns a decision and link to it elsewhere. Keep
+`AGENTS.md` an entry point, this file a concise rule set, and detailed guidance in
+`docs/`. Use [the docs index](docs/README.md) to choose what to read.
 
-## Dependencies and verification
-
-Follow [the development workflow](docs/development.md): define acceptance
-criteria, implement within scope, verify behavior, and fix findings before
-reporting completion.
-
-- Add libraries only for the current request; install with npm and commit the
-  updated lockfile together.
-- Review any package pending `npm install-scripts` approval before approving
-  it; approve only packages you recognize and trust.
-- Pin the exact major version when adding a new dependency, especially close
-  to a package's `latest` dist-tag pointing at a pre-release — verify with
-  `npm view <pkg> dist-tags` when a fresh install behaves unexpectedly.
-- Do not weaken architecture rules to accommodate an invalid import.
-
-## External skills
-
-No external skill is installed under `.agents/skills/` yet. Before adding one,
-read [.agents/skills/README.md](.agents/skills/README.md) for the convention
-this project follows, and add project-specific decisions to the linked project
-documents rather than duplicating them inside the skill.
+External skills are task-specific references. Check stack/version compatibility,
+project rules, and applicability before adopting guidance. Keep reusable skills
+in [.agents/skills](.agents/skills/README.md); do not duplicate project rules there.
