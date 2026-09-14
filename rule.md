@@ -31,9 +31,22 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 - Keep TypeScript strict; do not use `any` or type assertions to hide type
   errors.
 - Read settings from `config` (`@/config`), never from `process.env` or
-  `@/config/env` outside the `config` directory. Add a new setting by
-  validating it in `env.ts` and exposing it through the matching group in
-  `config.ts`, so a renamed variable stays contained there.
+  `@/config/env` outside the `config` directory. Validate environment-backed
+  settings in `env.ts` and expose them through the matching group in
+  `config.ts`. Put shared static settings there directly (for example,
+  `config.auth.jwt.algorithm` is the source for both signing and verification).
+  Do not turn every constant into an environment variable.
+- Reuse pure technical helpers from `core/utils`, including time conversions
+  and network-error classification. Keep their conversion constants and
+  recognized error codes with the helper, not in application config. Narrow
+  unknown error values with runtime checks, not casts. Helpers classify or
+  transform data; the owning feature decides the business/HTTP outcome.
+  See [Architecture → Shared utilities](docs/architecture.md#shared-utilities).
+- Put persistence/provider-to-entity mapping in the owning feature's
+  `infrastructure/*.mapper.ts` with a `toEntity` export. Validate in the
+  adapter before mapping; keep Prisma/SDK types out of `domain`. Import
+  mappers directly to avoid collisions between `toEntity` exports. Do not
+  create mappers for features that only return primitives.
 - Use `PascalCase` for classes/types, `camelCase` for functions/variables, and
   `kebab-case` for files/directories.
 - Validate every external input (HTTP body/query/params) with Zod at the
@@ -71,7 +84,8 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
   in `cause`.
 - Shape HTTP responses through a feature's `*.presenter.ts` rather than
   returning a domain entity directly, so internal-only fields never leak
-  through the API by accident.
+  through the API by accident. Keep presenter names such as `toUserResponse`;
+  `toEntity` is for infrastructure mapping, not response serialization.
 
 ## Testing
 

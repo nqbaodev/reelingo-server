@@ -13,6 +13,10 @@ Read task-specific guidance as needed:
 
 - [Architecture](docs/architecture.md): feature ownership, layering, dependency
   rule, and how to add a feature.
+- [Entity mapping](docs/architecture.md#entity-mapping): `toEntity` mappers in
+  infrastructure, separate from HTTP presenters.
+- [Shared utilities](docs/architecture.md#shared-utilities): reusable time
+  conversions and network-error classification.
 
 ## Local database
 
@@ -44,11 +48,15 @@ in [README.md](README.md#authentication).
 
 ## Configuration
 
-Every setting is read from `config` (`@/config`). Add one by validating it in
-`src/config/env.ts`, then exposing it through the matching group in
-`src/config/config.ts`; do not read `process.env` elsewhere. When you add a
-variable, update all three of `.env.example`, the README table, and
-`tests/setup.ts` (required variables only) in the same change.
+Read application settings from `config` (`@/config`), not `process.env`.
+Environment-backed settings are validated in `src/config/env.ts` and exposed
+through the matching group in `src/config/config.ts`. Shared static settings,
+such as the JWT algorithm, live directly in that config group; do not add an
+environment variable merely to remove a repeated literal.
+
+When adding an environment variable, update `.env.example`, the README table,
+and `tests/setup.ts` (required variables only) in the same change. Pure helpers
+and conversion constants belong in `core/utils`, not in configuration.
 
 ## Secrets
 

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
+import jwt, { type Algorithm } from "jsonwebtoken";
+import { MINUTE_MS, toSeconds } from "@/core/utils";
 import {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
@@ -7,26 +8,16 @@ import {
   type TokenPair,
   type TokenType,
 } from "../domain";
+import { toEntity, type RawClaims } from "./jwt.mapper";
 
 interface JwtServiceOptions {
+  algorithm: Algorithm;
   secret: string;
   issuer: string;
   audience: string;
   accessTtlMinutes: number;
   sessionTtlMinutes: number;
 }
-
-interface RawClaims {
-  sub: string;
-  email: string;
-  jti: string;
-  typ: TokenType;
-  sid: string;
-  session_exp: number;
-  exp: number;
-}
-
-const MINUTE_MS = 60_000;
 
 export class JwtService {
   constructor(private readonly options: JwtServiceOptions) {}
@@ -73,7 +64,7 @@ export class JwtService {
 
   verify(token: string, expectedType: TokenType): TokenClaims {
     const payload = jwt.verify(token, this.options.secret, {
-      algorithms: ["HS256"],
+      algorithms: [this.options.algorithm],
       issuer: this.options.issuer,
       audience: this.options.audience,
     });
@@ -101,15 +92,7 @@ export class JwtService {
       );
     }
 
-    return {
-      userId: claims.sub,
-      email: claims.email,
-      tokenId: claims.jti,
-      tokenType: claims.typ,
-      sessionId: claims.sid,
-      sessionExpiresAt: new Date(claims.session_exp * 1000),
-      expiresAt: new Date(claims.exp * 1000),
-    };
+    return toEntity(claims);
   }
 
   private sign(input: {
@@ -132,15 +115,11 @@ export class JwtService {
     };
 
     return jwt.sign(payload, this.options.secret, {
-      algorithm: "HS256",
+      algorithm: this.options.algorithm,
       issuer: this.options.issuer,
       audience: this.options.audience,
       // `exp` is set explicitly above so the access token can never outlive its session.
       noTimestamp: false,
     });
   }
-}
-
-function toSeconds(date: Date): number {
-  return Math.floor(date.getTime() / 1000);
 }

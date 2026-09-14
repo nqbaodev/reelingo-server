@@ -1,36 +1,25 @@
-import type { PrismaClient, User as PrismaUser } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { buildPaginatedResult, type PaginatedResult, type PaginationParams } from "@/core/types/pagination";
 import type { NewUser, User, UserUpdate } from "../domain";
 import type { UserRepository } from "./user.repository";
-
-function toDomain(record: PrismaUser): User {
-  return {
-    id: record.id,
-    email: record.email,
-    name: record.name,
-    googleId: record.googleId,
-    avatarUrl: record.avatarUrl,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-  };
-}
+import { toEntity } from "./user.mapper";
 
 export class UserPrismaRepository implements UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<User | null> {
     const record = await this.prisma.user.findUnique({ where: { id } });
-    return record ? toDomain(record) : null;
+    return record ? toEntity(record) : null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
     const record = await this.prisma.user.findUnique({ where: { email } });
-    return record ? toDomain(record) : null;
+    return record ? toEntity(record) : null;
   }
 
   async findByGoogleId(googleId: string): Promise<User | null> {
     const record = await this.prisma.user.findUnique({ where: { googleId } });
-    return record ? toDomain(record) : null;
+    return record ? toEntity(record) : null;
   }
 
   async list(pagination: PaginationParams): Promise<PaginatedResult<User>> {
@@ -44,17 +33,17 @@ export class UserPrismaRepository implements UserRepository {
       this.prisma.user.count(),
     ]);
 
-    return buildPaginatedResult(records.map(toDomain), total, pagination);
+    return buildPaginatedResult(records.map(toEntity), total, pagination);
   }
 
   async create(data: NewUser): Promise<User> {
     const record = await this.prisma.user.create({ data });
-    return toDomain(record);
+    return toEntity(record);
   }
 
   async update(id: string, data: UserUpdate): Promise<User> {
     const record = await this.prisma.user.update({ where: { id }, data });
-    return toDomain(record);
+    return toEntity(record);
   }
 
   async delete(id: string): Promise<void> {

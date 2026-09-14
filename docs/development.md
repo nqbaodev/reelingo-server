@@ -13,6 +13,8 @@ reference rather than loading every document:
 | --- | --- |
 | Feature ownership and the dependency rule | [Architecture](architecture.md) |
 | Adding a feature | [Architecture → Add a feature](architecture.md#add-a-feature) |
+| Entity mappers and HTTP presenters | [Architecture → Entity mapping](architecture.md#entity-mapping) |
+| Shared helpers and constants | [Architecture → Shared utilities](architecture.md#shared-utilities), [rule.md](../rule.md) (TypeScript and Node) |
 | Request validation, errors, HTTP response shape | [rule.md](../rule.md) (TypeScript and Node) |
 | Test conventions | [rule.md](../rule.md) (Testing) |
 | Secrets, input handling, error responses | [rule.md](../rule.md) (Security) |
@@ -47,10 +49,12 @@ reference rather than loading every document:
 `npm run check` runs `typecheck` and `lint`. `npm run verify` additionally runs
 the test suite and the production build; it stops on failure.
 
-The current project intentionally contains no `*.test.ts` files. Vitest is
-configured with `passWithNoTests`, so a successful `verify` currently proves
-static checks and compilation, not automated behavior coverage. Until tests
-are reintroduced, exercise changed HTTP behavior manually and record results.
+The project has unit tests in `tests/unit` and HTTP integration tests in
+`tests/integration`. Inspect the relevant cases before claiming coverage:
+passing the suite does not prove untested JWT, Google, Gemini, or database
+behavior. For a mechanical extraction or rename, check the changed imports
+and mapping behavior without adding tests that only restate implementation.
+Record any additional manual checks separately from the committed suite.
 
 This project has no automated architecture boundary checker (e.g.
 dependency-cruiser) yet — the dependency rule in [architecture.md](architecture.md)
