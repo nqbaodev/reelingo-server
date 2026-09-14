@@ -1,5 +1,7 @@
 import { OAuth2Client } from "google-auth-library";
+import { isNetworkError } from "@/core/utils";
 import type { GoogleIdentity } from "../domain";
+import { toEntity } from "./google-identity.mapper";
 
 export class GoogleIdentityError extends Error {}
 export class GoogleIdentityUnavailableError extends GoogleIdentityError {}
@@ -40,23 +42,6 @@ export class GoogleIdentityClient {
       throw new GoogleIdentityError("Google token is missing required claims");
     }
 
-    return {
-      googleId: payload.sub,
-      email: payload.email,
-      name: payload.name ?? "",
-      avatarUrl: payload.picture ?? null,
-    };
+    return toEntity({ ...payload, email: payload.email });
   }
-}
-
-function isNetworkError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const code = (err as NodeJS.ErrnoException).code;
-  return (
-    code === "ENOTFOUND" ||
-    code === "ECONNREFUSED" ||
-    code === "ETIMEDOUT" ||
-    code === "EAI_AGAIN" ||
-    err.name === "FetchError"
-  );
 }

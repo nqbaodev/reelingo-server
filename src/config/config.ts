@@ -1,6 +1,5 @@
+import { SECOND_MS } from "@/core/utils";
 import { env } from "./env";
-
-const SECOND_MS = 1000;
 
 /**
  * The single place application code reads settings from — both values that
@@ -61,6 +60,7 @@ export const config = {
       clientId: env.GOOGLE_CLIENT_ID,
     },
     jwt: {
+      algorithm: "HS256",
       secret: env.JWT_SECRET,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,

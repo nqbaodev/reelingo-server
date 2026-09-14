@@ -13,6 +13,7 @@ src/
     http/               # asyncHandler, validate(), sendSuccess()
     i18n/               # Typed en/vi messages, translation and language negotiation
     types/              # Shared types (pagination, ...)
+    utils/              # Pure time helpers/constants and network-error classification
   shared/             # Infrastructure shared across features
     database/           # Prisma client singleton
     http/               # Swagger UI and OpenAPI document delivery
@@ -22,8 +23,8 @@ src/
     <feature>/
       domain/            # Pure entities (no Prisma / Express imports)
       application/       # Use cases, depending on the repository interface in infrastructure
-      infrastructure/    # Repository interface (port) + Prisma implementation (adapter)
-      presentation/       # Express router, controller, Zod validators (DTO)
+      infrastructure/    # Ports, adapters, and *.mapper.ts exports named toEntity
+      presentation/       # Express router, controller, Zod validators, HTTP presenters
       <feature>.module.ts # Composition root: wire domain <-> infra <-> presentation
   app.ts              # Assemble the Express app, mount feature routers
   openapi.ts          # Public API contract, reusing Zod request validators
@@ -188,8 +189,8 @@ quits.
 | `npm run lint` / `lint:fix` | ESLint |
 | `npm run format` | Prettier |
 | `npm run check` | typecheck + lint |
-| `npm test` / `test:watch` | Vitest harness; currently no test files, exits successfully when empty |
-| `npm run verify` | check + test harness + build; currently provides no automated behavior coverage |
+| `npm test` / `test:watch` | Run/watch Vitest unit and HTTP integration tests |
+| `npm run verify` | TypeScript + lint + tests + production build; coverage limits are in docs/development.md |
 | `npm run prisma:generate` | Generate the Prisma Client |
 | `npm run prisma:migrate` | Run migrations (dev) |
 | `npm run prisma:studio` | Open Prisma Studio |
@@ -302,8 +303,9 @@ Failures have a stable machine-readable code and a localized summary:
 }
 ```
 
-There is no `details` field or per-field validation payload. Zod still validates
-the full request. This applies to auth, users, AI, route-not-found, malformed
+Errors may include client-safe `error.details`; Zod validation failures include
+per-field `{ path, message }` entries. Internal causes and stack traces are not
+returned. This envelope applies to auth, users, AI, route-not-found, malformed
 JSON, payload-size, rate-limit and unexpected errors. Status codes keep their
 HTTP meaning; DELETE success remains an empty 204. `/health` and `/ready`
 return plain probe JSON, and documentation endpoints are not enveloped.

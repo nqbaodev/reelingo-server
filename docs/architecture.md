@@ -15,6 +15,7 @@ shared Express/Prisma infrastructure.
 | `features/<feature>/<feature>.module.ts` | Composition root: wires the adapter into use cases and exposes a router |
 | `config` | `env.ts` validates raw environment variables; `config.ts` groups them by domain and is what the rest of the app imports |
 | `core` | Cross-cutting abstractions independent of any feature (`AppError`, `asyncHandler`, `validate`, pagination, `i18n`) |
+| `core/utils` | Pure technical helpers and their constants; no feature, config, database, or HTTP-response dependencies |
 | `core/i18n` | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
 | `shared` | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware) |
 | `app.ts` | Mounts feature routers and cross-cutting middleware |
@@ -26,8 +27,9 @@ shared Express/Prisma infrastructure.
   parameter interpolation. It does not import Express or access request state.
 - `shared/middlewares/language.ts` selects a language per request. `AppError`
   carries a typed message key and parameters; the global error handler translates
-  it and returns `{ success: false, message, error: { code } }`. No error details
-  are exposed.
+  it and returns `{ success: false, message, error: { code } }`, with optional
+  client-safe `error.details`. Internal messages, stacks, and causes are never
+  exposed.
 - Feature controllers pass presenter output to `core/http/sendSuccess`, which
   returns `{ success: true, message, data }`. Responses are built explicitly;
   Express's `res.json` is not replaced or intercepted. A 204 stays empty.
@@ -38,6 +40,34 @@ shared Express/Prisma infrastructure.
   a domain entity, repository table, or HTTP response envelope.
 - `app.ts` mounts the API rate limiter once and composes protected feature
   routers behind one authentication middleware. Public probes/docs are separate.
+
+## Entity mapping
+
+Keep persistence/provider-to-entity conversions in the owning feature's
+`infrastructure/<source>.mapper.ts`, exposed as `toEntity`. Import each mapper
+directly rather than re-exporting identical names from a barrel. Adapters
+validate external data before mapping it; mappers only convert its shape.
+Keep provider/Prisma types out of `domain`, and keep entity-to-HTTP conversions
+in presentation's `*.presenter.ts`. Features returning only primitive values
+do not need an entity mapper.
+
+## Shared utilities
+
+Use `core/utils` for reusable technical logic that does not belong to a
+feature. Group related functions and constants by purpose: `time.ts` owns
+`toSeconds`, `SECOND_MS`, and `MINUTE_MS`; `network-error.ts` owns
+`isNetworkError` and its recognized codes. Export helpers through the local
+barrel without importing application config or feature code back into them.
+
+Network classification is not a global error-response policy. Each adapter
+decides how a recognized failure affects its operation; the feature maps
+infrastructure errors to localized `AppError` responses at the appropriate
+boundary. Keep infrastructure diagnostics in English and retain causes when
+wrapping failures, as described in [rule.md](../rule.md).
+
+Keep feature-specific behavior in its feature even when it has more than one
+caller. Extract only helpers needed by the current task; do not add generic
+base services, prototype extensions, or empty utility layers.
 
 ## Dependency rule
 
