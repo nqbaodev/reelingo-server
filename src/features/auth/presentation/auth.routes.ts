@@ -1,6 +1,6 @@
-import { config } from "@/config";
 import type { RequestHandler, Router } from "express";
 import { HttpMethod, createBaseRouter, validate } from "@/core/http";
+import { endpoints } from "@/shared/http/endpoints";
 import type { AuthController } from "./auth.controller";
 import { googleLoginSchema, refreshTokenSchema } from "./auth.validators";
 
@@ -12,25 +12,25 @@ export function createAuthRouter(
   return createBaseRouter([
     {
       method: HttpMethod.POST,
-      path: config.endpoints.auth.googleLogin,
+      path: endpoints.auth.googleLogin,
       middlewares: [loginRateLimiter, validate({ body: googleLoginSchema })],
       handler: controller.loginWithGoogle,
     },
     {
       method: HttpMethod.POST,
-      path: config.endpoints.auth.refresh,
+      path: endpoints.auth.refresh,
       middlewares: [loginRateLimiter, validate({ body: refreshTokenSchema })],
       handler: controller.refresh,
     },
     {
       method: HttpMethod.POST,
-      path: config.endpoints.auth.logout,
+      path: endpoints.auth.logout,
       middlewares: [authenticate],
       handler: controller.logout,
     },
     {
       method: HttpMethod.GET,
-      path: config.endpoints.auth.me,
+      path: endpoints.auth.me,
       middlewares: [authenticate],
       handler: controller.me,
     },
