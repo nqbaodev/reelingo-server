@@ -13,7 +13,7 @@ shared Express/Prisma infrastructure.
 | `features/<feature>/infrastructure` | Repository interface (port) and its concrete adapter (Prisma) |
 | `features/<feature>/presentation` | Express router, controller, Zod validators, response presenter |
 | `features/<feature>/<feature>.module.ts` | Composition root: wires the adapter into use cases and exposes a router |
-| `config` | `env.ts` validates raw environment variables; `config.ts` groups them by domain and is what the rest of the app imports |
+| `config` | `app-config.ts` owns validated environment-backed settings; `config.ts` exposes the public facade imported by the app |
 | `core` | Cross-cutting abstractions independent of any feature (`AppError`, `asyncHandler`, `validate`, pagination, `i18n`) |
 | `core/utils` | Pure technical helpers and their constants; no feature, config, database, or HTTP-response dependencies |
 | `core/i18n` | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
@@ -47,10 +47,10 @@ shared Express/Prisma infrastructure.
   a domain entity, repository table, or HTTP response envelope.
 - `app.ts` mounts the API rate limiter once and composes protected feature
   routers behind one authentication middleware. Public probes/docs are separate.
-- `config.endpoints` owns the API prefix and paths grouped by feature, including
-  public health and documentation paths. Routers and `openapi.ts` share these
-  values. API feature paths remain relative to `apiPrefix`; OpenAPI converts
-  Express's `:id` parameter to `{id}`.
+- `shared/http/endpoints.ts` owns the API prefix and paths grouped by feature,
+  including public health and documentation paths. Routers and `openapi.ts`
+  share these values. API feature paths remain relative to `apiPrefix`;
+  OpenAPI converts Express's `:id` parameter to `{id}`.
 
 ## Entity mapping
 

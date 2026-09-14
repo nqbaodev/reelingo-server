@@ -7,7 +7,7 @@ organized as **feature-first Clean Architecture**.
 
 ```
 src/
-  config/            # env.ts validates raw env vars (Zod); config.ts groups them by domain
+  config/             # app-config validates env; domain modules feed the public facade
   core/               # Shared abstractions, independent of any concrete framework
     errors/            # AppError and domain errors (NotFoundError, ConflictError, ...)
     http/               # asyncHandler, validate(), sendSuccess()
@@ -54,9 +54,10 @@ The first run needs the database role and database to exist already — see
 
 ## Configuration
 
-`src/config/env.ts` validates these with Zod at startup and fails fast listing
-every invalid variable. `src/config/config.ts` groups them by domain, and that
-grouped `config` is what application code imports — never `process.env`.
+`src/config/app-config.ts` loads and validates environment variables with Zod
+at startup and owns all environment-backed settings. `src/config/config.ts`
+exposes the public `config` facade that application code imports — never
+`process.env`. `src/shared/http/endpoints.ts` owns static route paths.
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
@@ -197,7 +198,7 @@ quits.
 
 ## API
 
-`config.endpoints` defines the shared API prefix (`apiPrefix`, `/api/v1`)
+`shared/http/endpoints.ts` defines the shared API prefix (`apiPrefix`, `/api/v1`)
 and paths grouped under `auth`, `users`, `ai`, `health`, and `docs`.
 Routers and OpenAPI reuse these values. API feature paths are relative to
 the prefix; health and documentation paths are mounted at the root.
@@ -231,8 +232,9 @@ The client obtains a Google ID token (Google Identity Services) and posts it to
 `/api/v1/auth/login/google`. The server verifies the token's signature with
 `google-auth-library`, then finds or creates the matching user and issues its
 own JWT pair. Users are matched by Google's permanent `sub` claim only, never
-by email, and this login is the sole way an account comes into existence. On
-later logins the stored name and avatar follow Google; the email is fixed at
+by email, and this login is the sole way an account comes into existence.
+Later logins use the stored profile unchanged; Google profile data is written
+only when the account is created, and the email is fixed at
 creation.
 
 Both tokens of a login share one session id (`sid`), so revoking the session

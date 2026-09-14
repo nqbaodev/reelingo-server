@@ -1,6 +1,6 @@
-import { config } from "@/config";
 import type { Router } from "express";
 import { HttpMethod, createBaseRouter, validate } from "@/core/http";
+import { endpoints } from "@/shared/http/endpoints";
 import type { UserController } from "./user.controller";
 import {
   listUsersQuerySchema,
@@ -12,19 +12,19 @@ export function createUserRouter(controller: UserController): Router {
   return createBaseRouter([
     {
       method: HttpMethod.GET,
-      path: config.endpoints.users.list,
+      path: endpoints.users.list,
       middlewares: [validate({ query: listUsersQuerySchema })],
       handler: controller.list,
     },
     {
       method: HttpMethod.GET,
-      path: config.endpoints.users.byId,
+      path: endpoints.users.byId,
       middlewares: [validate({ params: userIdParamsSchema })],
       handler: controller.getById,
     },
     {
       method: HttpMethod.PATCH,
-      path: config.endpoints.users.byId,
+      path: endpoints.users.byId,
       middlewares: [
         validate({ params: userIdParamsSchema, body: updateUserSchema }),
       ],
@@ -32,7 +32,7 @@ export function createUserRouter(controller: UserController): Router {
     },
     {
       method: HttpMethod.DELETE,
-      path: config.endpoints.users.byId,
+      path: endpoints.users.byId,
       middlewares: [validate({ params: userIdParamsSchema })],
       handler: controller.delete,
     },

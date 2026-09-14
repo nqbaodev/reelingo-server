@@ -41,7 +41,8 @@ Google login is the **only** way a user row is created — there is no
 `POST /users` on purpose. Accounts are matched by Google `sub` (`googleId`)
 alone, never by email; do not add an email-based lookup or link step, and do
 not add another creation path. Email is written once at creation and left
-alone afterwards (`syncProfile` refreshes only name and avatar).
+alone afterwards. A returning login uses the stored user unchanged; Google
+profile fields are written only when the account is first created.
 
 Sessions, single-use refresh tokens, and the `revoked_keys` table are described
 in [README.md](README.md#authentication).
@@ -49,10 +50,12 @@ in [README.md](README.md#authentication).
 ## Configuration
 
 Read application settings from `config` (`@/config`), not `process.env`.
-Environment-backed settings are validated in `src/config/env.ts` and exposed
-through the matching group in `src/config/config.ts`. Shared static settings,
-such as the JWT algorithm, live directly in that config group; do not add an
-environment variable merely to remove a repeated literal.
+Environment-backed settings are loaded and validated in
+`src/config/app-config.ts`, which owns every setting derived from them;
+`src/config/config.ts` exposes the public facade. HTTP endpoint paths live in
+`src/shared/http/endpoints.ts`. Shared static settings, such as the JWT
+algorithm, live directly in their owning group; do not add an environment
+variable merely to remove a repeated literal.
 
 When adding an environment variable, update `.env.example`, the README table,
 and `tests/setup.ts` (required variables only) in the same change. Pure helpers

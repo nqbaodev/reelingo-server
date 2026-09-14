@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { config } from "@/config";
+import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import { generateTextSchema } from "@/features/ai/presentation/ai.validators";
 import {
@@ -149,7 +150,7 @@ export const openApiDocument = {
     },
   },
   paths: {
-    [config.endpoints.health.liveness]: {
+    [endpoints.health.liveness]: {
       get: {
         tags: ["Health"],
         operationId: "getHealth",
@@ -163,7 +164,7 @@ export const openApiDocument = {
         },
       },
     },
-    [config.endpoints.health.readiness]: {
+    [endpoints.health.readiness]: {
       get: {
         tags: ["Health"],
         operationId: "getReadiness",
@@ -184,7 +185,7 @@ export const openApiDocument = {
         },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.auth.googleLogin}`]: {
+    [`${endpoints.apiPrefix}${endpoints.auth.googleLogin}`]: {
       post: {
         tags: ["Auth"],
         operationId: "loginWithGoogle",
@@ -198,7 +199,7 @@ export const openApiDocument = {
         },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.auth.refresh}`]: {
+    [`${endpoints.apiPrefix}${endpoints.auth.refresh}`]: {
       post: {
         tags: ["Auth"],
         operationId: "refreshSession",
@@ -209,7 +210,7 @@ export const openApiDocument = {
         responses: { 200: success(tokenPair), ...authErrors },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.auth.logout}`]: {
+    [`${endpoints.apiPrefix}${endpoints.auth.logout}`]: {
       post: {
         tags: ["Auth"],
         operationId: "logout",
@@ -221,7 +222,7 @@ export const openApiDocument = {
         },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.auth.me}`]: {
+    [`${endpoints.apiPrefix}${endpoints.auth.me}`]: {
       get: {
         tags: ["Auth"],
         operationId: "getCurrentUser",
@@ -230,7 +231,7 @@ export const openApiDocument = {
         responses: { 200: success(currentUser), ...protectedErrors },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.users.list}`]: {
+    [`${endpoints.apiPrefix}${endpoints.users.list}`]: {
       get: {
         tags: ["Users"],
         operationId: "listUsers",
@@ -259,7 +260,7 @@ export const openApiDocument = {
         },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.users.byId.replace(":id", "{id}")}`]: {
+    [`${endpoints.apiPrefix}${endpoints.users.byId.replace(":id", "{id}")}`]: {
       get: {
         tags: ["Users"],
         operationId: "getUser",
@@ -287,7 +288,7 @@ export const openApiDocument = {
         },
       },
     },
-    [`${config.endpoints.apiPrefix}${config.endpoints.ai.generate}`]: {
+    [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {
       post: {
         tags: ["AI"],
         operationId: "generateText",
