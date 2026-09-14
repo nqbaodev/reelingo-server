@@ -13,7 +13,7 @@ export interface RawClaims {
 
 export function toEntity(claims: RawClaims): TokenClaims {
   return {
-    userId: claims.sub,
+    userId: Number(claims.sub),
     email: claims.email,
     tokenId: claims.jti,
     tokenType: claims.typ,

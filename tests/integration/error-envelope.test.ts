@@ -70,11 +70,8 @@ describe("error envelope", () => {
 
   it.each([
     ["get", "/api/v1/me"],
+    ["patch", "/api/v1/me"],
     ["post", "/api/v1/auth/logout"],
-    ["get", "/api/v1/users"],
-    ["get", "/api/v1/users/invalid-id"],
-    ["patch", "/api/v1/users/invalid-id"],
-    ["delete", "/api/v1/users/invalid-id"],
     ["post", "/api/v1/ai/generate"],
   ] as const)("rejects %s %s without a bearer token", async (method, path) => {
     const res = await request(app)[method](path);

@@ -4,11 +4,9 @@ export const endpoints = {
     googleLogin: "/auth/login/google",
     refresh: "/auth/refresh",
     logout: "/auth/logout",
-    me: "/me",
   },
   users: {
-    list: "/users",
-    byId: "/users/:id",
+    me: "/me",
   },
   ai: {
     generate: "/ai/generate",

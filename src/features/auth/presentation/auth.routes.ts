@@ -4,9 +4,8 @@ import { endpoints } from "@/shared/http/endpoints";
 import type { AuthController } from "./auth.controller";
 import { googleLoginSchema, refreshTokenSchema } from "./auth.validators";
 
-export function createAuthRouter(
+export function createPublicAuthRouter(
   controller: AuthController,
-  authenticate: RequestHandler,
   loginRateLimiter: RequestHandler,
 ): Router {
   return createBaseRouter([
@@ -22,17 +21,15 @@ export function createAuthRouter(
       middlewares: [loginRateLimiter, validate({ body: refreshTokenSchema })],
       handler: controller.refresh,
     },
+  ]);
+}
+
+export function createProtectedAuthRouter(controller: AuthController): Router {
+  return createBaseRouter([
     {
       method: HttpMethod.POST,
       path: endpoints.auth.logout,
-      middlewares: [authenticate],
       handler: controller.logout,
-    },
-    {
-      method: HttpMethod.GET,
-      path: endpoints.auth.me,
-      middlewares: [authenticate],
-      handler: controller.me,
     },
   ]);
 }

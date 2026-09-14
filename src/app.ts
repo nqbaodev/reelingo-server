@@ -8,8 +8,8 @@ import { createAiModule } from "@/features/ai/ai.module";
 import type { GenerativeAiClient } from "@/features/ai/infrastructure";
 import { createAuthModule } from "@/features/auth/auth.module";
 import { createHealthModule } from "@/features/health/health.module";
-import type { PrismaClient } from "@/generated/prisma/client";
 import { createUsersModule } from "@/features/users/users.module";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/shared/database";
 import { logger } from "@/shared/logger";
 import {
@@ -37,7 +37,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(
     cors({
       origin: config.server.corsOrigin,
-      exposedHeaders: [config.http.headers.requestId, config.i18n.headers.contentLanguage],
+      exposedHeaders: [
+        config.http.headers.requestId,
+        config.i18n.headers.contentLanguage,
+      ],
     }),
   );
   app.use(compression());
@@ -59,8 +62,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(
     endpoints.apiPrefix,
     createApiRateLimiter(),
-    authModule.router,
+    authModule.publicRouter,
     authModule.authenticate,
+    authModule.protectedRouter,
     usersModule.router,
     aiModule.router,
   );

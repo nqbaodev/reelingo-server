@@ -27,7 +27,9 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
       if (isPrismaUniqueViolation(err)) {
         return false;
       }
-      throw new TokenRevocationStoreError("Token revocation write failed");
+      throw new TokenRevocationStoreError("Token revocation write failed", {
+        cause: err,
+      });
     }
   }
 
@@ -45,8 +47,10 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
         create: { key: sessionKey(sessionId), expiresAt },
         update: { expiresAt },
       });
-    } catch {
-      throw new TokenRevocationStoreError("Session revocation write failed");
+    } catch (err) {
+      throw new TokenRevocationStoreError("Session revocation write failed", {
+        cause: err,
+      });
     }
   }
 
@@ -54,8 +58,10 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
     let record;
     try {
       record = await this.prisma.revokedKey.findUnique({ where: { key } });
-    } catch {
-      throw new TokenRevocationStoreError("Token revocation read failed");
+    } catch (err) {
+      throw new TokenRevocationStoreError("Token revocation read failed", {
+        cause: err,
+      });
     }
     return record !== null && record.expiresAt.getTime() > Date.now();
   }

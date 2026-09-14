@@ -26,46 +26,45 @@ export function createAuthenticate(deps: {
   revocations: TokenRevocationStore;
 }): RequestHandler {
   return async (req: Request, _res: Response, next: NextFunction) => {
-    try {
-      const token = readBearerToken(req.headers.authorization);
-      if (!token) {
-        throw new UnauthorizedError(I18n.missingToken);
-      }
-
-      let claims: TokenClaims;
-      try {
-        claims = deps.jwt.verify(token, ACCESS_TOKEN_TYPE);
-      } catch (err) {
-        throw new UnauthorizedError(I18n.invalidToken, { cause: err });
-      }
-
-      let revoked: boolean;
-      try {
-        revoked =
-          (await deps.revocations.isTokenRevoked(claims.tokenId)) ||
-          (await deps.revocations.isSessionRevoked(claims.sessionId));
-      } catch (err) {
-        if (err instanceof TokenRevocationStoreError) {
-          throw new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Session store" }, cause: err });
-        }
-        throw err;
-      }
-      if (revoked) {
-        throw new UnauthorizedError(I18n.invalidToken);
-      }
-
-      const user = await deps.users.findById(claims.userId);
-      if (!user) {
-        throw new UnauthorizedError(I18n.userNotFound);
-      }
-      if (claims.email !== user.email) {
-        throw new UnauthorizedError(I18n.invalidToken);
-      }
-
-      req.auth = { user, claims };
-      next();
-    } catch (err) {
-      next(err);
+    const token = readBearerToken(req.headers.authorization);
+    if (!token) {
+      throw new UnauthorizedError(I18n.missingToken);
     }
+
+    let claims: TokenClaims;
+    try {
+      claims = deps.jwt.verify(token, ACCESS_TOKEN_TYPE);
+    } catch (err) {
+      throw new UnauthorizedError(I18n.invalidToken, { cause: err });
+    }
+
+    let revoked: boolean;
+    try {
+      revoked =
+        (await deps.revocations.isTokenRevoked(claims.tokenId)) ||
+        (await deps.revocations.isSessionRevoked(claims.sessionId));
+    } catch (err) {
+      if (err instanceof TokenRevocationStoreError) {
+        throw new ServiceUnavailableError(I18n.serviceUnavailable, {
+          params: { service: "Session store" },
+          cause: err,
+        });
+      }
+      throw err;
+    }
+    if (revoked) {
+      throw new UnauthorizedError(I18n.invalidToken);
+    }
+
+    const user = await deps.users.findById(claims.userId);
+    if (!user) {
+      throw new UnauthorizedError(I18n.userNotFound);
+    }
+    if (claims.email !== user.email) {
+      throw new UnauthorizedError(I18n.invalidToken);
+    }
+
+    req.auth = { user, claims };
+    next();
   };
 }

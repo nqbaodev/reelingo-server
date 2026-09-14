@@ -1,8 +1,7 @@
-import { rateLimit } from "express-rate-limit";
 import { config } from "@/config";
-import { TooManyRequestsError } from "@/core/errors";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { UserPrismaRepository } from "@/features/users/infrastructure";
+import { createAuthRateLimiter } from "@/shared/middlewares";
 import {
   LoginWithGoogleUseCase,
   LogoutUseCase,
@@ -13,8 +12,12 @@ import {
   JwtService,
   TokenRevocationPrismaStore,
 } from "./infrastructure";
-import { AuthController, createAuthRouter, createAuthenticate } from "./presentation";
-import { I18n } from "@/core/i18n";
+import {
+  AuthController,
+  createAuthenticate,
+  createProtectedAuthRouter,
+  createPublicAuthRouter,
+} from "./presentation";
 
 export function createAuthModule(prisma: PrismaClient) {
   const users = new UserPrismaRepository(prisma);
@@ -29,16 +32,11 @@ export function createAuthModule(prisma: PrismaClient) {
   });
 
   const authenticate = createAuthenticate({ users, jwt, revocations });
-  const loginRateLimiter = rateLimit({
-    windowMs: config.rateLimit.auth.windowMs,
-    limit: config.rateLimit.auth.limit,
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (_req, _res, next) => next(new TooManyRequestsError(I18n.tooManyRequests)),
-  });
+  const loginRateLimiter = createAuthRateLimiter();
 
   return {
-    router: createAuthRouter(controller, authenticate, loginRateLimiter),
+    publicRouter: createPublicAuthRouter(controller, loginRateLimiter),
+    protectedRouter: createProtectedAuthRouter(controller),
     authenticate,
   };
 }

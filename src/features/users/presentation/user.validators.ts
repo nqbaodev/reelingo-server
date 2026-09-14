@@ -1,17 +1,15 @@
 import { z } from "zod";
 
-export const updateUserSchema = z
-  .object({
-    email: z.string().email().transform((value) => value.trim().toLowerCase()),
-    name: z.string().min(1).max(120),
+export const updateProfileSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).optional(),
+    avatarUrl: z
+      .string()
+      .trim()
+      .pipe(z.url({ protocol: /^https?$/ }).max(2048))
+      .nullable()
+      .optional(),
   })
-  .partial();
+  .refine((data) => data.name !== undefined || data.avatarUrl !== undefined);
 
-export const userIdParamsSchema = z.object({
-  id: z.string().uuid(),
-});
-
-export const listUsersQuerySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

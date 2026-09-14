@@ -219,12 +219,9 @@ the prefix; health and documentation paths are mounted at the root.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/v1/me` | Current authenticated user |
+| `PATCH` | `/api/v1/me` | Update the current user's name or avatar |
 | `POST` | `/api/v1/auth/logout` | Revoke the current session |
 | `POST` | `/api/v1/ai/generate` | Generate text from a prompt with Gemini |
-| `GET` | `/api/v1/users?page=&pageSize=` | List users (paginated) |
-| `GET` | `/api/v1/users/:id` | Get a user |
-| `PATCH` | `/api/v1/users/:id` | Update a user |
-| `DELETE` | `/api/v1/users/:id` | Delete a user |
 
 ## Authentication
 
@@ -396,3 +393,33 @@ connectivity probe, not a migration/schema or Gemini availability check.
 The patterns are adapted from AIM Core's i18n, error handlers, response
 envelope, OpenAPI, and health modules into Reelingo's TypeScript/Express
 feature architecture. No Python runtime or AIM Core business modules are used.
+
+The users feature exposes only `GET /api/v1/me` and `PATCH /api/v1/me`.
+There is no administrative `/api/v1/users` CRUD API.
+
+### User IDs
+
+User IDs are positive, auto-incrementing PostgreSQL integers. Login and
+`/api/v1/me` expose `id` as a JSON number. IDs can have gaps after rolled-back
+inserts.
+JWT `sub` remains a string containing the decimal user ID.
+
+The `20260914090000_user_integer_ids` migration preserves user profiles and assigns
+new integer IDs to existing users. Previously issued UUID-based access and refresh
+tokens are rejected; users must sign in with Google again. Clients must discard
+cached UUID user IDs when deploying this change.
+
+### Update your profile
+
+`PATCH /api/v1/me` requires `Authorization: Bearer <accessToken>` and a JSON body
+with at least one of `name` or `avatarUrl`:
+
+```json
+{ "name": "Bao", "avatarUrl": "https://example.com/avatar.jpg" }
+```
+
+`name` is trimmed and must contain 1–120 characters. `avatarUrl` must be an HTTP(S)
+URL of at most 2048 characters, or `null` to clear it. Omitted fields stay unchanged.
+Other fields (including `id`, `email`, and `googleId`) and empty updates return 422.
+The endpoint always updates the authenticated user and returns 200 with
+`{ success, message, data: { id, email, name, avatarUrl } }`, matching `GET /api/v1/me`.

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import jwt, { type Algorithm } from "jsonwebtoken";
+import jwt, { type Algorithm, type JwtPayload } from "jsonwebtoken";
 import { MINUTE_MS, toSeconds } from "@/core/utils";
+import { MAX_USER_ID } from "@/features/users/domain";
 import {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
@@ -23,7 +24,7 @@ export class JwtService {
   constructor(private readonly options: JwtServiceOptions) {}
 
   createTokenPair(
-    userId: string,
+    userId: number,
     email: string,
     session?: { id: string; expiresAt: Date },
   ): TokenPair {
@@ -73,11 +74,9 @@ export class JwtService {
       throw new Error("JWT payload must be an object");
     }
 
-    const claims = payload as unknown as RawClaims;
-    for (const claim of ["sub", "email", "jti", "typ", "sid"] as const) {
-      if (typeof claims[claim] !== "string" || claims[claim] === "") {
-        throw new Error(`JWT is missing required claim: ${claim}`);
-      }
+    const claims = readClaims(payload);
+    if (!/^[1-9]\d*$/.test(claims.sub) || Number(claims.sub) > MAX_USER_ID) {
+      throw new Error("JWT has invalid user ID");
     }
     if (
       !Number.isFinite(claims.session_exp) ||
@@ -87,16 +86,14 @@ export class JwtService {
       throw new Error("JWT has invalid session claims");
     }
     if (claims.typ !== expectedType) {
-      throw new Error(
-        `Invalid token type: expected ${expectedType}, got ${claims.typ}`,
-      );
+      throw new Error(`Invalid token type: expected ${expectedType}, got ${claims.typ}`);
     }
 
     return toEntity(claims);
   }
 
   private sign(input: {
-    userId: string;
+    userId: number;
     email: string;
     tokenType: TokenType;
     issuedAt: Date;
@@ -105,7 +102,7 @@ export class JwtService {
     sessionExpiresAt: Date;
   }): string {
     const payload: RawClaims = {
-      sub: input.userId,
+      sub: String(input.userId),
       email: input.email,
       jti: randomUUID(),
       typ: input.tokenType,
@@ -122,4 +119,37 @@ export class JwtService {
       noTimestamp: false,
     });
   }
+}
+
+function readClaims(payload: JwtPayload): RawClaims {
+  const tokenType = readStringClaim(payload, "typ");
+  if (tokenType !== ACCESS_TOKEN_TYPE && tokenType !== REFRESH_TOKEN_TYPE) {
+    throw new Error(`JWT has invalid token type: ${tokenType}`);
+  }
+
+  return {
+    sub: readStringClaim(payload, "sub"),
+    email: readStringClaim(payload, "email"),
+    jti: readStringClaim(payload, "jti"),
+    typ: tokenType,
+    sid: readStringClaim(payload, "sid"),
+    session_exp: readNumberClaim(payload, "session_exp"),
+    exp: readNumberClaim(payload, "exp"),
+  };
+}
+
+function readStringClaim(payload: JwtPayload, name: string): string {
+  const value: unknown = payload[name];
+  if (typeof value !== "string" || value === "") {
+    throw new Error(`JWT is missing required claim: ${name}`);
+  }
+  return value;
+}
+
+function readNumberClaim(payload: JwtPayload, name: string): number {
+  const value: unknown = payload[name];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`JWT is missing required claim: ${name}`);
+  }
+  return value;
 }

@@ -7,11 +7,8 @@ import {
   googleLoginSchema,
   refreshTokenSchema,
 } from "@/features/auth/presentation/auth.validators";
-import {
-  updateUserSchema,
-  listUsersQuerySchema,
-  userIdParamsSchema,
-} from "@/features/users/presentation/user.validators";
+import { MAX_USER_ID } from "@/features/users/domain";
+import { updateProfileSchema } from "@/features/users/presentation/user.validators";
 
 // Composition root for the public API contract. Requests reuse runtime validators.
 function jsonSchema(schema: z.ZodType, io: "input" | "output" = "input") {
@@ -110,37 +107,22 @@ function requestBody(schema: z.ZodType) {
   };
 }
 
-const user = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  name: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-});
 const currentUser = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
+  id: z.number().int().positive().max(MAX_USER_ID),
+  email: z.email(),
   name: z.string(),
   avatarUrl: z.string().nullable(),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
 const authErrors = errors(400, 401, 413, 415, 422, 429, 500, 503);
 const protectedErrors = errors(401, 429, 500, 503);
-const userId = {
-  name: "id",
-  in: "path",
-  required: true,
-  schema: jsonSchema(userIdParamsSchema.shape.id),
-};
-const userParameters = [...languageParameters, userId];
-
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
     title: "Reelingo API",
     version: "1.0.0",
     description:
-      "Localized API envelopes. Success: {success,message,data}; failure: {success,message,error:{code}}. DELETE returns an empty 204. Health probes are unwrapped.",
+      "Localized API envelopes. Success: {success,message,data}; failure: {success,message,error:{code}}. Health probes are unwrapped.",
   },
   servers: [{ url: "/" }],
   security: [{ bearerAuth: [] }],
@@ -222,70 +204,27 @@ export const openApiDocument = {
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.auth.me}`]: {
+    [`${endpoints.apiPrefix}${endpoints.users.me}`]: {
+      patch: {
+        tags: ["Users"],
+        operationId: "updateCurrentUserProfile",
+        summary: "Update the current user's name or avatar",
+        description:
+          "At least one field is required. Omitted fields stay unchanged; avatarUrl: null clears the avatar. Only name and avatarUrl are accepted.",
+        parameters: languageParameters,
+        requestBody: requestBody(updateProfileSchema),
+        responses: {
+          200: success(currentUser),
+          ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
       get: {
-        tags: ["Auth"],
+        tags: ["Users"],
         operationId: "getCurrentUser",
         summary: "Get the current user",
         parameters: languageParameters,
         responses: { 200: success(currentUser), ...protectedErrors },
-      },
-    },
-    [`${endpoints.apiPrefix}${endpoints.users.list}`]: {
-      get: {
-        tags: ["Users"],
-        operationId: "listUsers",
-        summary: "List users",
-        parameters: [
-          ...languageParameters,
-          ...Object.entries(listUsersQuerySchema.shape).map(([name, schema]) => ({
-            name,
-            in: "query",
-            required: false,
-            schema: jsonSchema(schema, "output"),
-          })),
-        ],
-        responses: {
-          200: success(
-            z.object({
-              items: z.array(user),
-              total: z.number().int(),
-              page: z.number().int(),
-              pageSize: z.number().int(),
-              totalPages: z.number().int(),
-            }),
-          ),
-          ...protectedErrors,
-          ...errors(422),
-        },
-      },
-    },
-    [`${endpoints.apiPrefix}${endpoints.users.byId.replace(":id", "{id}")}`]: {
-      get: {
-        tags: ["Users"],
-        operationId: "getUser",
-        summary: "Get a user",
-        parameters: userParameters,
-        responses: { 200: success(user), ...protectedErrors, ...errors(404, 422) },
-      },
-      patch: {
-        tags: ["Users"],
-        operationId: "updateUser",
-        summary: "Update a user",
-        parameters: userParameters,
-        requestBody: requestBody(updateUserSchema),
-        responses: { 200: success(user), ...authErrors, ...errors(404, 409) },
-      },
-      delete: {
-        tags: ["Users"],
-        operationId: "deleteUser",
-        summary: "Delete a user",
-        parameters: userParameters,
-        responses: {
-          204: { description: "Deleted; no response body", headers: responseHeaders },
-          ...protectedErrors,
-          ...errors(404, 422),
-        },
       },
     },
     [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {

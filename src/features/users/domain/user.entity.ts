@@ -1,5 +1,5 @@
 export interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
   googleId: string | null;
@@ -8,8 +8,9 @@ export interface User {
   updatedAt: Date;
 }
 
-export type NewUser = Pick<User, "email" | "name"> &
-  Partial<Pick<User, "googleId" | "avatarUrl">>;
-export type UserUpdate = Partial<
-  Pick<User, "email" | "name" | "googleId" | "avatarUrl">
->;
+export const MAX_USER_ID = 2_147_483_647;
+
+export type NewUser = Pick<User, "email" | "name" | "avatarUrl"> & {
+  googleId: string;
+};
+export type ProfileUpdate = Partial<Pick<User, "name" | "avatarUrl">>;
