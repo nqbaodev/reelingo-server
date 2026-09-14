@@ -1,13 +1,12 @@
 # Agent skills
 
-This directory holds portable skills — usable by any coding agent that reads
-`AGENTS.md` (Claude Code, Codex, etc.), not just one tool's own skills
-mechanism. None are installed yet: this project's own workflow lives directly
-in [AGENTS.md](../../AGENTS.md), [rule.md](../../rule.md), and
-[docs/](../../docs) — add a skill here only when guidance is genuinely
-reusable beyond this repo (a library's best-practice rules, a design system
-guide), not to restate project-specific decisions that already have a home in
-those documents.
+This directory holds skills usable by coding agents that read `AGENTS.md` (Claude
+Code, Codex, etc.), not just one tool's own skill mechanism. The installed
+[backend development skill](backend-dev-guidelines/SKILL.md) routes backend work
+to the repository's source-of-truth rules and docs without copying their details.
+Add another skill only when it provides a distinct reusable workflow or external
+guidance; do not restate decisions already owned by [rule.md](../../rule.md) or
+[docs](../../docs/README.md).
 
 ## Convention
 
@@ -28,6 +27,12 @@ content. When a skill covers many discrete rules (see an example of this
 shape in reelingo's own `vercel-react-best-practices` skill), split each rule
 into its own file under `rules/<rule-id>.md` and link to it from the index
 instead of inlining everything into `SKILL.md`.
+
+Before installation, review provenance, license, executable scripts, and runtime
+assumptions. Installation does not imply executing bundled scripts or adopting
+dependencies. Read only the full rules relevant to the current task. Keep upstream
+files separate from local applicability notes; put corrections and adaptations
+in `docs/` and link them from the documentation map. Recheck those notes on updates.
 
 Record project-specific decisions (how *this* project applies a skill's
 general guidance) in the linked project documents — `rule.md` or `docs/` — and
