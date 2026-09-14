@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
+import type { ParamsDictionary } from "express-serve-static-core";
 import { ServiceUnavailableError, UnauthorizedError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
+import { I18n } from "@/core/i18n";
 import type {
   LoginWithGoogleUseCase,
   LogoutUseCase,
@@ -11,12 +13,9 @@ import {
   GoogleIdentityUnavailableError,
   TokenRevocationStoreError,
 } from "../infrastructure";
-import {
-  toAuthResponse,
-  toCurrentUserResponse,
-  toTokenPairResponse,
-} from "./auth.presenter";
-import { I18n } from "@/core/i18n";
+import { toAuthResponse, toTokenPairResponse } from "./auth.presenter";
+import { requireAuth } from "./require-auth";
+import type { GoogleLoginInput, RefreshTokenInput } from "./auth.validators";
 
 interface AuthControllerDeps {
   googleIdentity: GoogleIdentityClient;
@@ -28,15 +27,21 @@ interface AuthControllerDeps {
 export class AuthController {
   constructor(private readonly deps: AuthControllerDeps) {}
 
-  loginWithGoogle = async (req: Request, res: Response) => {
-    const { idToken } = req.body as { idToken: string };
+  loginWithGoogle = async (
+    req: Request<ParamsDictionary, unknown, GoogleLoginInput>,
+    res: Response,
+  ) => {
+    const { idToken } = req.body;
 
     let identity;
     try {
       identity = await this.deps.googleIdentity.verifyIdToken(idToken);
     } catch (err) {
       if (err instanceof GoogleIdentityUnavailableError) {
-        throw new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Google Identity" }, cause: err });
+        throw new ServiceUnavailableError(I18n.serviceUnavailable, {
+          params: { service: "Google Identity" },
+          cause: err,
+        });
       }
       throw new UnauthorizedError(I18n.invalidGoogleToken, { cause: err });
     }
@@ -45,14 +50,20 @@ export class AuthController {
     sendSuccess(res, toAuthResponse(user, tokens), I18n.signedIn);
   };
 
-  refresh = async (req: Request, res: Response) => {
-    const { refreshToken } = req.body as { refreshToken: string };
+  refresh = async (
+    req: Request<ParamsDictionary, unknown, RefreshTokenInput>,
+    res: Response,
+  ) => {
+    const { refreshToken } = req.body;
     try {
       const tokens = await this.deps.refreshSession.execute(refreshToken);
       sendSuccess(res, toTokenPairResponse(tokens), I18n.sessionRefreshed);
     } catch (err) {
       throw err instanceof TokenRevocationStoreError
-        ? new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Session store" }, cause: err })
+        ? new ServiceUnavailableError(I18n.serviceUnavailable, {
+            params: { service: "Session store" },
+            cause: err,
+          })
         : err;
     }
   };
@@ -63,20 +74,12 @@ export class AuthController {
       await this.deps.logout.execute(auth.claims);
     } catch (err) {
       throw err instanceof TokenRevocationStoreError
-        ? new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Session store" }, cause: err })
+        ? new ServiceUnavailableError(I18n.serviceUnavailable, {
+            params: { service: "Session store" },
+            cause: err,
+          })
         : err;
     }
     sendSuccess(res, { loggedOut: true }, I18n.signedOut);
   };
-
-  me = async (req: Request, res: Response) => {
-    sendSuccess(res, toCurrentUserResponse(requireAuth(req).user));
-  };
-}
-
-function requireAuth(req: Request) {
-  if (!req.auth) {
-    throw new UnauthorizedError(I18n.missingToken);
-  }
-  return req.auth;
 }

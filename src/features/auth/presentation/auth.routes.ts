@@ -1,32 +1,35 @@
-import { type RequestHandler, Router } from "express";
-import { asyncHandler, validate } from "@/core/http";
+import type { RequestHandler, Router } from "express";
+import { HttpMethod, createBaseRouter, validate } from "@/core/http";
+import { endpoints } from "@/shared/http/endpoints";
 import type { AuthController } from "./auth.controller";
 import { googleLoginSchema, refreshTokenSchema } from "./auth.validators";
 
-export function createAuthRouter(
+export function createPublicAuthRouter(
   controller: AuthController,
-  authenticate: RequestHandler,
   loginRateLimiter: RequestHandler,
 ): Router {
-  const router = Router();
+  return createBaseRouter([
+    {
+      method: HttpMethod.POST,
+      path: endpoints.auth.googleLogin,
+      middlewares: [loginRateLimiter, validate({ body: googleLoginSchema })],
+      handler: controller.loginWithGoogle,
+    },
+    {
+      method: HttpMethod.POST,
+      path: endpoints.auth.refresh,
+      middlewares: [loginRateLimiter, validate({ body: refreshTokenSchema })],
+      handler: controller.refresh,
+    },
+  ]);
+}
 
-  router.post(
-    "/auth/login/google",
-    loginRateLimiter,
-    validate({ body: googleLoginSchema }),
-    asyncHandler(controller.loginWithGoogle),
-  );
-
-  router.post(
-    "/auth/refresh",
-    loginRateLimiter,
-    validate({ body: refreshTokenSchema }),
-    asyncHandler(controller.refresh),
-  );
-
-  router.post("/auth/logout", authenticate, asyncHandler(controller.logout));
-
-  router.get("/me", authenticate, asyncHandler(controller.me));
-
-  return router;
+export function createProtectedAuthRouter(controller: AuthController): Router {
+  return createBaseRouter([
+    {
+      method: HttpMethod.POST,
+      path: endpoints.auth.logout,
+      handler: controller.logout,
+    },
+  ]);
 }

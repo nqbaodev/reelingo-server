@@ -30,10 +30,10 @@ rule are defined in [docs/architecture.md](docs/architecture.md).
 
 - Keep TypeScript strict; do not use `any` or type assertions to hide type
   errors.
-- Read settings from `config` (`@/config`), never from `process.env` or
-  `@/config/env` outside the `config` directory. Validate environment-backed
-  settings in `env.ts` and expose them through the matching group in
-  `config.ts`. Put shared static settings there directly (for example,
+- Read settings from `config` (`@/config`), never from `process.env` outside
+  `app-config.ts`. Load, validate, and define all environment-backed settings
+  there, then expose the public facade in `config.ts`. Put shared static
+  settings in their owning group directly (for example,
   `config.auth.jwt.algorithm` is the source for both signing and verification).
   Do not turn every constant into an environment variable.
 - Reuse pure technical helpers from `core/utils`, including time conversions

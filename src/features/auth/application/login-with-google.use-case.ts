@@ -20,15 +20,7 @@ export class LoginWithGoogleUseCase {
    */
   private async resolveUser(identity: GoogleIdentity): Promise<User> {
     const existing = await this.users.findByGoogleId(identity.googleId);
-    return existing ? this.syncProfile(existing, identity) : this.createFromGoogle(identity);
-  }
-
-  /** Returning user: refresh the display fields Google may have changed. Email is fixed at creation. */
-  private syncProfile(user: User, identity: GoogleIdentity): Promise<User> {
-    return this.users.update(user.id, {
-      name: identity.name,
-      avatarUrl: identity.avatarUrl,
-    });
+    return existing ?? this.createFromGoogle(identity);
   }
 
   private createFromGoogle(identity: GoogleIdentity): Promise<User> {

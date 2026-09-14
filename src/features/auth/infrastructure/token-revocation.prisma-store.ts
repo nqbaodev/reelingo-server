@@ -1,10 +1,9 @@
 import type { PrismaClient } from "@/generated/prisma/client";
+import { isPrismaUniqueViolation } from "@/shared/database/prisma-error";
 import {
   type TokenRevocationStore,
   TokenRevocationStoreError,
 } from "./token-revocation.store";
-
-const UNIQUE_VIOLATION = "P2002";
 
 export class TokenRevocationPrismaStore implements TokenRevocationStore {
   constructor(private readonly prisma: PrismaClient) {}
@@ -25,10 +24,12 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
     } catch (err) {
       // The primary key turns a replayed refresh token into a conflict, which
       // is the signal that someone already used it.
-      if (isUniqueViolation(err)) {
+      if (isPrismaUniqueViolation(err)) {
         return false;
       }
-      throw new TokenRevocationStoreError("Token revocation write failed");
+      throw new TokenRevocationStoreError("Token revocation write failed", {
+        cause: err,
+      });
     }
   }
 
@@ -46,8 +47,10 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
         create: { key: sessionKey(sessionId), expiresAt },
         update: { expiresAt },
       });
-    } catch {
-      throw new TokenRevocationStoreError("Session revocation write failed");
+    } catch (err) {
+      throw new TokenRevocationStoreError("Session revocation write failed", {
+        cause: err,
+      });
     }
   }
 
@@ -55,8 +58,10 @@ export class TokenRevocationPrismaStore implements TokenRevocationStore {
     let record;
     try {
       record = await this.prisma.revokedKey.findUnique({ where: { key } });
-    } catch {
-      throw new TokenRevocationStoreError("Token revocation read failed");
+    } catch (err) {
+      throw new TokenRevocationStoreError("Token revocation read failed", {
+        cause: err,
+      });
     }
     return record !== null && record.expiresAt.getTime() > Date.now();
   }
@@ -68,13 +73,4 @@ function tokenKey(tokenId: string): string {
 
 function sessionKey(sessionId: string): string {
   return `session:${sessionId}`;
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: unknown }).code === UNIQUE_VIOLATION
-  );
 }

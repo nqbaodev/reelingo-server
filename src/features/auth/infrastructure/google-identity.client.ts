@@ -3,7 +3,12 @@ import { isNetworkError } from "@/core/utils";
 import type { GoogleIdentity } from "../domain";
 import { toEntity } from "./google-identity.mapper";
 
-export class GoogleIdentityError extends Error {}
+export class GoogleIdentityError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = new.target.name;
+  }
+}
 export class GoogleIdentityUnavailableError extends GoogleIdentityError {}
 
 export class GoogleIdentityClient {
@@ -27,9 +32,10 @@ export class GoogleIdentityClient {
       if (isNetworkError(err)) {
         throw new GoogleIdentityUnavailableError(
           "Google identity service is unavailable",
+          { cause: err },
         );
       }
-      throw new GoogleIdentityError("Invalid Google ID token");
+      throw new GoogleIdentityError("Invalid Google ID token", { cause: err });
     }
 
     if (!payload) {

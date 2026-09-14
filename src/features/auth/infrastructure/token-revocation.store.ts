@@ -1,4 +1,9 @@
-export class TokenRevocationStoreError extends Error {}
+export class TokenRevocationStoreError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = new.target.name;
+  }
+}
 
 /**
  * Contract for one-time refresh tokens and server-revoked sessions.

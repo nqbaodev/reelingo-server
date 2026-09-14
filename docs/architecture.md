@@ -13,7 +13,7 @@ shared Express/Prisma infrastructure.
 | `features/<feature>/infrastructure` | Repository interface (port) and its concrete adapter (Prisma) |
 | `features/<feature>/presentation` | Express router, controller, Zod validators, response presenter |
 | `features/<feature>/<feature>.module.ts` | Composition root: wires the adapter into use cases and exposes a router |
-| `config` | `env.ts` validates raw environment variables; `config.ts` groups them by domain and is what the rest of the app imports |
+| `config` | `app-config.ts` owns validated environment-backed settings; `config.ts` exposes the public facade imported by the app |
 | `core` | Cross-cutting abstractions independent of any feature (`AppError`, `asyncHandler`, `validate`, pagination, `i18n`) |
 | `core/utils` | Pure technical helpers and their constants; no feature, config, database, or HTTP-response dependencies |
 | `core/i18n` | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
@@ -23,6 +23,13 @@ shared Express/Prisma infrastructure.
 
 ## HTTP conventions
 
+- Feature routers use `createBaseRouter` from `core/http` with an ordered list
+  of `method`, `path`, optional `middlewares`, and `handler` definitions.
+  Methods use the shared `HttpMethod` enum from `core/http`.
+  Middleware runs in the listed order before the handler; Express 5 forwards
+  rejected handler promises to the error middleware. Keep static paths before
+  parameter paths when they overlap. Manage endpoints in the owning feature's
+  `*.routes.ts`; mounting and authentication boundaries remain in `app.ts`.
 - `core/i18n` owns the pure language resolver, typed message catalogs, and
   parameter interpolation. It does not import Express or access request state.
 - `shared/middlewares/language.ts` selects a language per request. `AppError`
@@ -38,8 +45,13 @@ shared Express/Prisma infrastructure.
 - The `health` feature owns probe routes and the readiness interface/Prisma
   adapter. `health.module.ts` wires the real database; probes do not require
   a domain entity, repository table, or HTTP response envelope.
-- `app.ts` mounts the API rate limiter once and composes protected feature
-  routers behind one authentication middleware. Public probes/docs are separate.
+- `app.ts` mounts the API rate limiter once, then the auth feature's public
+  router, the authentication middleware, and the protected auth/users/AI
+  routers in that order. Public probes/docs are separate.
+- `shared/http/endpoints.ts` owns the API prefix and paths grouped by feature,
+  including public health and documentation paths. Routers and `openapi.ts`
+  share these values. API feature paths remain relative to `apiPrefix`;
+  OpenAPI converts Express's `:id` parameter to `{id}`.
 
 ## Entity mapping
 
@@ -58,6 +70,14 @@ feature. Group related functions and constants by purpose: `time.ts` owns
 `toSeconds`, `SECOND_MS`, and `MINUTE_MS`; `network-error.ts` owns
 `isNetworkError` and its recognized codes. Export helpers through the local
 barrel without importing application config or feature code back into them.
+
+`bearer-token.ts` and `requireAuth` stay in the auth presentation layer:
+their current callers belong to auth. The parser reads a single credential
+without throwing HTTP errors; the middleware decides how to reject invalid
+input. `requireAuth` reads the feature's request context.
+Prisma error classifiers belong in
+`shared/database/prisma-error.ts`, where `isPrismaUniqueViolation` identifies
+unique constraint failures without deciding the feature's response.
 
 Network classification is not a global error-response policy. Each adapter
 decides how a recognized failure affects its operation; the feature maps
@@ -113,7 +133,8 @@ controller or use case.
 3. `src/features/<name>/application/` — write use cases; depend on the
    repository interface.
 4. `src/features/<name>/presentation/` — Zod validators, a presenter mapping
-   the entity to an HTTP response shape, a controller, and an Express router.
+   the entity to an HTTP response shape, a controller, and an Express router
+   defined with `createBaseRouter` from `core/http`.
 5. `src/features/<name>/<name>.module.ts` — wire the pieces and export
    `router`.
 6. Mount the router in [../src/app.ts](../src/app.ts).

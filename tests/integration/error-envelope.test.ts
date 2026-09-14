@@ -5,6 +5,19 @@ import { createApp } from "@/app";
 const app = createApp();
 
 describe("error envelope", () => {
+  it("rejects extra Bearer credentials before verifying the token", async () => {
+    const res = await request(app)
+      .get("/api/v1/me")
+      .set("Authorization", "Bearer invalid-token extra");
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({
+      success: false,
+      message: "Missing bearer token",
+      error: { code: "UNAUTHORIZED" },
+    });
+  });
+
   it("translates an unknown route into a localized 404", async () => {
     const en = await request(app).get("/nope");
     const vi = await request(app).get("/nope").set("X-Language", "vi");
@@ -42,8 +55,26 @@ describe("error envelope", () => {
     expect(JSON.stringify(res.body)).not.toContain("{bad");
   });
 
-  it("rejects a protected route without a bearer token", async () => {
-    const res = await request(app).get("/api/v1/me");
+  it("forwards an async controller rejection to the error handler", async () => {
+    const res = await request(app)
+      .post("/api/v1/auth/refresh")
+      .send({ refreshToken: "invalid-token" });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({
+      success: false,
+      message: "Invalid or expired token",
+      error: { code: "UNAUTHORIZED" },
+    });
+  });
+
+  it.each([
+    ["get", "/api/v1/me"],
+    ["patch", "/api/v1/me"],
+    ["post", "/api/v1/auth/logout"],
+    ["post", "/api/v1/ai/generate"],
+  ] as const)("rejects %s %s without a bearer token", async (method, path) => {
+    const res = await request(app)[method](path);
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe("UNAUTHORIZED");

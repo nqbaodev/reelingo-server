@@ -21,7 +21,7 @@ export interface TokenPair {
  * outlive `sessionExpiresAt`.
  */
 export interface TokenClaims {
-  userId: string;
+  userId: number;
   email: string;
   tokenId: string;
   tokenType: TokenType;
