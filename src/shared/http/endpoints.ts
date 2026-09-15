@@ -8,6 +8,10 @@ export const endpoints = {
   users: {
     me: "/me",
   },
+  conversations: {
+    root: "/conversations",
+    byId: "/conversations/:conversationId",
+  },
   ai: {
     generate: "/ai/generate",
   },

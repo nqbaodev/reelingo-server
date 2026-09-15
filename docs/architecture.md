@@ -1,7 +1,7 @@
 # Architecture guidelines
 
 Organize code by feature first, then by layer within each feature. The app
-currently composes `health`, `auth`, `users`, and `ai` features on top of
+currently composes `health`, `auth`, `users`, `conversations`, and `ai` features on top of
 shared Express/Prisma infrastructure.
 
 ## Responsibilities and dependencies
@@ -137,7 +137,7 @@ concrete benefit and verify the affected behavior, not the pattern's class names
   adapter. `health.module.ts` wires the real database; probes do not require
   a domain entity, repository table, or HTTP response envelope.
 - `app.ts` mounts the API rate limiter once, then the auth feature's public
-  router, the authentication middleware, and the protected auth/users/AI
+  router, the authentication middleware, and the protected auth/users/conversations/AI
   routers in that order. Public probes/docs are separate.
 - `shared/http/endpoints.ts` owns the API prefix and paths grouped by feature,
   including public health and documentation paths. Routers and `openapi.ts`

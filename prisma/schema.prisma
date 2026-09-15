@@ -8,15 +8,28 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  googleId  String?  @unique @map("google_id")
-  avatarUrl String?  @map("avatar_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  name          String
+  googleId      String?        @unique @map("google_id")
+  avatarUrl     String?        @map("avatar_url")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversations Conversation[]
 
   @@map("users")
+}
+
+model Conversation {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    Int      @map("user_id")
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt(sort: Desc), id(sort: Desc)])
+  @@map("conversations")
 }
 
 /// One row per revoked refresh token (`token:<jti>`) or revoked session
@@ -24,7 +37,7 @@ model User {
 /// which they carry no meaning and can be deleted.
 model RevokedKey {
   key       String   @id
-  expiresAt DateTime @map("expires_at")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
 
   @@index([expiresAt])
   @@map("revoked_keys")

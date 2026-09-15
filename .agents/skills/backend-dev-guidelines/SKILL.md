@@ -45,7 +45,10 @@ repository's documented contract.
    route, boundary validation, presenter, errors, and OpenAPI together. For a schema
    change, update the Prisma schema and migration together before relying on the
    generated client.
-8. Run the checks required by the workflow, inspect failures, and report actual
+8. Do not create or modify automated test files unless the user explicitly asks
+   for tests. Preserve existing tests, and use the project's existing verification
+   commands when verification is in scope.
+9. Run the checks required by the workflow, inspect failures, and report actual
    evidence plus any remaining gap.
 
 ## Review gates
@@ -64,7 +67,8 @@ Before finishing, verify that:
   rotation, session revocation, and secret-handling invariants;
 - security responsibilities name the enforcing boundary, and performance claims
   include a stated workload plus measurements rather than estimates;
-- tests cover meaningful behavior rather than class names or implementation shape;
+- tests requested by the user cover meaningful behavior rather than class names or
+  implementation shape;
 - comments and docs describe the final behavior and remain in English.
 
 Do not claim that applying this skill proves existing code is compliant or that a

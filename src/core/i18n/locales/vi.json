@@ -5,6 +5,7 @@
   "sessionRefreshed": "Làm mới phiên đăng nhập thành công",
   "signedOut": "Đăng xuất thành công",
   "textGenerated": "Tạo văn bản thành công",
+  "conversationCreated": "Tạo cuộc trò chuyện thành công",
 
   "routeNotFound": "Không tìm thấy đường dẫn",
   "validationFailed": "Dữ liệu yêu cầu không hợp lệ",
@@ -20,6 +21,7 @@
   "invalidGoogleToken": "Google ID token không hợp lệ",
 
   "userNotFound": "Không tìm thấy người dùng",
+  "conversationNotFound": "Không tìm thấy cuộc trò chuyện",
   "emailInUse": "Email {email} đã được sử dụng",
   "serviceUnavailable": "{service} tạm thời không khả dụng"
 }

@@ -201,7 +201,7 @@ quits.
 ## API
 
 `shared/http/endpoints.ts` defines the shared API prefix (`apiPrefix`, `/api/v1`)
-and paths grouped under `auth`, `users`, `ai`, `health`, and `docs`.
+and paths grouped under `auth`, `users`, `conversations`, `ai`, `health`, and `docs`.
 Routers and OpenAPI reuse these values. API feature paths are relative to
 the prefix; health and documentation paths are mounted at the root.
 
@@ -223,6 +223,9 @@ the prefix; health and documentation paths are mounted at the root.
 | `GET` | `/api/v1/me` | Current authenticated user |
 | `PATCH` | `/api/v1/me` | Update the current user's name or avatar |
 | `POST` | `/api/v1/auth/logout` | Revoke the current session |
+| `POST` | `/api/v1/conversations` | Create a conversation |
+| `GET` | `/api/v1/conversations` | List conversations with cursor pagination |
+| `PATCH` | `/api/v1/conversations/:conversationId` | Update an owned conversation's name |
 | `POST` | `/api/v1/ai/generate` | Generate text from a prompt with Gemini |
 
 ## Authentication

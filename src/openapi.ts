@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { config } from "@/config";
+import { config, MAX_CONVERSATION_NAME_LENGTH } from "@/config";
+import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import { generateTextSchema } from "@/features/ai/presentation/ai.validators";
@@ -7,6 +8,10 @@ import {
   googleLoginSchema,
   refreshTokenSchema,
 } from "@/features/auth/presentation/auth.validators";
+import {
+  conversationNameSchema,
+  conversationParamsSchema,
+} from "@/features/conversations/presentation/conversation.validators";
 import { MAX_USER_ID } from "@/features/users/domain";
 import { updateProfileSchema } from "@/features/users/presentation/user.validators";
 
@@ -36,6 +41,23 @@ const languageParameters = [
     required: false,
     description: `API message language. Overrides Accept-Language (including q weights). Falls back to ${DEFAULT_LANGUAGE}. Does not select Gemini output language.`,
     schema: languageSchema,
+  },
+];
+
+const cursorPaginationParameters = [
+  {
+    name: "limit",
+    in: "query",
+    required: false,
+    description: "Maximum number of items to return",
+    schema: jsonSchema(paginationLimitSchema),
+  },
+  {
+    name: "cursor",
+    in: "query",
+    required: false,
+    description: "Opaque cursor returned by the previous page",
+    schema: jsonSchema(cursorTokenSchema),
   },
 ];
 
@@ -112,6 +134,16 @@ const currentUser = z.object({
   email: z.email(),
   name: z.string(),
   avatarUrl: z.string().nullable(),
+});
+const conversation = z.object({
+  id: z.uuid(),
+  name: z.string().min(1).max(MAX_CONVERSATION_NAME_LENGTH),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+const conversationList = z.object({
+  items: z.array(conversation),
+  nextCursor: z.string().nullable(),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
 const authErrors = errors(400, 401, 413, 415, 422, 429, 500, 503);
@@ -225,6 +257,56 @@ export const openApiDocument = {
         summary: "Get the current user",
         parameters: languageParameters,
         responses: { 200: success(currentUser), ...protectedErrors },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.conversations.root}`]: {
+      get: {
+        tags: ["Conversations"],
+        operationId: "listConversations",
+        summary: "List conversations for infinite scrolling",
+        parameters: [...languageParameters, ...cursorPaginationParameters],
+        responses: {
+          200: success(conversationList),
+          ...errors(422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Conversations"],
+        operationId: "createConversation",
+        summary: "Create a conversation",
+        parameters: languageParameters,
+        requestBody: requestBody(conversationNameSchema),
+        responses: {
+          201: success(conversation, "Conversation created"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.conversations.byId}`.replace(
+      ":conversationId",
+      "{conversationId}",
+    )]: {
+      patch: {
+        tags: ["Conversations"],
+        operationId: "updateConversationName",
+        summary: "Update a conversation name",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(conversationParamsSchema.shape.conversationId),
+          },
+        ],
+        requestBody: requestBody(conversationNameSchema),
+        responses: {
+          200: success(conversation, "Conversation updated"),
+          ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
       },
     },
     [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {

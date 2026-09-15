@@ -212,6 +212,11 @@ external example overrides the requested behavior.
 
 ## Persistence and concurrency
 
+- Store instants in PostgreSQL as `TIMESTAMPTZ(3)` and interpret existing migrated
+  timestamps as UTC only after confirming their prior semantics. Prisma models use
+  `DateTime @db.Timestamptz(3)`, and HTTP presenters expose ISO 8601 UTC strings.
+  Use `DATE` for date-only concepts rather than converting them to timestamps.
+
 - Enforce uniqueness and relationships in PostgreSQL. A read followed by a create
   is not atomic; handle concurrent requests using appropriate constraints,
   atomic operations, or transactions. A conflict is not permission to link accounts.

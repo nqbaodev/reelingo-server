@@ -7,6 +7,7 @@ import { config } from "@/config";
 import { createAiModule } from "@/features/ai/ai.module";
 import type { GenerativeAiClient } from "@/features/ai/infrastructure";
 import { createAuthModule } from "@/features/auth/auth.module";
+import { createConversationsModule } from "@/features/conversations/conversations.module";
 import { createHealthModule } from "@/features/health/health.module";
 import { createUsersModule } from "@/features/users/users.module";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -52,6 +53,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const authModule = createAuthModule(database);
   const healthModule = createHealthModule(database);
   const aiModule = createAiModule(options.aiClient);
+  const conversationsModule = createConversationsModule(database);
   const usersModule = createUsersModule(database);
 
   // Public routes
@@ -66,6 +68,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
     authModule.authenticate,
     authModule.protectedRouter,
     usersModule.router,
+    conversationsModule.router,
     aiModule.router,
   );
 

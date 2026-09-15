@@ -5,6 +5,7 @@
   "sessionRefreshed": "Session refreshed successfully",
   "signedOut": "Signed out successfully",
   "textGenerated": "Text generated successfully",
+  "conversationCreated": "Conversation created successfully",
 
   "routeNotFound": "Route not found",
   "validationFailed": "Request validation failed",
@@ -20,6 +21,7 @@
   "invalidGoogleToken": "Invalid Google ID token",
 
   "userNotFound": "User not found",
+  "conversationNotFound": "Conversation not found",
   "emailInUse": "Email {email} is already in use",
   "serviceUnavailable": "{service} is unavailable"
 }
