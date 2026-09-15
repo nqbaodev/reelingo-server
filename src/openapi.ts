@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { config, MAX_CONVERSATION_NAME_LENGTH } from "@/config";
+import {
+  config,
+  MAX_CONVERSATION_NAME_LENGTH,
+  MAX_MESSAGE_CONTENT_LENGTH,
+} from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
@@ -12,6 +16,11 @@ import {
   conversationNameSchema,
   conversationParamsSchema,
 } from "@/features/conversations/presentation/conversation.validators";
+import { MediaType, MessageRole } from "@/features/messages/domain";
+import {
+  createMessageSchema,
+  messageConversationParamsSchema,
+} from "@/features/messages/presentation/message.validators";
 import { MAX_USER_ID } from "@/features/users/domain";
 import { updateProfileSchema } from "@/features/users/presentation/user.validators";
 
@@ -143,6 +152,34 @@ const conversation = z.object({
 });
 const conversationList = z.object({
   items: z.array(conversation),
+  nextCursor: z.string().nullable(),
+});
+const messageMediaFields = {
+  url: z.url(),
+  mimeType: z.string(),
+};
+const messageMedia = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal(MediaType.IMAGE),
+    ...messageMediaFields,
+  }),
+  z.object({
+    type: z.literal(MediaType.VIDEO),
+    ...messageMediaFields,
+    thumbnailUrl: z.url().nullable(),
+    duration: z.number().positive().describe("Video duration in seconds"),
+  }),
+]);
+const message = z.object({
+  id: z.uuid(),
+  conversationId: z.uuid(),
+  role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
+  content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
+  media: messageMedia.nullable(),
+  createdAt: z.iso.datetime(),
+});
+const messageList = z.object({
+  items: z.array(message),
   nextCursor: z.string().nullable(),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
@@ -304,6 +341,54 @@ export const openApiDocument = {
         requestBody: requestBody(conversationNameSchema),
         responses: {
           200: success(conversation, "Conversation updated"),
+          ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.messages.byConversation}`.replace(
+      ":conversationId",
+      "{conversationId}",
+    )]: {
+      get: {
+        tags: ["Messages"],
+        operationId: "listMessages",
+        summary: "List messages for infinite scrolling",
+        description: "Messages are ordered from newest to oldest.",
+        parameters: [
+          ...languageParameters,
+          ...cursorPaginationParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageConversationParamsSchema.shape.conversationId),
+          },
+        ],
+        responses: {
+          200: success(messageList),
+          ...errors(404, 422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Messages"],
+        operationId: "sendMessage",
+        summary: "Send text and/or one media item",
+        description:
+          "At least content or media is required, and one message accepts at most one media item. Media must already be uploaded. sizeBytes is validated but not stored; images are limited to 2 MB. Video requires duration in seconds and may include thumbnailUrl.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageConversationParamsSchema.shape.conversationId),
+          },
+        ],
+        requestBody: requestBody(createMessageSchema),
+        responses: {
+          201: success(message, "Message sent"),
           ...errors(400, 404, 413, 415, 422),
           ...protectedErrors,
         },

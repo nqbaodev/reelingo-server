@@ -37,4 +37,5 @@ in `docs/` and link them from the documentation map. Recheck those notes on upda
 Record project-specific decisions (how *this* project applies a skill's
 general guidance) in the linked project documents — `rule.md` or `docs/` — and
 link to them from the skill if needed, rather than duplicating them inside
-the skill.
+the skill. For example, chat contracts live in [docs/chat.md](../../docs/chat.md),
+while the backend skill only routes relevant work to that document.

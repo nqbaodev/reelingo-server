@@ -21,6 +21,8 @@ repository's documented contract.
   or reporting completion.
 - Read [app integration](../../../docs/app-integration.md) only when the backend API
   contract or companion app is in scope.
+- Read [chat feature](../../../docs/chat.md) when changing conversations,
+  messages, chat media, cursor behavior, or AI-to-conversation orchestration.
 
 ## Make the change
 

@@ -17,6 +17,8 @@ Read task-specific guidance as needed:
   persistence, authentication, and secrets.
 - [App integration](docs/app-integration.md): companion frontend references and
   API contract checks.
+- [Chat feature](docs/chat.md): conversation, message, media, ownership, and
+  pagination decisions plus deferred chat behavior.
 - [Backend development skill](.agents/skills/backend-dev-guidelines/SKILL.md):
   task routing and review gates for backend implementation/refactoring.
 - [Agent skills](.agents/skills/README.md): skill ownership and conventions.

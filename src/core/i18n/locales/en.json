@@ -6,6 +6,7 @@
   "signedOut": "Signed out successfully",
   "textGenerated": "Text generated successfully",
   "conversationCreated": "Conversation created successfully",
+  "messageSent": "Message sent successfully",
 
   "routeNotFound": "Route not found",
   "validationFailed": "Request validation failed",

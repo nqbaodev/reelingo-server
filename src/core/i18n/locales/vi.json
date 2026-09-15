@@ -6,6 +6,7 @@
   "signedOut": "Đăng xuất thành công",
   "textGenerated": "Tạo văn bản thành công",
   "conversationCreated": "Tạo cuộc trò chuyện thành công",
+  "messageSent": "Gửi tin nhắn thành công",
 
   "routeNotFound": "Không tìm thấy đường dẫn",
   "validationFailed": "Dữ liệu yêu cầu không hợp lệ",

@@ -12,6 +12,9 @@ export const endpoints = {
     root: "/conversations",
     byId: "/conversations/:conversationId",
   },
+  messages: {
+    byConversation: "/conversations/:conversationId/messages",
+  },
   ai: {
     generate: "/ai/generate",
   },
