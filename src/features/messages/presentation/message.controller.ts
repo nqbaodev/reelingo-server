@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import type { ParamsDictionary } from "express-serve-static-core";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
-import { requireAuth } from "@/features/auth/presentation/require-auth";
+import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import type { CreateMessageUseCase, ListMessagesUseCase } from "../application";
 import { toMessageListResponse, toMessageResponse } from "./message.presenter";
 import type {
@@ -25,7 +25,7 @@ export class MessageController {
   ) => {
     const { conversationId } = req.params as MessageConversationParams;
     const message = await this.deps.createMessage.execute(
-      requireAuth(req).user.id,
+      requireCurrentUserId(req),
       conversationId,
       req.body,
     );
@@ -35,7 +35,7 @@ export class MessageController {
   list = async (req: Request, res: Response) => {
     const { conversationId } = req.params as MessageConversationParams;
     const page = await this.deps.listMessages.execute(
-      requireAuth(req).user.id,
+      requireCurrentUserId(req),
       conversationId,
       req.validatedQuery as ListMessagesQuery,
     );

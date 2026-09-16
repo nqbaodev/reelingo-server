@@ -9,3 +9,8 @@ export function requireAuth(req: Request): NonNullable<Request["auth"]> {
   }
   return req.auth;
 }
+
+/** Returns the authenticated user's id from the request context. */
+export function requireCurrentUserId(req: Request): number {
+  return requireAuth(req).user.id;
+}
