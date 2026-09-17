@@ -11,6 +11,20 @@ export interface CreateMessageForConversationInput {
   message: NewMessage;
 }
 
+export const CreateMessageResultType = {
+  CREATED: "created",
+  CONVERSATION_NOT_FOUND: "conversationNotFound",
+  MEDIA_NOT_FOUND: "mediaNotFound",
+} as const;
+
+export type CreateMessageForConversationResult =
+  | {
+      type: typeof CreateMessageResultType.CREATED;
+      message: Message;
+    }
+  | { type: typeof CreateMessageResultType.CONVERSATION_NOT_FOUND }
+  | { type: typeof CreateMessageResultType.MEDIA_NOT_FOUND };
+
 export interface ListMessagesInput {
   userId: number;
   conversationId: string;
@@ -21,7 +35,7 @@ export interface ListMessagesInput {
 export interface MessageRepository {
   createForConversation(
     input: CreateMessageForConversationInput,
-  ): Promise<Message | null>;
+  ): Promise<CreateMessageForConversationResult>;
   listByConversation(
     input: ListMessagesInput,
   ): Promise<CursorPage<Message, MessageListCursor> | null>;

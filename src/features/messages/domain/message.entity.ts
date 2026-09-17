@@ -5,36 +5,14 @@ export const MessageRole = {
 
 export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];
 
-export const MediaType = {
-  IMAGE: "image",
-  VIDEO: "video",
-} as const;
-
-export type MediaType = (typeof MediaType)[keyof typeof MediaType];
-
-interface MediaDetails {
-  url: string;
-  mimeType: string;
-}
-
-export type MessageMedia =
-  | (MediaDetails & {
-      type: typeof MediaType.IMAGE;
-    })
-  | (MediaDetails & {
-      type: typeof MediaType.VIDEO;
-      thumbnailUrl: string | null;
-      duration: number;
-    });
-
 export type MessagePayload =
   | {
       content: string;
-      media: null;
+      mediaId: string | null;
     }
   | {
       content: string | null;
-      media: MessageMedia;
+      mediaId: string;
     };
 
 interface MessageBase {

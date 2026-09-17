@@ -51,17 +51,15 @@ enum MediaType {
 model Message {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   conversationId String       @map("conversation_id") @db.Uuid
+  mediaId        String?      @map("media_id") @db.Uuid
   role           MessageRole
   content        String?      @db.Text
-  mediaType      MediaType?   @map("media_type")
-  mediaUrl       String?      @map("media_url") @db.Text
-  thumbnailUrl   String?      @map("thumbnail_url") @db.Text
-  mimeType       String?      @map("mime_type") @db.VarChar(255)
-  duration       Float?
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  media          Media?       @relation(fields: [mediaId], references: [id], onDelete: Restrict)
 
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([mediaId])
   @@map("messages")
 }
 
@@ -73,6 +71,7 @@ model Media {
   mimeType   String    @map("mime_type") @db.VarChar(255)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages   Message[]
 
   @@index([userId])
   @@map("media")

@@ -11,7 +11,7 @@ export interface MessageResponse {
   conversationId: string;
   role: Message["role"];
   content: string | null;
-  media: Message["media"];
+  mediaId: string | null;
   createdAt: string;
 }
 
@@ -21,7 +21,7 @@ export function toMessageResponse(message: Message): MessageResponse {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
-    media: message.media,
+    mediaId: message.mediaId,
     createdAt: message.createdAt.toISOString(),
   };
 }

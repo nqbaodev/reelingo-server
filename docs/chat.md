@@ -8,10 +8,10 @@ executable API contract; update this document when those decisions change.
 
 - `features/conversations` owns conversation creation from the first text message,
   listing, and name updates.
-- `features/messages` owns message validation, persistence, listing, and media
-  metadata attached to a message.
+- `features/messages` owns message validation, persistence, listing, and the
+  reference from a message to one uploaded media record.
 - `features/media` owns authenticated image upload, local file storage, media
-  persistence, and owned media retrieval. Uploads are not attached to messages yet.
+  persistence, and owned media retrieval.
 - `features/ai` currently exposes standalone Gemini text generation. It is not yet
   orchestrated with conversation messages.
 - Every conversation and nested message operation is authenticated and scoped to
@@ -34,8 +34,8 @@ executable API contract; update this document when those decisions change.
   and first `user` message atomically.
 - The initial name is derived synchronously from the first 120 Unicode characters
   of the trimmed message content. Users may rename it through the update endpoint.
-- Creating a conversation from a media-only first message is deferred until the
-  separate media-upload API exists.
+- Creating a conversation from a media-only first message is deferred until its
+  initial naming behavior is defined.
 
 Current endpoints:
 
@@ -58,8 +58,11 @@ Create from the first text message:
 - `Message.id` is a database-generated UUID.
 - `role` is either `user` or `assistant`. The public send-message endpoint always
   assigns `user`; clients cannot choose or spoof the role.
-- A message contains `content`, one `media` object, or both. At least one must be
-  present, and multiple media items are not supported.
+- A message contains `content`, one uploaded `mediaId`, or both. At least one must
+  be present, and multiple media items are not supported.
+- `mediaId` must reference media owned by the authenticated user. A missing or
+  non-owned media record returns the same 404 outcome and does not reveal another
+  user's data.
 - Text content is trimmed, cannot be empty, and is limited to 8,000 characters.
   Null bytes are rejected before persistence. Emoji are ordinary Unicode content
   and require no separate field.
@@ -88,30 +91,21 @@ Text with one image:
 ```json
 {
   "content": "What is in this image?",
-  "media": {
-    "type": "image",
-    "url": "https://cdn.example.com/image.jpg",
-    "mimeType": "image/jpeg",
-    "sizeBytes": 2097152
-  }
+  "mediaId": "6aa7ba5e-5bf0-43ec-bb58-068e21cad413"
 }
 ```
 
-Text with one video:
+Image-only message:
 
 ```json
 {
-  "content": "Summarize this video",
-  "media": {
-    "type": "video",
-    "url": "https://cdn.example.com/video.mp4",
-    "mimeType": "video/mp4",
-    "sizeBytes": 10485760,
-    "duration": 45.5,
-    "thumbnailUrl": "https://cdn.example.com/video-thumbnail.jpg"
-  }
+  "mediaId": "6aa7ba5e-5bf0-43ec-bb58-068e21cad413"
 }
 ```
+
+Upload the image first with `POST /api/v1/media`, then send the returned `id` as
+`mediaId`. The message endpoint never accepts raw file bytes, storage paths, URLs,
+MIME types, or file sizes.
 
 ## Media
 
@@ -121,8 +115,9 @@ Text with one video:
   client-provided filename or MIME type. The detected MIME type is persisted.
 - `Media.id` is a database-generated UUID. The initial table stores only `id`,
   `userId`, `type`, `storageKey`, `mimeType`, and `createdAt`.
-- `sizeBytes`, original filename, width, height, duration, status, public URL,
-  and message/conversation foreign keys are intentionally not stored.
+- `sizeBytes`, original filename, width, height, duration, status, and public URL
+  are intentionally not stored. Image size is enforced directly from the uploaded
+  bytes before persistence.
 - Files are stored under `MEDIA_STORAGE_ROOT`. A Docker image uses
   `/app/storage/media`; mount a Docker volume there so files survive container
   replacement.
@@ -133,43 +128,22 @@ Text with one video:
   attempts to delete the stored file before propagating the failure.
 - A future S3/R2 adapter can replace local storage through the media storage
   contract without changing the upload use case or API response.
-- Uploading media does not currently attach it to a message. That integration
-  will accept `mediaId` after ownership and single-attachment behavior are defined.
-
-The existing message media payload remains separate during this phase:
-
-- `MediaType` describes only attached media and is `image | video`. There is no
-  top-level `MessageType`; a message may contain text and media together.
-- `url` and a matching `mimeType` are required for media and are persisted.
-- `sizeBytes` is required only at the HTTP validation boundary. It must be a
-  positive safe integer and is removed before the domain/repository boundary. It
-  is not stored and is not returned in responses.
-- Image requests are limited to 2 MiB (2,097,152 bytes). Video requests currently
-  validate a positive declared size but do not have a product size limit.
-- `width` and `height` are not accepted or stored.
-- Video requires positive `duration`, measured in seconds. Fractional values such
-  as `12.5` are valid and PostgreSQL stores the value as double precision.
-- `thumbnailUrl` is optional and supported only for video. A missing thumbnail is
-  represented as `null` in the response.
-- The message endpoint receives an already-uploaded URL. Its `sizeBytes` and
-  `mimeType` checks validate client-declared metadata only. A future upload/storage
-  boundary must enforce actual byte limits, inspect the uploaded content type, and
-  issue or verify trusted object references.
+- Upload and message creation are separate requests. An upload remains unattached
+  until its `id` is used as a message's `mediaId`.
 
 ## Persistence invariants
 
 PostgreSQL constraints enforce the valid stored shapes:
 
-- text-only: non-empty `content`, with every media column null;
-- image with optional text: image URL and image MIME type, with video-only fields
-  null;
-- video with optional text: video URL, video MIME type, and positive duration;
+- text-only: non-empty `content`, with `mediaId` null;
+- media with optional text: a non-null `mediaId` referencing `Media`;
 - deleting a conversation cascades to its messages.
+- deleting media referenced by a message is restricted.
 
 Creating a conversation uses one atomic nested write for the conversation and its
-first user message. Sending a later message uses one transaction to verify
-ownership, update the parent conversation timestamp, and insert the message. Keep
-both atomic behaviors when either write flow changes.
+first user message. Sending a later message uses one transaction to verify both
+conversation and media ownership, update the parent conversation timestamp, and
+insert the message. Keep both atomic behaviors when either write flow changes.
 
 ## Cursor pagination
 
@@ -186,9 +160,9 @@ both atomic behaviors when either write flow changes.
 
 The following behavior is intentionally not implemented yet:
 
-- attaching uploaded media to messages through `mediaId`;
 - replacing local media storage with an object-storage provider;
-- verifying actual remote media bytes instead of declared request metadata;
+- supporting video upload and video-specific metadata such as duration and a
+  thumbnail;
 - generating and persisting an assistant response;
 - building AI context from previous messages;
 - replacing the initial name with an AI-generated summary;

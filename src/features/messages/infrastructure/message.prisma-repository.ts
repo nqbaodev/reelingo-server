@@ -1,42 +1,23 @@
 import { createCursorPage, type CursorPage } from "@/core/pagination";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
-import { MediaType, type Message, type NewMessage } from "../domain";
+import type { Message, NewMessage } from "../domain";
 import { toEntity } from "./message.mapper";
 import type {
   CreateMessageForConversationInput,
+  CreateMessageForConversationResult,
   ListMessagesInput,
   MessageListCursor,
   MessageRepository,
 } from "./message.repository";
+import { CreateMessageResultType } from "./message.repository";
 
 function toCreateData(message: NewMessage): Prisma.MessageUncheckedCreateInput {
-  const base = {
+  return {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
-  };
-
-  if (!message.media) {
-    return base;
-  }
-
-  if (message.media.type === MediaType.IMAGE) {
-    return {
-      ...base,
-      mediaType: MediaType.IMAGE,
-      mediaUrl: message.media.url,
-      mimeType: message.media.mimeType,
-    };
-  }
-
-  return {
-    ...base,
-    mediaType: MediaType.VIDEO,
-    mediaUrl: message.media.url,
-    thumbnailUrl: message.media.thumbnailUrl,
-    mimeType: message.media.mimeType,
-    duration: message.media.duration,
+    mediaId: message.mediaId,
   };
 }
 
@@ -46,23 +27,44 @@ export class MessagePrismaRepository implements MessageRepository {
   async createForConversation({
     userId,
     message,
-  }: CreateMessageForConversationInput): Promise<Message | null> {
+  }: CreateMessageForConversationInput): Promise<CreateMessageForConversationResult> {
     try {
-      const record = await this.prisma.$transaction(async (transaction) => {
-        await transaction.conversation.update({
+      return await this.prisma.$transaction(async (transaction) => {
+        const conversation = await transaction.conversation.findFirst({
           where: { id: message.conversationId, userId },
+          select: { id: true },
+        });
+        if (!conversation) {
+          return { type: CreateMessageResultType.CONVERSATION_NOT_FOUND };
+        }
+
+        if (message.mediaId !== null) {
+          const media = await transaction.media.findFirst({
+            where: { id: message.mediaId, userId },
+            select: { id: true },
+          });
+          if (!media) {
+            return { type: CreateMessageResultType.MEDIA_NOT_FOUND };
+          }
+        }
+
+        await transaction.conversation.update({
+          where: { id: conversation.id },
           data: { updatedAt: new Date() },
         });
 
-        return transaction.message.create({
+        const record = await transaction.message.create({
           data: toCreateData(message),
         });
-      });
 
-      return toEntity(record);
+        return {
+          type: CreateMessageResultType.CREATED,
+          message: toEntity(record),
+        };
+      });
     } catch (err) {
       if (isPrismaRecordNotFound(err)) {
-        return null;
+        return { type: CreateMessageResultType.CONVERSATION_NOT_FOUND };
       }
       throw err;
     }
