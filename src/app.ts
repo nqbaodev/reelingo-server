@@ -9,6 +9,7 @@ import type { GenerativeAiClient } from "@/features/ai/infrastructure";
 import { createAuthModule } from "@/features/auth/auth.module";
 import { createConversationsModule } from "@/features/conversations/conversations.module";
 import { createHealthModule } from "@/features/health/health.module";
+import { createMediaModule } from "@/features/media/media.module";
 import { createMessagesModule } from "@/features/messages/messages.module";
 import { createUsersModule } from "@/features/users/users.module";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -55,6 +56,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const healthModule = createHealthModule(database);
   const aiModule = createAiModule(options.aiClient);
   const conversationsModule = createConversationsModule(database);
+  const mediaModule = createMediaModule(database);
   const messagesModule = createMessagesModule(database);
   const usersModule = createUsersModule(database);
 
@@ -71,6 +73,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
     authModule.protectedRouter,
     usersModule.router,
     conversationsModule.router,
+    mediaModule.router,
     messagesModule.router,
     aiModule.router,
   );

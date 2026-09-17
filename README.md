@@ -73,6 +73,8 @@ exposes the public `config` facade that application code imports — never
 | `PORT` | no | `3000` | HTTP port |
 | `LOG_LEVEL` | no | `info` | Pino level |
 | `CORS_ORIGIN` | no | `*` | Allowed origin |
+| `PUBLIC_BASE_URL` | no | `http://localhost:<PORT>` | Absolute base URL used in media upload responses |
+| `MEDIA_STORAGE_ROOT` | no | `storage/media` | Local filesystem directory for uploaded media |
 | `GEMINI_MODEL` | no | `gemini-2.5-flash` | Model id, changeable without a deploy |
 | `GEMINI_TIMEOUT_MS` | no | `30000` | Gemini request timeout; max 300,000 ms |
 | `JWT_ISSUER` | no | `reelingo-server` | `iss` claim |
@@ -228,7 +230,20 @@ the prefix; health and documentation paths are mounted at the root.
 | `PATCH` | `/api/v1/conversations/:conversationId` | Update an owned conversation's name |
 | `POST` | `/api/v1/conversations/:conversationId/messages` | Send text and/or one media item |
 | `GET` | `/api/v1/conversations/:conversationId/messages` | List messages with cursor pagination |
+| `POST` | `/api/v1/media` | Upload one JPEG, PNG, or WebP image up to 2 MiB |
+| `GET` | `/api/v1/media/:mediaId` | Read an owned uploaded image |
 | `POST` | `/api/v1/ai/generate` | Generate text from a prompt with Gemini |
+
+### Local media storage
+
+Uploaded images are written below `MEDIA_STORAGE_ROOT`; the database stores the
+generated storage key, not an absolute filesystem path or public URL. The Docker
+image declares `/app/storage/media` as a volume. Mount a named volume at that path
+so uploaded files survive container replacement.
+
+The upload and media endpoints require a Bearer token. The returned media URL
+therefore identifies the image endpoint; clients must include their access token
+when fetching it.
 
 ## Authentication
 

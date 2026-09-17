@@ -15,6 +15,10 @@ export const endpoints = {
   messages: {
     byConversation: "/conversations/:conversationId/messages",
   },
+  media: {
+    upload: "/media",
+    byId: "/media/:mediaId",
+  },
   ai: {
     generate: "/ai/generate",
   },

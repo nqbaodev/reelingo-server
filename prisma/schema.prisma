@@ -16,6 +16,7 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   conversations Conversation[]
+  media         Media[]
 
   @@map("users")
 }
@@ -62,6 +63,19 @@ model Message {
 
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("messages")
+}
+
+model Media {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     Int       @map("user_id")
+  type       MediaType
+  storageKey String    @unique @map("storage_key") @db.Text
+  mimeType   String    @map("mime_type") @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("media")
 }
 
 /// One row per revoked refresh token (`token:<jti>`) or revoked session

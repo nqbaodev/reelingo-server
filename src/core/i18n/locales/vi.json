@@ -7,6 +7,7 @@
   "textGenerated": "Tạo văn bản thành công",
   "conversationCreated": "Tạo cuộc trò chuyện thành công",
   "messageSent": "Gửi tin nhắn thành công",
+  "mediaUploaded": "Tải media lên thành công",
 
   "routeNotFound": "Không tìm thấy đường dẫn",
   "validationFailed": "Dữ liệu yêu cầu không hợp lệ",
@@ -23,6 +24,10 @@
 
   "userNotFound": "Không tìm thấy người dùng",
   "conversationNotFound": "Không tìm thấy cuộc trò chuyện",
+  "mediaNotFound": "Không tìm thấy media",
+  "mediaFileRequired": "Cần cung cấp một tệp ảnh",
+  "invalidMediaUpload": "Dữ liệu tải media không hợp lệ",
+  "unsupportedImageType": "Chỉ hỗ trợ ảnh JPEG, PNG và WebP",
   "emailInUse": "Email {email} đã được sử dụng",
   "serviceUnavailable": "{service} tạm thời không khả dụng"
 }

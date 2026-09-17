@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+storage/
 src/generated/
 .env
 .env.*.local

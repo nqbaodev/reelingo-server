@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   config,
   MAX_CONVERSATION_NAME_LENGTH,
+  MAX_IMAGE_SIZE_BYTES,
   MAX_MESSAGE_CONTENT_LENGTH,
 } from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
@@ -22,6 +23,8 @@ import {
   createMessageSchema,
   messageConversationParamsSchema,
 } from "@/features/messages/presentation/message.validators";
+import { mediaParamsSchema } from "@/features/media/presentation/media.validators";
+import { SUPPORTED_IMAGE_MIME_TYPES } from "@/features/media/domain";
 import { MAX_USER_ID } from "@/features/users/domain";
 import { updateProfileSchema } from "@/features/users/presentation/user.validators";
 
@@ -105,7 +108,7 @@ function errors(...statuses: number[]) {
     404: "Resource not found",
     409: "Conflict",
     413: "Request body too large",
-    415: "Unsupported encoding",
+    415: "Unsupported media type or encoding",
     422: "Validation failed",
     429: "Rate limit exceeded",
     500: "Internal server error",
@@ -182,6 +185,14 @@ const message = z.object({
 const messageList = z.object({
   items: z.array(message),
   nextCursor: z.string().nullable(),
+});
+const media = z.object({
+  id: z.uuid(),
+  type: z.literal("image"),
+  path: z.string().startsWith("/"),
+  url: z.url(),
+  mimeType: z.enum(SUPPORTED_IMAGE_MIME_TYPES),
+  createdAt: z.iso.datetime(),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
 const authErrors = errors(400, 401, 413, 415, 422, 429, 500, 503);
@@ -397,6 +408,68 @@ export const openApiDocument = {
         },
       },
     },
+    [`${endpoints.apiPrefix}${endpoints.media.upload}`]: {
+      post: {
+        tags: ["Media"],
+        operationId: "uploadImage",
+        summary: "Upload one image",
+        description: `Accepts one JPEG, PNG, or WebP image in the file field. The actual file signature is inspected and the image is limited to ${MAX_IMAGE_SIZE_BYTES} bytes.`,
+        parameters: languageParameters,
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["file"],
+                properties: {
+                  file: {
+                    type: "string",
+                    format: "binary",
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          201: success(media, "Media uploaded"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]:
+      {
+        get: {
+          tags: ["Media"],
+          operationId: "getMedia",
+          summary: "Get an owned uploaded image",
+          parameters: [
+            ...languageParameters,
+            {
+              name: "mediaId",
+              in: "path",
+              required: true,
+              schema: jsonSchema(mediaParamsSchema.shape.mediaId),
+            },
+          ],
+          responses: {
+            200: {
+              description: "Image bytes",
+              headers: responseHeaders,
+              content: {
+                "image/jpeg": { schema: { type: "string", format: "binary" } },
+                "image/png": { schema: { type: "string", format: "binary" } },
+                "image/webp": { schema: { type: "string", format: "binary" } },
+              },
+            },
+            ...errors(404, 422),
+            ...protectedErrors,
+          },
+        },
+      },
     [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {
       post: {
         tags: ["AI"],

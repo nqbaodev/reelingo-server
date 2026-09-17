@@ -35,6 +35,8 @@ const envSchema = z.object({
   AUTH_RATE_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   API_RATE_LIMIT: z.coerce.number().int().positive().default(100),
   API_RATE_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  PUBLIC_BASE_URL: z.url().optional(),
+  MEDIA_STORAGE_ROOT: z.string().trim().min(1).default("storage/media"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -55,6 +57,8 @@ export const appConfig = {
   server: {
     port: validatedEnv.PORT,
     corsOrigin: validatedEnv.CORS_ORIGIN,
+    publicBaseUrl:
+      validatedEnv.PUBLIC_BASE_URL ?? `http://localhost:${validatedEnv.PORT}`,
   },
 
   http: {
@@ -114,5 +118,9 @@ export const appConfig = {
       model: validatedEnv.GEMINI_MODEL,
       timeoutMs: validatedEnv.GEMINI_TIMEOUT_MS,
     },
+  },
+
+  media: {
+    storageRoot: validatedEnv.MEDIA_STORAGE_ROOT,
   },
 } as const;

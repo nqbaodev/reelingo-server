@@ -10,6 +10,8 @@ executable API contract; update this document when those decisions change.
   listing, and name updates.
 - `features/messages` owns message validation, persistence, listing, and media
   metadata attached to a message.
+- `features/media` owns authenticated image upload, local file storage, media
+  persistence, and owned media retrieval. Uploads are not attached to messages yet.
 - `features/ai` currently exposes standalone Gemini text generation. It is not yet
   orchestrated with conversation messages.
 - Every conversation and nested message operation is authenticated and scoped to
@@ -113,6 +115,29 @@ Text with one video:
 
 ## Media
 
+- `POST /api/v1/media` accepts exactly one `multipart/form-data` field named
+  `file`. It currently accepts JPEG, PNG, or WebP images up to 2 MiB.
+- The upload boundary checks the actual file signature and does not trust the
+  client-provided filename or MIME type. The detected MIME type is persisted.
+- `Media.id` is a database-generated UUID. The initial table stores only `id`,
+  `userId`, `type`, `storageKey`, `mimeType`, and `createdAt`.
+- `sizeBytes`, original filename, width, height, duration, status, public URL,
+  and message/conversation foreign keys are intentionally not stored.
+- Files are stored under `MEDIA_STORAGE_ROOT`. A Docker image uses
+  `/app/storage/media`; mount a Docker volume there so files survive container
+  replacement.
+- The upload response contains a stable authenticated API `path` and an absolute
+  `url` derived from `PUBLIC_BASE_URL`. Neither value is persisted.
+- `GET /api/v1/media/:mediaId` returns the image bytes only to the owner.
+- If the file write succeeds but the database insert fails, the upload use case
+  attempts to delete the stored file before propagating the failure.
+- A future S3/R2 adapter can replace local storage through the media storage
+  contract without changing the upload use case or API response.
+- Uploading media does not currently attach it to a message. That integration
+  will accept `mediaId` after ownership and single-attachment behavior are defined.
+
+The existing message media payload remains separate during this phase:
+
 - `MediaType` describes only attached media and is `image | video`. There is no
   top-level `MessageType`; a message may contain text and media together.
 - `url` and a matching `mimeType` are required for media and are persisted.
@@ -161,7 +186,8 @@ both atomic behaviors when either write flow changes.
 
 The following behavior is intentionally not implemented yet:
 
-- receiving binary uploads or integrating a storage provider;
+- attaching uploaded media to messages through `mediaId`;
+- replacing local media storage with an object-storage provider;
 - verifying actual remote media bytes instead of declared request metadata;
 - generating and persisting an assistant response;
 - building AI context from previous messages;
