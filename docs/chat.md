@@ -20,7 +20,8 @@ executable API contract; update this document when those decisions change.
 
 - `Conversation.id` is a database-generated UUID and is the public conversation
   identifier used in routes.
-- The current name field is `name`, with a maximum length of 120 characters.
+- The current name field is `name`, with a maximum length of 120 characters;
+  null bytes are rejected before persistence.
 - `createdAt` and `updatedAt` are stored as `TIMESTAMPTZ(3)` and returned as ISO
   8601 UTC strings.
 - Creating a message updates the parent conversation's `updatedAt` in the same
@@ -58,7 +59,8 @@ Create from the first text message:
 - A message contains `content`, one `media` object, or both. At least one must be
   present, and multiple media items are not supported.
 - Text content is trimmed, cannot be empty, and is limited to 8,000 characters.
-  Emoji are ordinary Unicode content and require no separate field.
+  Null bytes are rejected before persistence. Emoji are ordinary Unicode content
+  and require no separate field.
 - Messages are immutable in the current scope and therefore have `createdAt` but
   no `updatedAt`.
 - Device identity and country are not persisted. Authentication establishes the

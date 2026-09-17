@@ -7,7 +7,14 @@ import {
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
 import { MediaType, type MessagePayload } from "../domain";
 
-const contentSchema = z.string().trim().min(1).max(MAX_MESSAGE_CONTENT_LENGTH);
+const NULL_BYTE = String.fromCharCode(0);
+
+export const messageContentSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MAX_MESSAGE_CONTENT_LENGTH)
+  .refine((content) => !content.includes(NULL_BYTE));
 const declaredSizeSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 const mediaFields = {
   url: z.url(),
@@ -41,7 +48,7 @@ const videoMediaSchema = z.strictObject({
 
 const rawCreateMessageSchema = z
   .strictObject({
-    content: contentSchema.optional(),
+    content: messageContentSchema.optional(),
     media: z.discriminatedUnion("type", [imageMediaSchema, videoMediaSchema]).optional(),
   })
   .refine((input) => input.content !== undefined || input.media !== undefined);
