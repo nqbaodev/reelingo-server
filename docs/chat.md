@@ -6,7 +6,8 @@ executable API contract; update this document when those decisions change.
 
 ## Scope and ownership
 
-- `features/conversations` owns conversation creation, listing, and name updates.
+- `features/conversations` owns conversation creation from the first text message,
+  listing, and name updates.
 - `features/messages` owns message validation, persistence, listing, and media
   metadata attached to a message.
 - `features/ai` currently exposes standalone Gemini text generation. It is not yet
@@ -26,9 +27,12 @@ executable API contract; update this document when those decisions change.
   transaction, so active conversations move to the top of the list.
 - Conversation lists order by `updatedAt DESC, id DESC`. The UUID is only a stable
   tie-breaker when timestamps match.
-- The current create endpoint accepts `{ "name": "..." }`. Automatically creating
-  a conversation from its first message and generating its name are deferred; do
-  not describe that flow as implemented.
+- The create endpoint accepts `{ "content": "..." }`. It creates the conversation
+  and first `user` message atomically.
+- The initial name is derived synchronously from the first 120 Unicode characters
+  of the trimmed message content. Users may rename it through the update endpoint.
+- Creating a conversation from a media-only first message is deferred until the
+  separate media-upload API exists.
 
 Current endpoints:
 
@@ -36,6 +40,14 @@ Current endpoints:
 POST  /api/v1/conversations
 GET   /api/v1/conversations
 PATCH /api/v1/conversations/:conversationId
+```
+
+Create from the first text message:
+
+```json
+{
+  "content": "Hello AI"
+}
 ```
 
 ## Messages
@@ -127,9 +139,10 @@ PostgreSQL constraints enforce the valid stored shapes:
 - video with optional text: video URL, video MIME type, and positive duration;
 - deleting a conversation cascades to its messages.
 
-Sending a message uses one transaction to verify ownership, update the parent
-conversation timestamp, and insert the message. Keep that atomic behavior when the
-write flow changes.
+Creating a conversation uses one atomic nested write for the conversation and its
+first user message. Sending a later message uses one transaction to verify
+ownership, update the parent conversation timestamp, and insert the message. Keep
+both atomic behaviors when either write flow changes.
 
 ## Cursor pagination
 
@@ -150,8 +163,8 @@ The following behavior is intentionally not implemented yet:
 - verifying actual remote media bytes instead of declared request metadata;
 - generating and persisting an assistant response;
 - building AI context from previous messages;
-- creating a conversation automatically from the first message;
-- generating a conversation name from the first message or an AI summary;
+- replacing the initial name with an AI-generated summary;
+- creating a conversation from a media-only first message;
 - multi-media messages, message edits, and message deletion.
 
 ## Change checklist

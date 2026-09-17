@@ -1,6 +1,13 @@
 import { z } from "zod";
-import { MAX_CONVERSATION_NAME_LENGTH } from "@/config";
+import {
+  MAX_CONVERSATION_NAME_LENGTH,
+  MAX_MESSAGE_CONTENT_LENGTH,
+} from "@/config";
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
+
+export const createConversationSchema = z.strictObject({
+  content: z.string().trim().min(1).max(MAX_MESSAGE_CONTENT_LENGTH),
+});
 
 export const conversationNameSchema = z.strictObject({
   name: z.string().trim().min(1).max(MAX_CONVERSATION_NAME_LENGTH),
@@ -30,6 +37,7 @@ export const listConversationsQuerySchema = z
       : undefined,
   }));
 
+export type CreateConversationBody = z.infer<typeof createConversationSchema>;
 export type ConversationNameInput = z.infer<typeof conversationNameSchema>;
 export type ConversationParams = z.infer<typeof conversationParamsSchema>;
 export type ListConversationsQuery = z.infer<typeof listConversationsQuerySchema>;

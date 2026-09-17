@@ -13,6 +13,7 @@ import {
   refreshTokenSchema,
 } from "@/features/auth/presentation/auth.validators";
 import {
+  createConversationSchema,
   conversationNameSchema,
   conversationParamsSchema,
 } from "@/features/conversations/presentation/conversation.validators";
@@ -311,9 +312,11 @@ export const openApiDocument = {
       post: {
         tags: ["Conversations"],
         operationId: "createConversation",
-        summary: "Create a conversation",
+        summary: "Create a conversation from the first message",
+        description:
+          "Creates the conversation and its first user text message atomically. The initial name is derived from the first 120 characters of content.",
         parameters: languageParameters,
-        requestBody: requestBody(conversationNameSchema),
+        requestBody: requestBody(createConversationSchema),
         responses: {
           201: success(conversation, "Conversation created"),
           ...errors(400, 413, 415, 422),

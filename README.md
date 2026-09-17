@@ -223,7 +223,7 @@ the prefix; health and documentation paths are mounted at the root.
 | `GET` | `/api/v1/me` | Current authenticated user |
 | `PATCH` | `/api/v1/me` | Update the current user's name or avatar |
 | `POST` | `/api/v1/auth/logout` | Revoke the current session |
-| `POST` | `/api/v1/conversations` | Create a conversation |
+| `POST` | `/api/v1/conversations` | Create a conversation from its first text message |
 | `GET` | `/api/v1/conversations` | List conversations with cursor pagination |
 | `PATCH` | `/api/v1/conversations/:conversationId` | Update an owned conversation's name |
 | `POST` | `/api/v1/conversations/:conversationId/messages` | Send text and/or one media item |

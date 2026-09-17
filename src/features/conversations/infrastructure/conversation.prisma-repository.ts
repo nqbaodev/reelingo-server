@@ -1,9 +1,10 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import { MessageRole, type PrismaClient } from "@/generated/prisma/client";
 import { createCursorPage, type CursorPage } from "@/core/pagination";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
-import type { Conversation, NewConversation } from "../domain";
+import type { Conversation } from "../domain";
 import { toEntity } from "./conversation.mapper";
 import type {
+  CreateConversationInput,
   ConversationListCursor,
   ConversationRepository,
   ListConversationsInput,
@@ -12,8 +13,23 @@ import type {
 export class ConversationPrismaRepository implements ConversationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async create(data: NewConversation): Promise<Conversation> {
-    const record = await this.prisma.conversation.create({ data });
+  async create({
+    userId,
+    name,
+    firstMessageContent,
+  }: CreateConversationInput): Promise<Conversation> {
+    const record = await this.prisma.conversation.create({
+      data: {
+        userId,
+        name,
+        messages: {
+          create: {
+            role: MessageRole.user,
+            content: firstMessageContent,
+          },
+        },
+      },
+    });
     return toEntity(record);
   }
 

@@ -13,6 +13,7 @@ import {
   toConversationResponse,
 } from "./conversation.presenter";
 import type {
+  CreateConversationBody,
   ConversationNameInput,
   ConversationParams,
   ListConversationsQuery,
@@ -28,12 +29,12 @@ export class ConversationController {
   constructor(private readonly deps: ConversationControllerDeps) {}
 
   create = async (
-    req: Request<ParamsDictionary, unknown, ConversationNameInput>,
+    req: Request<ParamsDictionary, unknown, CreateConversationBody>,
     res: Response,
   ) => {
     const conversation = await this.deps.createConversation.execute(
       requireCurrentUserId(req),
-      req.body.name,
+      req.body.content,
     );
     sendSuccess(res, toConversationResponse(conversation), I18n.conversationCreated, 201);
   };

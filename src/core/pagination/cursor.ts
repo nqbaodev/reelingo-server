@@ -5,6 +5,9 @@ import {
   MAX_PAGE_SIZE,
 } from "@/config";
 
+const CURSOR_PAYLOAD_ENCODING = "utf8";
+const CURSOR_TOKEN_ENCODING = "base64url";
+
 export const paginationLimitSchema = z.coerce
   .number()
   .int()
@@ -46,7 +49,9 @@ export function createCursorPage<TItem, TCursor>(
 }
 
 export function encodeCursor(payload: unknown): string {
-  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return Buffer.from(JSON.stringify(payload), CURSOR_PAYLOAD_ENCODING).toString(
+    CURSOR_TOKEN_ENCODING,
+  );
 }
 
 /** Creates a Zod schema that decodes an opaque cursor and validates its payload. */
@@ -54,7 +59,7 @@ export function createCursorSchema<T>(payloadSchema: z.ZodType<T>) {
   return cursorTokenSchema.transform((token, context) => {
     try {
       const payload: unknown = JSON.parse(
-        Buffer.from(token, "base64url").toString("utf8"),
+        Buffer.from(token, CURSOR_TOKEN_ENCODING).toString(CURSOR_PAYLOAD_ENCODING),
       );
       const result = payloadSchema.safeParse(payload);
       if (result.success) {

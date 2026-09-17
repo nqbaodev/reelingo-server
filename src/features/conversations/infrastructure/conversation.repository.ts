@@ -1,5 +1,11 @@
-import type { Conversation, NewConversation } from "../domain";
+import type { Conversation } from "../domain";
 import type { CursorPage } from "@/core/pagination";
+
+export interface CreateConversationInput {
+  userId: number;
+  name: string;
+  firstMessageContent: string;
+}
 
 export interface ConversationListCursor {
   updatedAt: Date;
@@ -13,7 +19,7 @@ export interface ListConversationsInput {
 }
 
 export interface ConversationRepository {
-  create(data: NewConversation): Promise<Conversation>;
+  create(input: CreateConversationInput): Promise<Conversation>;
   listByUser(
     input: ListConversationsInput,
   ): Promise<CursorPage<Conversation, ConversationListCursor>>;

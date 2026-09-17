@@ -5,5 +5,3 @@ export interface Conversation {
   createdAt: Date;
   updatedAt: Date;
 }
-
-export type NewConversation = Pick<Conversation, "userId" | "name">;
