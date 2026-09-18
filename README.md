@@ -231,6 +231,7 @@ the prefix; health and documentation paths are mounted at the root.
 | `POST` | `/api/v1/conversations/:conversationId/messages` | Send text and/or one uploaded media by `mediaId` |
 | `GET` | `/api/v1/conversations/:conversationId/messages` | List messages with cursor pagination |
 | `POST` | `/api/v1/media` | Upload one JPEG, PNG, or WebP image up to 2 MiB |
+| `POST` | `/api/v1/media/delete` | Delete owned uploaded images that are not attached to messages |
 | `GET` | `/api/v1/media/:mediaId` | Read an owned uploaded image |
 | `POST` | `/api/v1/ai/generate` | Generate text from a prompt with Gemini |
 

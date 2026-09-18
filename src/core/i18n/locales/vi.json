@@ -8,6 +8,7 @@
   "conversationCreated": "Tạo cuộc trò chuyện thành công",
   "messageSent": "Gửi tin nhắn thành công",
   "mediaUploaded": "Tải media lên thành công",
+  "mediaDeleted": "Xóa media thành công",
 
   "routeNotFound": "Không tìm thấy đường dẫn",
   "validationFailed": "Dữ liệu yêu cầu không hợp lệ",

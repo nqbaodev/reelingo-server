@@ -3,6 +3,7 @@ import {
   config,
   MAX_CONVERSATION_NAME_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
+  MAX_MEDIA_DELETE_COUNT,
   MAX_MESSAGE_CONTENT_LENGTH,
 } from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
@@ -23,7 +24,10 @@ import {
   createMessageSchema,
   messageConversationParamsSchema,
 } from "@/features/messages/presentation/message.validators";
-import { mediaParamsSchema } from "@/features/media/presentation/media.validators";
+import {
+  deleteMediaSchema,
+  mediaParamsSchema,
+} from "@/features/media/presentation/media.validators";
 import { SUPPORTED_IMAGE_MIME_TYPES } from "@/features/media/domain";
 import { MAX_USER_ID } from "@/features/users/domain";
 import { updateProfileSchema } from "@/features/users/presentation/user.validators";
@@ -177,6 +181,9 @@ const media = z.object({
   url: z.url(),
   mimeType: z.enum(SUPPORTED_IMAGE_MIME_TYPES),
   createdAt: z.iso.datetime(),
+});
+const deletedMedia = z.object({
+  deletedIds: z.array(z.uuid()),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
 const authErrors = errors(400, 401, 413, 415, 422, 429, 500, 503);
@@ -419,6 +426,22 @@ export const openApiDocument = {
         },
         responses: {
           201: success(media, "Media uploaded"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.media.delete}`]: {
+      post: {
+        tags: ["Media"],
+        operationId: "deleteMedia",
+        summary: "Delete unattached uploaded media",
+        description:
+          `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
+        parameters: languageParameters,
+        requestBody: requestBody(deleteMediaSchema),
+        responses: {
+          200: success(deletedMedia, "Media deleted"),
           ...errors(400, 413, 415, 422),
           ...protectedErrors,
         },

@@ -8,6 +8,7 @@
   "conversationCreated": "Conversation created successfully",
   "messageSent": "Message sent successfully",
   "mediaUploaded": "Media uploaded successfully",
+  "mediaDeleted": "Media deleted successfully",
 
   "routeNotFound": "Route not found",
   "validationFailed": "Request validation failed",

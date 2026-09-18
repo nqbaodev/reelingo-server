@@ -17,6 +17,7 @@ export const endpoints = {
   },
   media: {
     upload: "/media",
+    delete: "/media/delete",
     byId: "/media/:mediaId",
   },
   ai: {

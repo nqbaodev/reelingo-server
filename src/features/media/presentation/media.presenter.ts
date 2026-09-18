@@ -11,6 +11,10 @@ export interface MediaResponse {
   createdAt: string;
 }
 
+export interface DeletedMediaResponse {
+  deletedIds: string[];
+}
+
 function getMediaPath(mediaId: string): string {
   return `${endpoints.apiPrefix}${endpoints.media.byId.replace(":mediaId", mediaId)}`;
 }
@@ -26,4 +30,8 @@ export function toMediaResponse(media: Media): MediaResponse {
     mimeType: media.mimeType,
     createdAt: media.createdAt.toISOString(),
   };
+}
+
+export function toDeletedMediaResponse(deletedIds: string[]): DeletedMediaResponse {
+  return { deletedIds };
 }

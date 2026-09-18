@@ -124,6 +124,10 @@ MIME types, or file sizes.
 - The upload response contains a stable authenticated API `path` and an absolute
   `url` derived from `PUBLIC_BASE_URL`. Neither value is persisted.
 - `GET /api/v1/media/:mediaId` returns the image bytes only to the owner.
+- `POST /api/v1/media/delete` accepts up to 50 IDs as
+  `{ "mediaIds": ["..."] }` and deletes owned media that is not attached to any
+  message. The response contains only `{ "deletedIds": [...] }`; missing,
+  non-owned, duplicate, and already attached media IDs are skipped.
 - If the file write succeeds but the database insert fails, the upload use case
   attempts to delete the stored file before propagating the failure.
 - A future S3/R2 adapter can replace local storage through the media storage

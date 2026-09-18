@@ -4,11 +4,16 @@ import { ValidationError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
 import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
-import type { GetMediaContentUseCase, UploadImageUseCase } from "../application";
-import { toMediaResponse } from "./media.presenter";
-import type { MediaParams } from "./media.validators";
+import type {
+  DeleteMediaUseCase,
+  GetMediaContentUseCase,
+  UploadImageUseCase,
+} from "../application";
+import { toDeletedMediaResponse, toMediaResponse } from "./media.presenter";
+import type { DeleteMediaInput, MediaParams } from "./media.validators";
 
 interface MediaControllerDeps {
+  deleteMedia: DeleteMediaUseCase;
   getMediaContent: GetMediaContentUseCase;
   uploadImage: UploadImageUseCase;
 }
@@ -26,6 +31,17 @@ export class MediaController {
       req.file.buffer,
     );
     sendSuccess(res, toMediaResponse(media), I18n.mediaUploaded, 201);
+  };
+
+  delete = async (
+    req: Request<ParamsDictionary, unknown, DeleteMediaInput>,
+    res: Response,
+  ) => {
+    const deletedIds = await this.deps.deleteMedia.execute(
+      requireCurrentUserId(req),
+      req.body.mediaIds,
+    );
+    sendSuccess(res, toDeletedMediaResponse(deletedIds), I18n.mediaDeleted);
   };
 
   get = async (req: Request<ParamsDictionary>, res: Response) => {
