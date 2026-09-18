@@ -73,6 +73,8 @@ describe("error envelope", () => {
     ["patch", "/api/v1/me"],
     ["post", "/api/v1/auth/logout"],
     ["post", "/api/v1/ai/generate"],
+    ["post", "/api/v1/conversations"],
+    ["patch", "/api/v1/conversations/6aa7ba5e-5bf0-83ec-bb58-068e21cad413"],
   ] as const)("rejects %s %s without a bearer token", async (method, path) => {
     const res = await request(app)[method](path);
 

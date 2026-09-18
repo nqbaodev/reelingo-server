@@ -3,6 +3,7 @@ import type { ParamsDictionary } from "express-serve-static-core";
 import { I18n } from "@/core/i18n";
 import { sendSuccess } from "@/core/http";
 import { requireAuth } from "@/features/auth/presentation/require-auth";
+import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import type { UpdateProfileUseCase } from "../application";
 import { toCurrentUserResponse } from "./user.presenter";
 import type { UpdateProfileInput } from "./user.validators";
@@ -15,7 +16,8 @@ export class UserController {
   constructor(private readonly deps: UserControllerDeps) {}
 
   me = async (req: Request, res: Response) => {
-    sendSuccess(res, toCurrentUserResponse(requireAuth(req).user));
+    const authUser = requireAuth(req).user;
+    sendSuccess(res, toCurrentUserResponse(authUser));
   };
 
   updateProfile = async (
@@ -23,7 +25,7 @@ export class UserController {
     res: Response,
   ) => {
     const user = await this.deps.updateProfile.execute(
-      requireAuth(req).user.id,
+      requireCurrentUserId(req),
       req.body,
     );
     sendSuccess(res, toCurrentUserResponse(user), I18n.updated);

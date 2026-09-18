@@ -10,6 +10,7 @@
 | [backend.md](backend.md) | Detailed backend implementation and security guidance |
 | [workflow.md](workflow.md) | Task stages, risk profiles, verification, and evidence |
 | [app-integration.md](app-integration.md) | Companion frontend discovery and API compatibility |
+| [chat.md](chat.md) | Conversation, message, media, and chat API decisions |
 | [README.md](../README.md) | Setup, environment variables, API usage, and operations |
 | [.agents/skills](../.agents/skills/README.md) | Optional portable skills with task-specific guidance |
 

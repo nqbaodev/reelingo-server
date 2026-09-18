@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { config } from "@/config";
+import {
+  config,
+  MAX_CONVERSATION_NAME_LENGTH,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_MEDIA_DELETE_COUNT,
+  MAX_MESSAGE_CONTENT_LENGTH,
+} from "@/config";
+import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import { generateTextSchema } from "@/features/ai/presentation/ai.validators";
@@ -7,6 +14,21 @@ import {
   googleLoginSchema,
   refreshTokenSchema,
 } from "@/features/auth/presentation/auth.validators";
+import {
+  createConversationSchema,
+  conversationNameSchema,
+  conversationParamsSchema,
+} from "@/features/conversations/presentation/conversation.validators";
+import { MessageRole } from "@/features/messages/domain";
+import {
+  createMessageSchema,
+  messageConversationParamsSchema,
+} from "@/features/messages/presentation/message.validators";
+import {
+  deleteMediaSchema,
+  mediaParamsSchema,
+} from "@/features/media/presentation/media.validators";
+import { SUPPORTED_IMAGE_MIME_TYPES } from "@/features/media/domain";
 import { MAX_USER_ID } from "@/features/users/domain";
 import { updateProfileSchema } from "@/features/users/presentation/user.validators";
 
@@ -36,6 +58,23 @@ const languageParameters = [
     required: false,
     description: `API message language. Overrides Accept-Language (including q weights). Falls back to ${DEFAULT_LANGUAGE}. Does not select Gemini output language.`,
     schema: languageSchema,
+  },
+];
+
+const cursorPaginationParameters = [
+  {
+    name: "limit",
+    in: "query",
+    required: false,
+    description: "Maximum number of items to return",
+    schema: jsonSchema(paginationLimitSchema),
+  },
+  {
+    name: "cursor",
+    in: "query",
+    required: false,
+    description: "Opaque cursor returned by the previous page",
+    schema: jsonSchema(cursorTokenSchema),
   },
 ];
 
@@ -73,7 +112,7 @@ function errors(...statuses: number[]) {
     404: "Resource not found",
     409: "Conflict",
     413: "Request body too large",
-    415: "Unsupported encoding",
+    415: "Unsupported media type or encoding",
     422: "Validation failed",
     429: "Rate limit exceeded",
     500: "Internal server error",
@@ -112,6 +151,39 @@ const currentUser = z.object({
   email: z.email(),
   name: z.string(),
   avatarUrl: z.string().nullable(),
+});
+const conversation = z.object({
+  id: z.uuid(),
+  name: z.string().min(1).max(MAX_CONVERSATION_NAME_LENGTH),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+const conversationList = z.object({
+  items: z.array(conversation),
+  nextCursor: z.string().nullable(),
+});
+const message = z.object({
+  id: z.uuid(),
+  conversationId: z.uuid(),
+  role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
+  content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
+  mediaId: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+});
+const messageList = z.object({
+  items: z.array(message),
+  nextCursor: z.string().nullable(),
+});
+const media = z.object({
+  id: z.uuid(),
+  type: z.literal("image"),
+  path: z.string().startsWith("/"),
+  url: z.url(),
+  mimeType: z.enum(SUPPORTED_IMAGE_MIME_TYPES),
+  createdAt: z.iso.datetime(),
+});
+const deletedMedia = z.object({
+  deletedIds: z.array(z.uuid()),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
 const authErrors = errors(400, 401, 413, 415, 422, 429, 500, 503);
@@ -227,6 +299,184 @@ export const openApiDocument = {
         responses: { 200: success(currentUser), ...protectedErrors },
       },
     },
+    [`${endpoints.apiPrefix}${endpoints.conversations.root}`]: {
+      get: {
+        tags: ["Conversations"],
+        operationId: "listConversations",
+        summary: "List conversations for infinite scrolling",
+        parameters: [...languageParameters, ...cursorPaginationParameters],
+        responses: {
+          200: success(conversationList),
+          ...errors(422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Conversations"],
+        operationId: "createConversation",
+        summary: "Create a conversation from the first message",
+        description:
+          "Creates the conversation and its first user text message atomically. The initial name is derived from the first 120 characters of content.",
+        parameters: languageParameters,
+        requestBody: requestBody(createConversationSchema),
+        responses: {
+          201: success(conversation, "Conversation created"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.conversations.byId}`.replace(
+      ":conversationId",
+      "{conversationId}",
+    )]: {
+      patch: {
+        tags: ["Conversations"],
+        operationId: "updateConversationName",
+        summary: "Update a conversation name",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(conversationParamsSchema.shape.conversationId),
+          },
+        ],
+        requestBody: requestBody(conversationNameSchema),
+        responses: {
+          200: success(conversation, "Conversation updated"),
+          ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.messages.byConversation}`.replace(
+      ":conversationId",
+      "{conversationId}",
+    )]: {
+      get: {
+        tags: ["Messages"],
+        operationId: "listMessages",
+        summary: "List messages for infinite scrolling",
+        description: "Messages are ordered from newest to oldest.",
+        parameters: [
+          ...languageParameters,
+          ...cursorPaginationParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageConversationParamsSchema.shape.conversationId),
+          },
+        ],
+        responses: {
+          200: success(messageList),
+          ...errors(404, 422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Messages"],
+        operationId: "sendMessage",
+        summary: "Send text and/or one media item",
+        description:
+          "Accepts content, one uploaded mediaId, or both. The media must belong to the authenticated user.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageConversationParamsSchema.shape.conversationId),
+          },
+        ],
+        requestBody: requestBody(createMessageSchema),
+        responses: {
+          201: success(message, "Message sent"),
+          ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.media.upload}`]: {
+      post: {
+        tags: ["Media"],
+        operationId: "uploadImage",
+        summary: "Upload one image",
+        description: `Accepts one JPEG, PNG, or WebP image in the file field. The actual file signature is inspected and the image is limited to ${MAX_IMAGE_SIZE_BYTES} bytes.`,
+        parameters: languageParameters,
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["file"],
+                properties: {
+                  file: {
+                    type: "string",
+                    format: "binary",
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          201: success(media, "Media uploaded"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.media.delete}`]: {
+      post: {
+        tags: ["Media"],
+        operationId: "deleteMedia",
+        summary: "Delete unattached uploaded media",
+        description:
+          `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
+        parameters: languageParameters,
+        requestBody: requestBody(deleteMediaSchema),
+        responses: {
+          200: success(deletedMedia, "Media deleted"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]:
+      {
+        get: {
+          tags: ["Media"],
+          operationId: "getMedia",
+          summary: "Get an owned uploaded image",
+          parameters: [
+            ...languageParameters,
+            {
+              name: "mediaId",
+              in: "path",
+              required: true,
+              schema: jsonSchema(mediaParamsSchema.shape.mediaId),
+            },
+          ],
+          responses: {
+            200: {
+              description: "Image bytes",
+              headers: responseHeaders,
+              content: {
+                "image/jpeg": { schema: { type: "string", format: "binary" } },
+                "image/png": { schema: { type: "string", format: "binary" } },
+                "image/webp": { schema: { type: "string", format: "binary" } },
+              },
+            },
+            ...errors(404, 422),
+            ...protectedErrors,
+          },
+        },
+      },
     [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {
       post: {
         tags: ["AI"],
