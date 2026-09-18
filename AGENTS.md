@@ -21,6 +21,9 @@ Read task-specific guidance as needed:
   pagination decisions plus deferred chat behavior.
 - [Backend development skill](.agents/skills/backend-dev-guidelines/SKILL.md):
   task routing and review gates for backend implementation/refactoring.
+- [PostgreSQL/Prisma skill](.agents/skills/postgres-db-prisma/SKILL.md):
+  database query, migration, transaction, index, pooling, raw SQL, and
+  PostgreSQL performance guidance.
 - [Agent skills](.agents/skills/README.md): skill ownership and conventions.
 
 ## Local constraints

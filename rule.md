@@ -76,3 +76,7 @@ Update the document that owns a decision and link to it elsewhere. Keep
 External skills are task-specific references. Check stack/version compatibility,
 project rules, and applicability before adopting guidance. Keep reusable skills
 in [.agents/skills](.agents/skills/README.md); do not duplicate project rules there.
+For database-centered work, use the
+[PostgreSQL/Prisma skill](.agents/skills/postgres-db-prisma/SKILL.md) with the
+backend skill; project architecture and workflow docs remain the source of truth
+for layer placement and verification.

@@ -21,6 +21,7 @@ reference rather than loading every document:
 | Request validation, errors, HTTP response shape | [Backend](backend.md) |
 | Test conventions | [Backend → Testing](backend.md#testing) |
 | Async work, transactions, and races | [Backend](backend.md#async-operations-and-error-boundaries) |
+| Prisma, PostgreSQL, raw SQL, migrations, indexes, query plans, and connection pooling | [PostgreSQL/Prisma skill](../.agents/skills/postgres-db-prisma/SKILL.md) plus [Backend → Persistence and concurrency](backend.md#persistence-and-concurrency) |
 | Secrets and authentication | [Backend](backend.md#authentication-and-secrets) |
 | Frontend API compatibility | [App integration](app-integration.md) |
 | Instruction ownership and skills | [Docs index](README.md) |
@@ -47,6 +48,8 @@ inputs, outputs, errors, side effects, trust boundaries, database constraints, a
 concurrency behavior. For API work, identify every affected validator, presenter,
 OpenAPI entry, and consumer. For schema work, inspect data and migration risk before
 application code depends on the new shape.
+For raw SQL or performance work, define why Prisma Client is insufficient, the
+PostgreSQL behavior being used, and the measured query shape before editing.
 
 ### 4. Implement
 
@@ -85,6 +88,8 @@ Use these as starting points, then add checks required by the actual risk:
 | Use-case/domain behavior | Define invariant and failures → implement in owning layer → focused test → `npm run check` |
 | HTTP/API contract | Define request/response/errors → update all contract surfaces → supertest behavior → `npm run check` |
 | Prisma schema/data | Assess data/destructive risk → schema and migration → generate → real-database constraint/migration check → `npm run verify` when cross-layer |
+| Raw SQL or repository query optimization | State why Prisma Client is insufficient or slow → keep SQL in infrastructure → parameterize values and type returned rows → inspect `EXPLAIN`/real DB behavior where relevant → `npm run check` |
+| Index or database performance | State workload and current query plan/latency → change schema/migration or query → compare the same workload with `EXPLAIN`/measurement → run correctness checks |
 | Auth/security | Define trust and authorization boundary → implement narrow mapping → test success/failure/replay/ownership cases → inspect logs for leakage |
 | Performance | State workload/metric → measure baseline → change → measure same workload → run correctness checks |
 | Cross-repository integration | Compare contracts → change each repository within scope → verify each with its own workflow → run integration check or report the gap |
@@ -101,6 +106,7 @@ documents for routine changes.
 | Use-case or domain behavior | Relevant `npm test -- <test-file>`; add regression cases for meaningful failure modes |
 | HTTP/API behavior | Exercise the real app with supertest; for manual verification, run `npm run dev` and call the endpoint. Inspect responses and relevant logs |
 | Prisma schema | `npm run prisma:generate`; run `npm run prisma:migrate` against a real Postgres when the change affects the database |
+| Raw SQL or transaction behavior | `npm run check`; run a focused integration/manual check against real local/disposable PostgreSQL when the SQL, locking, or returned rows are material to correctness |
 | Performance | Compare the same stated workload before/after and report the environment, metric, and measured result |
 | Dependencies, build setup, or changes across layers | `npm run verify` |
 | Documentation only | Read the final text and check referenced local paths; no build needed |
@@ -123,6 +129,9 @@ covered guarantee.
 Manual curl/browser checks and log inspection provide additional evidence; they do
 not replace behavior tests. If a database or companion app is unavailable, report
 the specific verification gap instead of claiming the behavior was verified.
+Static checks do not prove PostgreSQL plans, constraints, isolation, locking, or
+raw SQL result shape; report those gaps separately when DB verification could not
+run.
 
 ## Keep feedback useful
 

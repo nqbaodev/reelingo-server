@@ -1,6 +1,6 @@
 import type { MediaRepository, MediaStorage } from "../infrastructure";
 
-export class DeleteMediaUseCase {
+export class DeleteUnusedMediaUseCase {
   constructor(
     private readonly media: MediaRepository,
     private readonly storage: MediaStorage,

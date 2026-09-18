@@ -232,6 +232,12 @@ external example overrides the requested behavior.
   for destructive or unintended operations, and test relevant constraints against
   a local/disposable database. Do not edit an already-applied shared migration to
   disguise a new schema change.
+- For raw SQL, query tuning, indexes, connection pooling, or Postgres-specific
+  behavior, apply the
+  [PostgreSQL/Prisma skill](../.agents/skills/postgres-db-prisma/SKILL.md).
+  Keep raw SQL inside infrastructure adapters, parameterize values, type returned
+  rows, and verify behavior against real PostgreSQL when correctness depends on
+  database semantics.
 
 ## Performance and operational evidence
 
@@ -318,7 +324,9 @@ their folder layout, dependencies, inheritance, or telemetry vendor.
 
 ## External skills
 
-No external skill is installed under `.agents/skills/` yet. Before adding one,
-read [.agents/skills/README.md](../.agents/skills/README.md) for the convention
-this project follows, and add project-specific decisions to the linked project
-documents rather than duplicating them inside the skill.
+Use project-owned skills as routing and review aids, not as replacement
+documentation. The backend skill should be loaded for ordinary backend work. Add
+the PostgreSQL/Prisma skill whenever the task touches Prisma schema, migrations,
+repository SQL, raw SQL, indexes, transactions, connection pooling, or database
+performance. If a skill and this document appear to conflict, follow the project
+docs and update the skill or owning doc so the conflict is not repeated.

@@ -2,8 +2,14 @@
 
 This directory holds skills usable by coding agents that read `AGENTS.md` (Claude
 Code, Codex, etc.), not just one tool's own skill mechanism. The installed
-[backend development skill](backend-dev-guidelines/SKILL.md) routes backend work
-to the repository's source-of-truth rules and docs without copying their details.
+skills route work to the repository's source-of-truth rules and docs without
+copying their details.
+
+| Skill | Use it for | Read order |
+| --- | --- | --- |
+| [backend-dev-guidelines](backend-dev-guidelines/SKILL.md) | Node.js, Express, TypeScript, Prisma-backed feature code, HTTP contracts, auth, validation, persistence boundaries, and backend verification. | Read first for backend work. |
+| [postgres-db-prisma](postgres-db-prisma/SKILL.md) | PostgreSQL, Prisma schema/migrations, indexes, raw SQL, transactions, connection pooling, query plans, and database performance. | Read after `backend-dev-guidelines` when the task touches database behavior. |
+
 Add another skill only when it provides a distinct reusable workflow or external
 guidance; do not restate decisions already owned by [rule.md](../../rule.md) or
 [docs](../../docs/README.md).
@@ -38,4 +44,7 @@ Record project-specific decisions (how *this* project applies a skill's
 general guidance) in the linked project documents — `rule.md` or `docs/` — and
 link to them from the skill if needed, rather than duplicating them inside
 the skill. For example, chat contracts live in [docs/chat.md](../../docs/chat.md),
-while the backend skill only routes relevant work to that document.
+while the backend skill only routes relevant work to that document. If two skills
+appear to disagree, follow [rule.md](../../rule.md), [docs](../../docs/README.md),
+and the narrower feature document, then update the stale skill instead of
+silently choosing one.

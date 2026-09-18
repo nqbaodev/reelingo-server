@@ -5,7 +5,7 @@ import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
 import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import type {
-  DeleteMediaUseCase,
+  DeleteUnusedMediaUseCase,
   GetMediaContentUseCase,
   UploadImageUseCase,
 } from "../application";
@@ -13,7 +13,7 @@ import { toDeletedMediaResponse, toMediaResponse } from "./media.presenter";
 import type { DeleteMediaInput, MediaParams } from "./media.validators";
 
 interface MediaControllerDeps {
-  deleteMedia: DeleteMediaUseCase;
+  deleteUnusedMedia: DeleteUnusedMediaUseCase;
   getMediaContent: GetMediaContentUseCase;
   uploadImage: UploadImageUseCase;
 }
@@ -33,11 +33,11 @@ export class MediaController {
     sendSuccess(res, toMediaResponse(media), I18n.mediaUploaded, 201);
   };
 
-  delete = async (
+  deleteUnused = async (
     req: Request<ParamsDictionary, unknown, DeleteMediaInput>,
     res: Response,
   ) => {
-    const deletedIds = await this.deps.deleteMedia.execute(
+    const deletedIds = await this.deps.deleteUnusedMedia.execute(
       requireCurrentUserId(req),
       req.body.mediaIds,
     );
