@@ -54,6 +54,7 @@ the user, and presentation shapes the auth-token response.
 | `shared` | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware) |
 | `app.ts` | Mounts feature routers and cross-cutting middleware |
 | `server.ts` | Starts the HTTP server and handles graceful shutdown |
+| `.agents/skills` | Agent-only task guidance; skills route agents to the owning docs and must not introduce architecture decisions on their own |
 
 ## Services and shared ownership
 
@@ -95,6 +96,10 @@ convention. For new or materially changed external integrations, prefer a small,
 consumer-relevant contract over coupling a use case to an SDK or concrete class's
 private state. Existing concrete technical-service dependencies can be improved
 when the task touches their boundary; do not perform unrelated mass refactors.
+Prisma Client and raw SQL both remain infrastructure details. Use the
+[PostgreSQL/Prisma skill](../.agents/skills/postgres-db-prisma/SKILL.md) for
+database-specific query, transaction, migration, index, and connection-pooling
+judgment, while this document continues to own layer placement.
 
 Select patterns by the problem they solve:
 
@@ -256,6 +261,9 @@ and any required port in the feature's `infrastructure`, following the repositor
 convention above, and wire the concrete adapter in the feature's
 `*.module.ts`. Do not construct a client or call an SDK directly from a
 controller or use case.
+Do not introduce another PostgreSQL client or connection pool inside feature code
+while Prisma is the wired persistence adapter unless the architecture decision is
+explicitly changed and documented.
 
 ## Add a feature
 

@@ -19,6 +19,10 @@ repository's documented contract.
   input validation, errors, async work, persistence, auth, secrets, and security.
 - Read [engineering workflow](../../../docs/workflow.md) before selecting tests
   or reporting completion.
+- Read [PostgreSQL/Prisma guidance](../postgres-db-prisma/SKILL.md), plus its
+  relevant rule file, when work touches Prisma schema, migrations, repository
+  queries, raw SQL, indexes, transactions, connection pooling, or database
+  performance.
 - Read [app integration](../../../docs/app-integration.md) only when the backend API
   contract or companion app is in scope.
 - Read [chat feature](../../../docs/chat.md) when changing conversations,
@@ -32,6 +36,8 @@ repository's documented contract.
 2. Assign each responsibility to its layer before editing. Presentation owns HTTP;
    application owns use-case orchestration; domain owns business concepts/rules;
    infrastructure owns Prisma/providers; the feature module owns construction.
+   Database-specific mechanics still belong in infrastructure even when a use
+   case owns the business outcome.
 3. Define narrow inputs, outputs, errors, and side effects at boundaries. Keep
    framework and provider representations out of domain/application behavior.
 4. Give every function one cohesive responsibility and a precise outcome name.

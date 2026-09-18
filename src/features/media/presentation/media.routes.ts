@@ -17,7 +17,7 @@ export function createMediaRouter(controller: MediaController): Router {
       method: HttpMethod.POST,
       path: endpoints.media.delete,
       middlewares: [validate({ body: deleteMediaSchema })],
-      handler: controller.delete,
+      handler: controller.deleteUnused,
     },
     {
       method: HttpMethod.GET,

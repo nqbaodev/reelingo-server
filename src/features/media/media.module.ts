@@ -1,7 +1,7 @@
 import { config } from "@/config";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
-  DeleteMediaUseCase,
+  DeleteUnusedMediaUseCase,
   GetMediaContentUseCase,
   UploadImageUseCase,
 } from "./application";
@@ -12,7 +12,7 @@ export function createMediaModule(prisma: PrismaClient) {
   const media = new MediaPrismaRepository(prisma);
   const storage = new LocalMediaStorage(config.media.storageRoot);
   const controller = new MediaController({
-    deleteMedia: new DeleteMediaUseCase(media, storage),
+    deleteUnusedMedia: new DeleteUnusedMediaUseCase(media, storage),
     getMediaContent: new GetMediaContentUseCase(media, storage),
     uploadImage: new UploadImageUseCase(media, storage),
   });

@@ -22,8 +22,11 @@ relevant to the task; do not load every skill or its compiled instructions.
 
 `AGENTS.md` is guidance for a coding agent. `.agents/skills` contains reusable
 instructions; it does not run agents, schedule work, or install services. The
-project-owned `backend-dev-guidelines` skill routes relevant work to these docs;
-it does not duplicate them. No external skill is currently vendored here.
+project-owned `backend-dev-guidelines` skill routes backend work to these docs;
+the `postgres-db-prisma` skill adds database-specific judgment for Prisma,
+PostgreSQL, migrations, indexes, transactions, connection pooling, raw SQL, and
+query-performance work. Skills do not replace the source-of-truth docs; they tell
+an agent which source to read and which evidence to collect.
 
 When adopting a skill, review its sources, runtime assumptions, and conflicts
 with project rules. Keep upstream material separate from project-specific
