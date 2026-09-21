@@ -48,30 +48,67 @@ enum MediaType {
   @@map("media_type")
 }
 
+enum AiGenerationStatus {
+  pending
+  processing
+  completed
+  failed
+
+  @@map("ai_generation_status")
+}
+
+model AiGeneration {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  triggerMessageId String             @unique @map("trigger_message_id") @db.Uuid
+  resultMessageId  String?            @unique @map("result_message_id") @db.Uuid
+  type             MediaType
+  status           AiGenerationStatus @default(pending)
+  configSnapshot   Json               @map("config_snapshot") @db.JsonB
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  triggerMessage   Message            @relation("AiGenerationTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
+  resultMessage    Message?           @relation("AiGenerationResult", fields: [resultMessageId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt, id])
+  @@map("ai_generations")
+}
+
 model Message {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  conversationId String       @map("conversation_id") @db.Uuid
-  mediaId        String?      @map("media_id") @db.Uuid
-  role           MessageRole
-  content        String?      @db.Text
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  media          Media?       @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId      String         @map("conversation_id") @db.Uuid
+  role                MessageRole
+  content             String?        @db.Text
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  conversation        Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  mediaLinks          MessageMedia[]
+  triggeredGeneration AiGeneration?  @relation("AiGenerationTrigger")
+  generationResult    AiGeneration?  @relation("AiGenerationResult")
 
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
-  @@index([mediaId])
   @@map("messages")
 }
 
+model MessageMedia {
+  messageId String  @map("message_id") @db.Uuid
+  mediaId   String  @map("media_id") @db.Uuid
+  position  Int
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@id([messageId, mediaId])
+  @@unique([messageId, position])
+  @@index([mediaId])
+  @@map("message_media")
+}
+
 model Media {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     Int       @map("user_id")
-  type       MediaType
-  storageKey String    @unique @map("storage_key") @db.Text
-  mimeType   String    @map("mime_type") @db.VarChar(255)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages   Message[]
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       Int            @map("user_id")
+  type         MediaType
+  storageKey   String         @unique @map("storage_key") @db.Text
+  mimeType     String         @map("mime_type") @db.VarChar(255)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageLinks MessageMedia[]
 
   @@index([userId])
   @@map("media")

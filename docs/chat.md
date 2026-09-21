@@ -8,12 +8,14 @@ executable API contract; update this document when those decisions change.
 
 - `features/conversations` owns conversation creation from the first text message,
   listing, and name updates.
-- `features/messages` owns message validation, persistence, listing, and the
-  reference from a message to one uploaded media record.
-- `features/media` owns authenticated image upload, local file storage, media
-  persistence, and owned media retrieval.
-- `features/ai` currently exposes standalone Gemini text generation. It is not yet
-  orchestrated with conversation messages.
+- `features/messages` owns message validation, persistence, listing, ordered media
+  attachments, and creation of generation requests triggered by a message.
+- `features/media` owns the shared image/video media type, authenticated image
+  upload, local file storage, media persistence, and owned media retrieval.
+- `features/ai` owns generation statuses, configuration semantics, and the legacy
+  standalone Gemini text endpoint. Image/video provider execution is not wired
+  yet; message creation only persists a pending generation request for a future
+  worker.
 - Every conversation and nested message operation is authenticated and scoped to
   the conversation owner. A missing or non-owned conversation returns the same 404
   outcome and must not reveal another user's data.
@@ -58,11 +60,25 @@ Create from the first text message:
 - `Message.id` is a database-generated UUID.
 - `role` is either `user` or `assistant`. The public send-message endpoint always
   assigns `user`; clients cannot choose or spoof the role.
-- A message contains `content`, one uploaded `mediaId`, or both. At least one must
-  be present, and multiple media items are not supported.
-- `mediaId` must reference media owned by the authenticated user. A missing or
-  non-owned media record returns the same 404 outcome and does not reveal another
-  user's data.
+- A message contains `content`, up to four uploaded `mediaIds`, or both. At least
+  one must be present. Duplicate IDs are rejected.
+- Every `mediaId` must reference media owned by the authenticated user. If any ID
+  is missing or non-owned, the request returns 404 without revealing which record
+  failed ownership validation.
+- An optional `generation` object may be included only with non-empty `content`.
+  Its `type` is `image` or `video`; `config` contains the aspect ratio,
+  resolution, quality, output count, and prompt-enhancement choice used for this
+  one request. The server stores that object as an immutable JSONB snapshot.
+- Creating the user message and its pending generation row is atomic. The prompt
+  is not duplicated in the generation table: `triggerMessageId` points to the
+  user message containing it.
+- When provider execution is added, it must create one `assistant` message, attach
+  its ordered output media through `MessageMedia`, and set the generation's
+  `resultMessageId`. This makes each generated media result traceable to the
+  original prompt.
+- Message responses expose the associated `generation` on both sides: the user
+  prompt has `triggerMessageId` equal to its own ID, while the assistant result
+  has the same generation ID and points back to that trigger message.
 - Text content is trimmed, cannot be empty, and is limited to 8,000 characters.
   Null bytes are rejected before persistence. Emoji are ordinary Unicode content
   and require no separate field.
@@ -86,12 +102,12 @@ Text-only request:
 }
 ```
 
-Text with one image:
+Text with uploaded media:
 
 ```json
 {
   "content": "What is in this image?",
-  "mediaId": "6aa7ba5e-5bf0-43ec-bb58-068e21cad413"
+  "mediaIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
@@ -99,13 +115,31 @@ Image-only message:
 
 ```json
 {
-  "mediaId": "6aa7ba5e-5bf0-43ec-bb58-068e21cad413"
+  "mediaIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
 Upload the image first with `POST /api/v1/media`, then send the returned `id` as
-`mediaId`. The message endpoint never accepts raw file bytes, storage paths, URLs,
+an item in `mediaIds`. The message endpoint never accepts raw file bytes, storage paths, URLs,
 MIME types, or file sizes.
+
+Prompt requesting image generation:
+
+```json
+{
+  "content": "Create a cinematic mountain landscape",
+  "generation": {
+    "type": "image",
+    "config": {
+      "aspectRatio": "16:9",
+      "resolution": "1K",
+      "quality": "medium",
+      "outputCount": 2,
+      "enhancePrompt": true
+    }
+  }
+}
+```
 
 ## Media
 
@@ -133,21 +167,29 @@ MIME types, or file sizes.
 - A future S3/R2 adapter can replace local storage through the media storage
   contract without changing the upload use case or API response.
 - Upload and message creation are separate requests. An upload remains unattached
-  until its `id` is used as a message's `mediaId`.
+  until its `id` is used in a message's `mediaIds`.
 
 ## Persistence invariants
 
 PostgreSQL constraints enforce the valid stored shapes:
 
-- text-only: non-empty `content`, with `mediaId` null;
-- media with optional text: a non-null `mediaId` referencing `Media`;
+- text-only: non-empty `content` and no media links;
+- media with optional text: one to four ordered `MessageMedia` rows referencing
+  `Media`;
+- generation: exactly one generation per trigger message and at most one result
+  message per generation;
 - deleting a conversation cascades to its messages.
 - deleting media referenced by a message is restricted.
+
+The database can validate non-empty text but cannot express “content or at least
+one row in another table” as a row-level check. The HTTP/application boundary
+therefore enforces that every message has content or at least one media item.
 
 Creating a conversation uses one atomic nested write for the conversation and its
 first user message. Sending a later message uses one transaction to verify both
 conversation and media ownership, update the parent conversation timestamp, and
-insert the message. Keep both atomic behaviors when either write flow changes.
+insert the message, its ordered media links, and optional pending generation. Keep
+both atomic behaviors when either write flow changes.
 
 ## Cursor pagination
 
@@ -167,11 +209,11 @@ The following behavior is intentionally not implemented yet:
 - replacing local media storage with an object-storage provider;
 - supporting video upload and video-specific metadata such as duration and a
   thumbnail;
-- generating and persisting an assistant response;
+- calling image/video providers and persisting the assistant result message;
 - building AI context from previous messages;
 - replacing the initial name with an AI-generated summary;
 - creating a conversation from a media-only first message;
-- multi-media messages, message edits, and message deletion.
+- message edits and message deletion.
 
 ## Change checklist
 

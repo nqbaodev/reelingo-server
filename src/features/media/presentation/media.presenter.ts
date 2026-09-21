@@ -1,13 +1,13 @@
 import { config } from "@/config";
 import { endpoints } from "@/shared/http/endpoints";
-import type { Media, MediaType, SupportedImageMimeType } from "../domain";
+import type { Media, MediaType } from "../domain";
 
 export interface MediaResponse {
   id: string;
   type: MediaType;
   path: string;
   url: string;
-  mimeType: SupportedImageMimeType;
+  mimeType: string;
   createdAt: string;
 }
 

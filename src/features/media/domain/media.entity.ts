@@ -1,7 +1,6 @@
-import type { SupportedImageMimeType } from "./image.constants";
-
 export const MediaType = {
   IMAGE: "image",
+  VIDEO: "video",
 } as const;
 
 export type MediaType = (typeof MediaType)[keyof typeof MediaType];
@@ -11,7 +10,7 @@ export interface Media {
   userId: number;
   type: MediaType;
   storageKey: string;
-  mimeType: SupportedImageMimeType;
+  mimeType: string;
   createdAt: Date;
 }
 
@@ -19,5 +18,5 @@ export interface NewMedia {
   userId: number;
   type: MediaType;
   storageKey: string;
-  mimeType: SupportedImageMimeType;
+  mimeType: string;
 }

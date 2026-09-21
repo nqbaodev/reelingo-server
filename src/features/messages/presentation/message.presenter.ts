@@ -3,7 +3,7 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/core/pagination";
-import type { Message } from "../domain";
+import type { Message, MessageGeneration } from "../domain";
 import type { MessageListCursor } from "../infrastructure";
 
 export interface MessageResponse {
@@ -11,7 +11,15 @@ export interface MessageResponse {
   conversationId: string;
   role: Message["role"];
   content: string | null;
-  mediaId: string | null;
+  mediaIds: string[];
+  generation: {
+    id: string;
+    triggerMessageId: string;
+    type: MessageGeneration["type"];
+    status: MessageGeneration["status"];
+    config: MessageGeneration["config"];
+    resultMessageId: string | null;
+  } | null;
   createdAt: string;
 }
 
@@ -21,7 +29,8 @@ export function toMessageResponse(message: Message): MessageResponse {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
-    mediaId: message.mediaId,
+    mediaIds: message.mediaIds,
+    generation: message.generation,
     createdAt: message.createdAt.toISOString(),
   };
 }

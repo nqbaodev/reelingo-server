@@ -11,6 +11,11 @@ import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import { generateTextSchema } from "@/features/ai/presentation/ai.validators";
 import {
+  MAX_AI_GENERATION_CONFIG_VALUE_LENGTH,
+  MAX_AI_GENERATION_OUTPUT_COUNT,
+  MIN_AI_GENERATION_OUTPUT_COUNT,
+} from "@/features/ai/domain";
+import {
   googleLoginSchema,
   refreshTokenSchema,
 } from "@/features/auth/presentation/auth.validators";
@@ -162,12 +167,32 @@ const conversationList = z.object({
   items: z.array(conversation),
   nextCursor: z.string().nullable(),
 });
+const aiGenerationConfig = z.object({
+  aspectRatio: z.string().max(MAX_AI_GENERATION_CONFIG_VALUE_LENGTH).nullable(),
+  resolution: z.string().max(MAX_AI_GENERATION_CONFIG_VALUE_LENGTH).nullable(),
+  quality: z.string().max(MAX_AI_GENERATION_CONFIG_VALUE_LENGTH).nullable(),
+  outputCount: z
+    .number()
+    .int()
+    .min(MIN_AI_GENERATION_OUTPUT_COUNT)
+    .max(MAX_AI_GENERATION_OUTPUT_COUNT),
+  enhancePrompt: z.boolean(),
+});
+const messageGeneration = z.object({
+  id: z.uuid(),
+  triggerMessageId: z.uuid(),
+  type: z.enum(["image", "video"]),
+  status: z.enum(["pending", "processing", "completed", "failed"]),
+  config: aiGenerationConfig,
+  resultMessageId: z.uuid().nullable(),
+});
 const message = z.object({
   id: z.uuid(),
   conversationId: z.uuid(),
   role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
   content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
-  mediaId: z.uuid().nullable(),
+  mediaIds: z.array(z.uuid()).max(4),
+  generation: messageGeneration.nullable(),
   createdAt: z.iso.datetime(),
 });
 const messageList = z.object({
@@ -379,9 +404,9 @@ export const openApiDocument = {
       post: {
         tags: ["Messages"],
         operationId: "sendMessage",
-        summary: "Send text and/or one media item",
+        summary: "Send a message and optionally request media generation",
         description:
-          "Accepts content, one uploaded mediaId, or both. The media must belong to the authenticated user.",
+          "Accepts content and/or owned mediaIds. An optional generation object creates a pending image or video generation linked to this prompt message.",
         parameters: [
           ...languageParameters,
           {
