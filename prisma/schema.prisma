@@ -57,6 +57,30 @@ enum AiGenerationStatus {
   @@map("ai_generation_status")
 }
 
+enum ChatRunStatus {
+  pending
+  processing
+  completed
+  failed
+
+  @@map("chat_run_status")
+}
+
+model ChatRun {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  triggerMessageId String        @unique @map("trigger_message_id") @db.Uuid
+  resultMessageId  String?       @unique @map("result_message_id") @db.Uuid
+  status           ChatRunStatus @default(pending)
+  contextSnapshot  Json          @map("context_snapshot") @db.JsonB
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  triggerMessage   Message       @relation("ChatRunTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
+  resultMessage    Message?      @relation("ChatRunResult", fields: [resultMessageId], references: [id], onDelete: SetNull)
+
+  @@index([status, updatedAt, id])
+  @@map("chat_runs")
+}
+
 model AiGeneration {
   id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   triggerMessageId String             @unique @map("trigger_message_id") @db.Uuid
@@ -82,6 +106,8 @@ model Message {
   mediaLinks          MessageMedia[]
   triggeredGeneration AiGeneration?  @relation("AiGenerationTrigger")
   generationResult    AiGeneration?  @relation("AiGenerationResult")
+  triggeredChatRun    ChatRun?       @relation("ChatRunTrigger")
+  chatRunResult       ChatRun?       @relation("ChatRunResult")
 
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("messages")

@@ -4,7 +4,11 @@ import {
   type CursorPage,
 } from "@/core/pagination";
 import type { Message, MessageGeneration } from "../domain";
-import type { MessageListCursor } from "../infrastructure";
+import type {
+  ChatTurn,
+  MessageListCursor,
+  MessageResponseState,
+} from "../infrastructure";
 
 export interface MessageResponse {
   id: string;
@@ -20,6 +24,7 @@ export interface MessageResponse {
     config: MessageGeneration["config"];
     resultMessageId: string | null;
   } | null;
+  chatRun: Message["chatRun"];
   createdAt: string;
 }
 
@@ -31,7 +36,38 @@ export function toMessageResponse(message: Message): MessageResponse {
     content: message.content,
     mediaIds: message.mediaIds,
     generation: message.generation,
+    chatRun: message.chatRun,
     createdAt: message.createdAt.toISOString(),
+  };
+}
+
+export interface MessageTurnResponse {
+  userMessage: MessageResponse;
+  assistantMessage: MessageResponse;
+}
+
+export interface MessageResponseStateResponse {
+  chatRun: MessageResponseState["chatRun"];
+  assistantMessage: MessageResponse | null;
+}
+
+export function toMessageResponseStateResponse(
+  response: MessageResponseState,
+): MessageResponseStateResponse {
+  return {
+    chatRun: response.chatRun,
+    assistantMessage: response.assistantMessage
+      ? toMessageResponse(response.assistantMessage)
+      : null,
+  };
+}
+
+export function toMessageTurnResponse(
+  turn: ChatTurn,
+): MessageTurnResponse {
+  return {
+    userMessage: toMessageResponse(turn.userMessage),
+    assistantMessage: toMessageResponse(turn.assistantMessage),
   };
 }
 

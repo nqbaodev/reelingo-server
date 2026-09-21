@@ -1,6 +1,8 @@
 import type {
   AiGenerationConfig,
   AiGenerationStatus,
+  ChatContext,
+  MessageChatRun,
 } from "@/features/ai/domain";
 import type { MediaType } from "@/features/media/domain";
 
@@ -20,15 +22,13 @@ export interface MessageGeneration {
   resultMessageId: string | null;
 }
 
-export interface NewMessageGeneration {
-  type: MediaType;
-  config: AiGenerationConfig;
-}
-
 export interface MessagePayload {
   content: string | null;
   mediaIds: string[];
-  generation: NewMessageGeneration | null;
+}
+
+export interface CreateMessagePayload extends MessagePayload {
+  aiContext: ChatContext;
 }
 
 interface MessageBase {
@@ -38,6 +38,7 @@ interface MessageBase {
   content: string | null;
   mediaIds: string[];
   generation: MessageGeneration | null;
+  chatRun: MessageChatRun | null;
   createdAt: Date;
 }
 

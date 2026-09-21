@@ -26,6 +26,14 @@ export class ConversationPrismaRepository implements ConversationRepository {
           create: {
             role: MessageRole.user,
             content: firstMessageContent,
+            triggeredChatRun: {
+              create: {
+                contextSnapshot: {
+                  intentHint: null,
+                  generationSettings: {},
+                },
+              },
+            },
           },
         },
       },

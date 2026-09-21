@@ -1,2 +1,2 @@
+export * from "./chat.client";
 export * from "./gemini.client";
-export * from "./generative-ai.client";

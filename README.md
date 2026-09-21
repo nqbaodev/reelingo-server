@@ -228,12 +228,13 @@ the prefix; health and documentation paths are mounted at the root.
 | `POST` | `/api/v1/conversations` | Create a conversation from its first text message |
 | `GET` | `/api/v1/conversations` | List conversations with cursor pagination |
 | `PATCH` | `/api/v1/conversations/:conversationId` | Update an owned conversation's name |
-| `POST` | `/api/v1/conversations/:conversationId/messages` | Send text and/or one uploaded media by `mediaId` |
+| `POST` | `/api/v1/conversations/:conversationId/messages` | Store a prompt and pending chat run |
+| `GET` | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Poll the assistant response status |
+| `POST` | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Generate and persist the assistant response |
 | `GET` | `/api/v1/conversations/:conversationId/messages` | List messages with cursor pagination |
 | `POST` | `/api/v1/media` | Upload one JPEG, PNG, or WebP image up to 2 MiB |
 | `POST` | `/api/v1/media/delete` | Delete owned uploaded images that are not attached to messages |
 | `GET` | `/api/v1/media/:mediaId` | Read an owned uploaded image |
-| `POST` | `/api/v1/ai/generate` | Generate text from a prompt with Gemini |
 
 ### Local media storage
 
@@ -282,19 +283,31 @@ The key is server-only and must not be exposed to clients.
 maximum 300,000 ms). Requests use one attempt so SDK retries do not extend
 the configured wait. Timeout failures return `503 SERVICE_UNAVAILABLE`.
 
-Authenticated clients can send a text prompt to Gemini:
+Authenticated clients send prompts through the conversation message endpoint:
 
 ```http
-POST /api/v1/ai/generate
+POST /api/v1/conversations/:conversationId/messages
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 
-{ "prompt": "Explain the word resilient in Vietnamese." }
+{ "content": "Explain the word resilient in Vietnamese." }
 ```
 
-The response is `{ "success": true, "message": "Text generated successfully", "data": { "text": "..." } }`. Prompts must contain non-whitespace
-text and are limited to 8,000 characters. Gemini connectivity, quota, and
-empty-response failures return `503 SERVICE_UNAVAILABLE`.
+This request stores the user message and a pending chat run, then returns immediately.
+The client shows a typing indicator and calls
+`POST /api/v1/conversations/:conversationId/messages/:messageId/response`.
+Gemini then either returns normal chat text or selects the image/video generation tool.
+Chat text is persisted as an assistant message. A media tool call currently creates
+a pending generation record and an assistant message confirming it was queued; the
+image/video provider is not wired yet. Gemini connectivity, quota, and
+invalid-response failures return
+`503 SERVICE_UNAVAILABLE`.
+
+If the processing request is disconnected or the page reloads, the client polls
+`GET /api/v1/conversations/:conversationId/messages/:messageId/response`. The
+response includes the durable chat-run status and returns `assistantMessage` as
+`null` until processing completes. Polling reads state only; it never starts or
+retries Gemini processing.
 
 ## Request tracing
 

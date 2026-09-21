@@ -5,7 +5,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { config } from "@/config";
 import { createAiModule } from "@/features/ai/ai.module";
-import type { GenerativeAiClient } from "@/features/ai/infrastructure";
+import type { ChatClient } from "@/features/ai/infrastructure";
 import { createAuthModule } from "@/features/auth/auth.module";
 import { createConversationsModule } from "@/features/conversations/conversations.module";
 import { createHealthModule } from "@/features/health/health.module";
@@ -27,7 +27,7 @@ import { endpoints } from "@/shared/http/endpoints";
 import { openApiDocument } from "@/openapi";
 
 interface CreateAppOptions {
-  aiClient?: GenerativeAiClient;
+  chatClient?: ChatClient;
   database?: PrismaClient;
 }
 
@@ -54,10 +54,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const database = options.database ?? prisma;
   const authModule = createAuthModule(database);
   const healthModule = createHealthModule(database);
-  const aiModule = createAiModule(options.aiClient);
+  const aiModule = createAiModule(options.chatClient);
   const conversationsModule = createConversationsModule(database);
   const mediaModule = createMediaModule(database);
-  const messagesModule = createMessagesModule(database);
+  const messagesModule = createMessagesModule(database, aiModule.client);
   const usersModule = createUsersModule(database);
 
   // Public routes
@@ -75,7 +75,6 @@ export function createApp(options: CreateAppOptions = {}): Express {
     conversationsModule.router,
     mediaModule.router,
     messagesModule.router,
-    aiModule.router,
   );
 
   // Error handling

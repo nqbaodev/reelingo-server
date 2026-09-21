@@ -22,6 +22,16 @@ export interface AiGenerationConfig {
   enhancePrompt: boolean;
 }
 
+export function createDefaultAiGenerationConfig(): AiGenerationConfig {
+  return {
+    aspectRatio: null,
+    resolution: null,
+    quality: null,
+    outputCount: DEFAULT_AI_GENERATION_OUTPUT_COUNT,
+    enhancePrompt: DEFAULT_AI_GENERATION_ENHANCE_PROMPT,
+  };
+}
+
 export function parseAiGenerationConfig(value: unknown): AiGenerationConfig {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("AI generation config snapshot must be an object");

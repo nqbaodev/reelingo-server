@@ -4,7 +4,6 @@
   "signedIn": "Đăng nhập thành công",
   "sessionRefreshed": "Làm mới phiên đăng nhập thành công",
   "signedOut": "Đăng xuất thành công",
-  "textGenerated": "Tạo văn bản thành công",
   "conversationCreated": "Tạo cuộc trò chuyện thành công",
   "messageSent": "Gửi tin nhắn thành công",
   "mediaUploaded": "Tải media lên thành công",
@@ -25,6 +24,8 @@
 
   "userNotFound": "Không tìm thấy người dùng",
   "conversationNotFound": "Không tìm thấy cuộc trò chuyện",
+  "messageNotFound": "Không tìm thấy tin nhắn",
+  "chatAlreadyProcessing": "Phản hồi AI đang được xử lý",
   "mediaNotFound": "Không tìm thấy media",
   "mediaFileRequired": "Cần cung cấp một tệp ảnh",
   "invalidMediaUpload": "Dữ liệu tải media không hợp lệ",

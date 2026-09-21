@@ -9,13 +9,12 @@ executable API contract; update this document when those decisions change.
 - `features/conversations` owns conversation creation from the first text message,
   listing, and name updates.
 - `features/messages` owns message validation, persistence, listing, ordered media
-  attachments, and creation of generation requests triggered by a message.
+  attachments, durable chat runs, and persistence of the AI decision.
 - `features/media` owns the shared image/video media type, authenticated image
   upload, local file storage, media persistence, and owned media retrieval.
-- `features/ai` owns generation statuses, configuration semantics, and the legacy
-  standalone Gemini text endpoint. Image/video provider execution is not wired
-  yet; message creation only persists a pending generation request for a future
-  worker.
+- `features/ai` owns chat routing, generation statuses, configuration semantics,
+  and the Gemini adapter. Image/video provider execution is not wired yet; a media
+  tool call only persists a pending generation request for a future worker.
 - Every conversation and nested message operation is authenticated and scoped to
   the conversation owner. A missing or non-owned conversation returns the same 404
   outcome and must not reveal another user's data.
@@ -32,8 +31,10 @@ executable API contract; update this document when those decisions change.
   transaction, so active conversations move to the top of the list.
 - Conversation lists order by `updatedAt DESC, id DESC`. The UUID is only a stable
   tie-breaker when timestamps match.
-- The create endpoint accepts `{ "content": "..." }`. It creates the conversation
-  and first `user` message atomically.
+- The create endpoint accepts `{ "content": "..." }`. It creates the conversation,
+  first `user` message, and its pending chat run atomically. Because the response
+  currently returns only the conversation, the client loads messages to obtain the
+  first message ID before calling its response endpoint.
 - The initial name is derived synchronously from the first 120 Unicode characters
   of the trimmed message content. Users may rename it through the update endpoint.
 - Creating a conversation from a media-only first message is deferred until its
@@ -65,13 +66,36 @@ Create from the first text message:
 - Every `mediaId` must reference media owned by the authenticated user. If any ID
   is missing or non-owned, the request returns 404 without revealing which record
   failed ownership validation.
-- An optional `generation` object may be included only with non-empty `content`.
-  Its `type` is `image` or `video`; `config` contains the aspect ratio,
-  resolution, quality, output count, and prompt-enhancement choice used for this
-  one request. The server stores that object as an immutable JSONB snapshot.
-- Creating the user message and its pending generation row is atomic. The prompt
-  is not duplicated in the generation table: `triggerMessageId` points to the
-  user message containing it.
+- The client does not send a chat/image/video mode. Sending a message stores the
+  user message and a pending `ChatRun` atomically, then returns without waiting for
+  Gemini. The client displays a typing state and calls the response endpoint with
+  the persisted message ID. Gemini receives only that prompt and may return normal
+  text, call `generate_image`, or call `generate_video`. Tool selection uses Gemini
+  function calling in automatic mode, not server-side keyword matching. Previous
+  messages are not included in AI context yet.
+- Optional `aiContext` carries the user's current session preference and image or
+  video settings. `intentHint` is only a hint; it cannot trigger generation on its
+  own. If the prompt asks for media but does not identify image or video, the AI
+  should ask a clarifying question as normal assistant text.
+- Generation settings contain aspect ratio, resolution, quality, output count,
+  and prompt enhancement. They are not persisted for ordinary chat. When the AI
+  chooses a media tool, the matching image/video settings are copied into the new
+  generation row as an immutable JSONB snapshot. Missing settings use server
+  defaults.
+- The prompt is not duplicated in the generation table: `triggerMessageId`
+  points to the user message containing it.
+- A normal AI response is persisted as a new `assistant` message. A media tool
+  call creates a pending generation associated with the triggering user message
+  and an `assistant` message confirming that generation was queued. The tool call
+  provides this confirmation in the user's language, so no second Gemini request
+  is required.
+- A chat run is `pending`, `processing`, `completed`, or `failed`. Both the trigger
+  user message and the resulting assistant message expose the same chat-run ID and
+  status. A completed run stores its assistant message ID as `resultMessageId`.
+- The response endpoint is idempotent after completion and returns the existing
+  user/assistant turn. A concurrent request while a run is processing returns 409.
+  Failed runs may be retried. A processing claim older than the Gemini timeout plus
+  a safety buffer may be reclaimed after a server interruption.
 - When provider execution is added, it must create one `assistant` message, attach
   its ordered output media through `MessageMedia`, and set the generation's
   `resultMessageId`. This makes each generated media result traceable to the
@@ -91,6 +115,8 @@ Current endpoints:
 
 ```text
 POST /api/v1/conversations/:conversationId/messages
+POST /api/v1/conversations/:conversationId/messages/:messageId/response
+GET  /api/v1/conversations/:conversationId/messages/:messageId/response
 GET  /api/v1/conversations/:conversationId/messages
 ```
 
@@ -128,18 +154,78 @@ Prompt requesting image generation:
 ```json
 {
   "content": "Create a cinematic mountain landscape",
-  "generation": {
-    "type": "image",
-    "config": {
-      "aspectRatio": "16:9",
-      "resolution": "1K",
-      "quality": "medium",
-      "outputCount": 2,
-      "enhancePrompt": true
+  "aiContext": {
+    "intentHint": "image",
+    "generationSettings": {
+      "image": {
+        "aspectRatio": "16:9",
+        "resolution": "1K",
+        "quality": "medium",
+        "outputCount": 2,
+        "enhancePrompt": true
+      }
     }
   }
 }
 ```
+
+`aiContext` is optional. The same text without `aiContext` may still trigger image
+generation because the request itself is explicit. Conversely, sending an image
+hint with ordinary text such as “hello” must still produce an ordinary chat
+response.
+
+The send endpoint returns immediately with the persisted user message:
+
+```json
+{
+  "role": "user",
+  "chatRun": {
+    "id": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
+    "status": "pending",
+    "resultMessageId": null
+  }
+}
+```
+
+The client then calls the response endpoint and shows the typing indicator while
+that request is pending. Its successful response contains both sides of the turn:
+
+```json
+{
+  "userMessage": { "role": "user" },
+  "assistantMessage": { "role": "assistant" }
+}
+```
+
+Polling uses `GET` on the same response path. It is a read-only recovery endpoint
+and returns only the durable run state plus the result when available:
+
+```json
+{
+  "chatRun": {
+    "id": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
+    "status": "processing",
+    "resultMessageId": null
+  },
+  "assistantMessage": null
+}
+```
+
+Once the run is `completed`, `assistantMessage` contains the persisted assistant
+message. Polling does not claim, start, or retry a run; the client uses `POST` for
+that command. Clients should poll only after the processing request is disconnected
+or after reload, apply backoff with jitter, and stop on `completed` or `failed`.
+
+For a media tool call, `userMessage.generation` contains the pending request and
+`assistantMessage` contains the queue confirmation. This confirmation is not the
+generation result message: the future media worker must create a separate assistant
+message with the output media and assign it to `resultMessageId`.
+
+Reloading the page does not lose the user prompt or processing state: both are in
+PostgreSQL. The client reloads messages, inspects `chatRun.status`, calls `POST` on
+the response endpoint for `pending` or `failed`, and polls its `GET` endpoint while
+the status is `processing`. Only the temporary local typing animation is lost on
+reload.
 
 ## Media
 
@@ -186,10 +272,17 @@ one row in another table” as a row-level check. The HTTP/application boundary
 therefore enforces that every message has content or at least one media item.
 
 Creating a conversation uses one atomic nested write for the conversation and its
-first user message. Sending a later message uses one transaction to verify both
+first user message. Sending a later message uses one transaction to verify
 conversation and media ownership, update the parent conversation timestamp, and
-insert the message, its ordered media links, and optional pending generation. Keep
-both atomic behaviors when either write flow changes.
+insert the user message, ordered media links, and pending chat run. The response
+endpoint claims that run before calling Gemini outside every database transaction.
+A short follow-up transaction persists either the normal assistant reply or both
+the pending generation snapshot and its assistant queue confirmation, then marks
+the chat run completed.
+
+If Gemini is unavailable, the response endpoint returns 503 and marks the chat run
+failed. The user message remains stored, and the client may retry the same response
+endpoint without creating another prompt.
 
 ## Cursor pagination
 
@@ -210,7 +303,9 @@ The following behavior is intentionally not implemented yet:
 - supporting video upload and video-specific metadata such as duration and a
   thumbnail;
 - calling image/video providers and persisting the assistant result message;
-- building AI context from previous messages;
+- adding previous messages or a conversation summary to AI context;
+- sending uploaded media bytes to a multimodal chat model (current AI context
+  includes a text marker for attachments, not their contents);
 - replacing the initial name with an AI-generated summary;
 - creating a conversation from a media-only first message;
 - message edits and message deletion.

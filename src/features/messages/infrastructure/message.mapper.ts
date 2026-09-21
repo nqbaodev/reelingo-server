@@ -1,11 +1,14 @@
 import type {
   AiGeneration as PrismaAiGeneration,
+  ChatRun as PrismaChatRun,
   Message as PrismaMessage,
   MessageMedia,
 } from "@/generated/prisma/client";
 import {
   AiGenerationStatus,
+  ChatRunStatus,
   parseAiGenerationConfig,
+  type MessageChatRun,
 } from "@/features/ai/domain";
 import { MediaType } from "@/features/media/domain";
 import {
@@ -17,6 +20,8 @@ export type MessageRecord = PrismaMessage & {
   mediaLinks: MessageMedia[];
   triggeredGeneration: PrismaAiGeneration | null;
   generationResult: PrismaAiGeneration | null;
+  triggeredChatRun: PrismaChatRun | null;
+  chatRunResult: PrismaChatRun | null;
 };
 
 function toMessageRole(role: PrismaMessage["role"]): Message["role"] {
@@ -52,8 +57,32 @@ function toGenerationStatus(
   }
 }
 
+function toChatRunStatus(status: PrismaChatRun["status"]): ChatRunStatus {
+  switch (status) {
+    case ChatRunStatus.PENDING:
+      return ChatRunStatus.PENDING;
+    case ChatRunStatus.PROCESSING:
+      return ChatRunStatus.PROCESSING;
+    case ChatRunStatus.COMPLETED:
+      return ChatRunStatus.COMPLETED;
+    case ChatRunStatus.FAILED:
+      return ChatRunStatus.FAILED;
+  }
+}
+
+export function toMessageChatRun(
+  chatRun: Pick<PrismaChatRun, "id" | "status" | "resultMessageId">,
+): MessageChatRun {
+  return {
+    id: chatRun.id,
+    status: toChatRunStatus(chatRun.status),
+    resultMessageId: chatRun.resultMessageId,
+  };
+}
+
 export function toEntity(record: MessageRecord): Message {
   const generation = record.triggeredGeneration ?? record.generationResult;
+  const chatRun = record.triggeredChatRun ?? record.chatRunResult;
 
   return {
     id: record.id,
@@ -71,6 +100,7 @@ export function toEntity(record: MessageRecord): Message {
           resultMessageId: generation.resultMessageId,
         }
       : null,
+    chatRun: chatRun ? toMessageChatRun(chatRun) : null,
     createdAt: record.createdAt,
   };
 }

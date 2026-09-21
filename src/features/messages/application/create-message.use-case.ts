@@ -1,6 +1,10 @@
 import { NotFoundError } from "@/core/errors";
 import { I18n } from "@/core/i18n";
-import { MessageRole, type Message, type MessagePayload } from "../domain";
+import {
+  MessageRole,
+  type CreateMessagePayload,
+  type Message,
+} from "../domain";
 import {
   CreateMessageResultType,
   type MessageRepository,
@@ -12,24 +16,26 @@ export class CreateMessageUseCase {
   async execute(
     userId: number,
     conversationId: string,
-    payload: MessagePayload,
+    payload: CreateMessagePayload,
   ): Promise<Message> {
-    const result = await this.messages.createForConversation({
+    const { aiContext, ...messagePayload } = payload;
+    const createResult = await this.messages.createForConversation({
       userId,
+      chatContext: aiContext,
       message: {
         conversationId,
         role: MessageRole.USER,
-        ...payload,
+        ...messagePayload,
       },
     });
 
-    switch (result.type) {
-      case CreateMessageResultType.CREATED:
-        return result.message;
+    switch (createResult.type) {
       case CreateMessageResultType.CONVERSATION_NOT_FOUND:
         throw new NotFoundError(I18n.conversationNotFound);
       case CreateMessageResultType.MEDIA_NOT_FOUND:
         throw new NotFoundError(I18n.mediaNotFound);
     }
+
+    return createResult.message;
   }
 }

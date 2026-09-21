@@ -1,15 +1,10 @@
 import { config } from "@/config";
-import { GenerateTextUseCase } from "./application";
-import { GeminiClient, type GenerativeAiClient } from "./infrastructure";
-import { AiController, createAiRouter } from "./presentation";
+import { GeminiClient, type ChatClient } from "./infrastructure";
 
-export function createAiModule(aiClient?: GenerativeAiClient) {
-  const client = aiClient ?? new GeminiClient(config.ai.gemini);
-  const controller = new AiController({
-    generateText: new GenerateTextUseCase(client),
-  });
+export function createAiModule(chatClient?: ChatClient) {
+  const client = chatClient ?? new GeminiClient(config.ai.gemini);
 
   return {
-    router: createAiRouter(controller),
+    client,
   };
 }

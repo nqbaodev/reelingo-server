@@ -9,7 +9,6 @@ import {
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
-import { generateTextSchema } from "@/features/ai/presentation/ai.validators";
 import {
   MAX_AI_GENERATION_CONFIG_VALUE_LENGTH,
   MAX_AI_GENERATION_OUTPUT_COUNT,
@@ -28,6 +27,7 @@ import { MessageRole } from "@/features/messages/domain";
 import {
   createMessageSchema,
   messageConversationParamsSchema,
+  messageResponseParamsSchema,
 } from "@/features/messages/presentation/message.validators";
 import {
   deleteMediaSchema,
@@ -186,6 +186,11 @@ const messageGeneration = z.object({
   config: aiGenerationConfig,
   resultMessageId: z.uuid().nullable(),
 });
+const messageChatRun = z.object({
+  id: z.uuid(),
+  status: z.enum(["pending", "processing", "completed", "failed"]),
+  resultMessageId: z.uuid().nullable(),
+});
 const message = z.object({
   id: z.uuid(),
   conversationId: z.uuid(),
@@ -193,11 +198,20 @@ const message = z.object({
   content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
   mediaIds: z.array(z.uuid()).max(4),
   generation: messageGeneration.nullable(),
+  chatRun: messageChatRun.nullable(),
   createdAt: z.iso.datetime(),
 });
 const messageList = z.object({
   items: z.array(message),
   nextCursor: z.string().nullable(),
+});
+const messageTurn = z.object({
+  userMessage: message,
+  assistantMessage: message,
+});
+const messageResponseState = z.object({
+  chatRun: messageChatRun,
+  assistantMessage: message.nullable(),
 });
 const media = z.object({
   id: z.uuid(),
@@ -404,9 +418,9 @@ export const openApiDocument = {
       post: {
         tags: ["Messages"],
         operationId: "sendMessage",
-        summary: "Send a message and optionally request media generation",
+        summary: "Send a message to the AI conversation",
         description:
-          "Accepts content and/or owned mediaIds. An optional generation object creates a pending image or video generation linked to this prompt message.",
+          "Persists the user message and a pending chat run, then returns immediately. Optional aiContext carries a session preference and generation settings; it is not an explicit mode. Call the message response endpoint to run Gemini.",
         parameters: [
           ...languageParameters,
           {
@@ -418,8 +432,66 @@ export const openApiDocument = {
         ],
         requestBody: requestBody(createMessageSchema),
         responses: {
-          201: success(message, "Message sent"),
+          201: success(message, "Message accepted for AI processing"),
           ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.messages.response}`
+      .replace(":conversationId", "{conversationId}")
+      .replace(":messageId", "{messageId}")]: {
+      get: {
+        tags: ["Messages"],
+        operationId: "getMessageResponse",
+        summary: "Read the assistant response status for a message",
+        description:
+          "Polling endpoint for a persisted chat run. Returns a null assistantMessage until the run completes. This request never starts or retries AI processing.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.conversationId),
+          },
+          {
+            name: "messageId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.messageId),
+          },
+        ],
+        responses: {
+          200: success(messageResponseState, "Assistant response status"),
+          ...errors(404, 422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Messages"],
+        operationId: "respondToMessage",
+        summary: "Generate the assistant response for a message",
+        description:
+          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. Repeating a completed request returns the existing turn.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.conversationId),
+          },
+          {
+            name: "messageId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.messageId),
+          },
+        ],
+        responses: {
+          200: success(messageTurn, "Assistant response persisted"),
+          ...errors(404, 409, 422),
           ...protectedErrors,
         },
       },
@@ -502,15 +574,5 @@ export const openApiDocument = {
           },
         },
       },
-    [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {
-      post: {
-        tags: ["AI"],
-        operationId: "generateText",
-        summary: "Generate text with Gemini",
-        parameters: languageParameters,
-        requestBody: requestBody(generateTextSchema),
-        responses: { 200: success(z.object({ text: z.string() })), ...authErrors },
-      },
-    },
   },
 };

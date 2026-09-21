@@ -6,7 +6,7 @@ import {
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
 import { aiGenerationConfigSchema } from "@/features/ai/presentation/ai-generation.validators";
 import { MediaType } from "@/features/media/domain";
-import type { MessagePayload } from "../domain";
+import type { CreateMessagePayload } from "../domain";
 
 const NULL_BYTE = String.fromCharCode(0);
 
@@ -17,9 +17,14 @@ export const messageContentSchema = z
   .max(MAX_MESSAGE_CONTENT_LENGTH)
   .refine((content) => !content.includes(NULL_BYTE));
 
-const messageGenerationSchema = z.strictObject({
-  type: z.enum([MediaType.IMAGE, MediaType.VIDEO]),
-  config: aiGenerationConfigSchema,
+const aiGenerationSettingsSchema = z.strictObject({
+  [MediaType.IMAGE]: aiGenerationConfigSchema.optional(),
+  [MediaType.VIDEO]: aiGenerationConfigSchema.optional(),
+});
+
+const aiContextSchema = z.strictObject({
+  intentHint: z.enum([MediaType.IMAGE, MediaType.VIDEO]).optional(),
+  generationSettings: aiGenerationSettingsSchema.optional(),
 });
 
 const rawCreateMessageSchema = z
@@ -30,25 +35,32 @@ const rawCreateMessageSchema = z
       .max(MAX_MESSAGE_MEDIA_COUNT)
       .refine((ids) => new Set(ids).size === ids.length)
       .optional(),
-    generation: messageGenerationSchema.optional(),
+    aiContext: aiContextSchema.optional(),
   })
   .refine(
     (input) =>
       input.content !== undefined ||
       (input.mediaIds !== undefined && input.mediaIds.length > 0),
-  )
-  .refine((input) => input.generation === undefined || input.content !== undefined);
+  );
 
 export const createMessageSchema = rawCreateMessageSchema.transform(
-  (input): MessagePayload => ({
+  (input): CreateMessagePayload => ({
     content: input.content ?? null,
     mediaIds: input.mediaIds ?? [],
-    generation: input.generation ?? null,
+    aiContext: {
+      intentHint: input.aiContext?.intentHint ?? null,
+      generationSettings: input.aiContext?.generationSettings ?? {},
+    },
   }),
 );
 
 export const messageConversationParamsSchema = z.strictObject({
   conversationId: z.uuid(),
+});
+
+export const messageResponseParamsSchema = z.strictObject({
+  conversationId: z.uuid(),
+  messageId: z.uuid(),
 });
 
 const messageCursorPayloadSchema = z.strictObject({
@@ -73,4 +85,5 @@ export const listMessagesQuerySchema = z
 
 export type CreateMessageBody = z.infer<typeof createMessageSchema>;
 export type MessageConversationParams = z.infer<typeof messageConversationParamsSchema>;
+export type MessageResponseParams = z.infer<typeof messageResponseParamsSchema>;
 export type ListMessagesQuery = z.infer<typeof listMessagesQuerySchema>;
