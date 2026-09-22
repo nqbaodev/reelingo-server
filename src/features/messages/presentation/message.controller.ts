@@ -1,16 +1,20 @@
 import type { Request, Response } from "express";
 import type { ParamsDictionary } from "express-serve-static-core";
-import { ServiceUnavailableError } from "@/core/errors";
+import { AppError, ServiceUnavailableError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
 import { ChatUnavailableError } from "@/features/ai/infrastructure";
 import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
+import { ServerSentEventStream } from "@/shared/http/server-sent-event-stream";
 import type {
+  ChatProgressEvent,
+  ChatProgressObserver,
   CreateMessageUseCase,
   GetMessageResponseUseCase,
   ListMessagesUseCase,
   RespondToMessageUseCase,
 } from "../application";
+import { ChatProgressEventType } from "../application";
 import {
   toMessageListResponse,
   toMessageResponse,
@@ -48,6 +52,12 @@ export class MessageController {
   };
 
   respond = async (req: Request, res: Response) => {
+    res.vary("Accept");
+    if (acceptsEventStream(req)) {
+      await this.respondWithEventStream(req, res);
+      return;
+    }
+
     const { conversationId, messageId } = req.params as MessageResponseParams;
     try {
       const turn = await this.deps.respondToMessage.execute(
@@ -63,6 +73,36 @@ export class MessageController {
             cause: err,
           })
         : err;
+    }
+  };
+
+  private respondWithEventStream = async (req: Request, res: Response) => {
+    const { conversationId, messageId } = req.params as MessageResponseParams;
+    const stream = new ServerSentEventStream(res);
+    const observer: ChatProgressObserver = {
+      publish: (event) => publishProgressEvent(stream, event),
+    };
+
+    try {
+      await this.deps.respondToMessage.execute(
+        requireCurrentUserId(req),
+        conversationId,
+        messageId,
+        observer,
+      );
+      await stream.end();
+    } catch (err) {
+      if (stream.isClosed) {
+        req.log.error({ err }, "Assistant response failed after the event stream closed");
+        return;
+      }
+      if (stream.isIdle) {
+        throw toHttpError(err);
+      }
+
+      req.log.error({ err }, "Streaming assistant response failed");
+      await stream.sendJson(MessageStreamEvent.FAILED, toStreamFailure(err));
+      await stream.end();
     }
   };
 
@@ -85,5 +125,92 @@ export class MessageController {
       req.validatedQuery as ListMessagesQuery,
     );
     sendSuccess(res, toMessageListResponse(page));
+  };
+}
+
+const STREAM_EVENT_VERSION = 1;
+const MessageStreamEvent = {
+  STARTED: "chat.started",
+  TEXT_DELTA: "assistant.delta",
+  GENERATION_QUEUED: "generation.queued",
+  COMPLETED: "chat.completed",
+  FAILED: "chat.failed",
+} as const;
+
+async function publishProgressEvent(
+  stream: ServerSentEventStream,
+  event: ChatProgressEvent,
+): Promise<void> {
+  switch (event.type) {
+    case ChatProgressEventType.STARTED:
+      await stream.sendJson(MessageStreamEvent.STARTED, {
+        v: STREAM_EVENT_VERSION,
+        runId: event.runId,
+      });
+      return;
+    case ChatProgressEventType.TEXT_DELTA:
+      await stream.sendJson(MessageStreamEvent.TEXT_DELTA, {
+        v: STREAM_EVENT_VERSION,
+        delta: event.delta,
+      });
+      return;
+    case ChatProgressEventType.GENERATION_QUEUED:
+      await stream.sendJson(MessageStreamEvent.GENERATION_QUEUED, {
+        v: STREAM_EVENT_VERSION,
+        generation: event.generation,
+      });
+      return;
+    case ChatProgressEventType.COMPLETED:
+      await stream.sendJson(MessageStreamEvent.COMPLETED, {
+        v: STREAM_EVENT_VERSION,
+        ...toMessageTurnResponse(event.turn),
+      });
+  }
+}
+
+function acceptsEventStream(req: Request): boolean {
+  const accept = req.get("accept");
+  if (!accept) return false;
+
+  return accept.split(",").some((range) => {
+    const [mediaType, ...parameters] = range
+      .split(";")
+      .map((part) => part.trim().toLowerCase());
+    if (mediaType !== "text/event-stream") return false;
+
+    const quality = parameters.find((parameter) => parameter.startsWith("q="));
+    return quality === undefined || Number(quality.slice(2)) !== 0;
+  });
+}
+
+function toHttpError(err: unknown): unknown {
+  return err instanceof ChatUnavailableError
+    ? new ServiceUnavailableError(I18n.serviceUnavailable, {
+        params: { service: "AI chat" },
+        cause: err,
+      })
+    : err;
+}
+
+function toStreamFailure(err: unknown) {
+  if (err instanceof ChatUnavailableError) {
+    return {
+      v: STREAM_EVENT_VERSION,
+      code: "SERVICE_UNAVAILABLE",
+      retryable: true,
+    };
+  }
+  if (err instanceof AppError) {
+    return {
+      v: STREAM_EVENT_VERSION,
+      code: err.code,
+      retryable: err.statusCode === 409 || err.statusCode >= 500,
+    };
+  }
+
+  return {
+    v: STREAM_EVENT_VERSION,
+    code: "INTERNAL_SERVER_ERROR",
+    retryable: true,
   };
 }

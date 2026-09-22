@@ -213,6 +213,11 @@ const messageResponseState = z.object({
   chatRun: messageChatRun,
   assistantMessage: message.nullable(),
 });
+const messageTurnSuccess = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  data: messageTurn,
+});
 const media = z.object({
   id: z.uuid(),
   type: z.literal("image"),
@@ -473,9 +478,17 @@ export const openApiDocument = {
         operationId: "respondToMessage",
         summary: "Generate the assistant response for a message",
         description:
-          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. Repeating a completed request returns the existing turn.",
+          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. Send Accept: text/event-stream to receive chat.started, assistant.delta, generation.queued, chat.completed, or chat.failed events. Without that explicit media type, the response remains JSON. Repeating a completed request returns the existing turn.",
         parameters: [
           ...languageParameters,
+          {
+            name: "Accept",
+            in: "header",
+            required: false,
+            description:
+              "Use text/event-stream for a streamed response. Defaults to application/json.",
+            schema: { type: "string" },
+          },
           {
             name: "conversationId",
             in: "path",
@@ -490,7 +503,20 @@ export const openApiDocument = {
           },
         ],
         responses: {
-          200: success(messageTurn, "Assistant response persisted"),
+          200: {
+            description: "Assistant response persisted or streamed",
+            headers: responseHeaders,
+            content: {
+              "application/json": {
+                schema: jsonSchema(messageTurnSuccess, "output"),
+              },
+              "text/event-stream": {
+                schema: { type: "string" },
+                example:
+                  'event: chat.started\ndata: {"v":1,"runId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8"}\n\nevent: assistant.delta\ndata: {"v":1,"delta":"Hello"}\n\nevent: chat.completed\ndata: {"v":1,"userMessage":{},"assistantMessage":{}}\n\n',
+              },
+            },
+          },
           ...errors(404, 409, 422),
           ...protectedErrors,
         },
@@ -533,8 +559,7 @@ export const openApiDocument = {
         tags: ["Media"],
         operationId: "deleteMedia",
         summary: "Delete unattached uploaded media",
-        description:
-          `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
+        description: `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
         parameters: languageParameters,
         requestBody: requestBody(deleteMediaSchema),
         responses: {
@@ -544,35 +569,34 @@ export const openApiDocument = {
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]:
-      {
-        get: {
-          tags: ["Media"],
-          operationId: "getMedia",
-          summary: "Get an owned uploaded image",
-          parameters: [
-            ...languageParameters,
-            {
-              name: "mediaId",
-              in: "path",
-              required: true,
-              schema: jsonSchema(mediaParamsSchema.shape.mediaId),
-            },
-          ],
-          responses: {
-            200: {
-              description: "Image bytes",
-              headers: responseHeaders,
-              content: {
-                "image/jpeg": { schema: { type: "string", format: "binary" } },
-                "image/png": { schema: { type: "string", format: "binary" } },
-                "image/webp": { schema: { type: "string", format: "binary" } },
-              },
-            },
-            ...errors(404, 422),
-            ...protectedErrors,
+    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]: {
+      get: {
+        tags: ["Media"],
+        operationId: "getMedia",
+        summary: "Get an owned uploaded image",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "mediaId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(mediaParamsSchema.shape.mediaId),
           },
+        ],
+        responses: {
+          200: {
+            description: "Image bytes",
+            headers: responseHeaders,
+            content: {
+              "image/jpeg": { schema: { type: "string", format: "binary" } },
+              "image/png": { schema: { type: "string", format: "binary" } },
+              "image/webp": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          ...errors(404, 422),
+          ...protectedErrors,
         },
       },
+    },
   },
 };

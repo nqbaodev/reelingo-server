@@ -1,15 +1,16 @@
 import {
   FunctionCallingConfigMode,
   GoogleGenAI,
+  type FunctionCall,
   type FunctionDeclaration,
 } from "@google/genai";
-import {
-  ChatResultType,
-  type ChatInput,
-  type ChatResult,
-} from "../domain";
+import { ChatResultType, type ChatInput, type ChatResult } from "../domain";
 import { MediaType } from "@/features/media/domain";
-import { type ChatClient, ChatUnavailableError } from "./chat.client";
+import {
+  type ChatClient,
+  type ChatTextDeltaHandler,
+  ChatUnavailableError,
+} from "./chat.client";
 
 const GENERATE_IMAGE_TOOL = "generate_image";
 const GENERATE_VIDEO_TOOL = "generate_video";
@@ -70,12 +71,15 @@ export class GeminiClient implements ChatClient {
     });
   }
 
-  async respond(input: ChatInput): Promise<ChatResult> {
+  async respond(
+    input: ChatInput,
+    onTextDelta?: ChatTextDeltaHandler,
+  ): Promise<ChatResult> {
     try {
       const hint = input.intentHint
         ? `The UI currently suggests ${input.intentHint}, but this is only a preference and never sufficient by itself to call a tool.`
         : "The UI has no media preference.";
-      const response = await this.client.models.generateContent({
+      const response = await this.client.models.generateContentStream({
         model: this.config.model,
         contents: input.content,
         config: {
@@ -94,7 +98,22 @@ export class GeminiClient implements ChatClient {
         },
       });
 
-      const functionCalls = response.functionCalls ?? [];
+      const textParts: string[] = [];
+      const functionCalls: FunctionCall[] = [];
+      for await (const chunk of response) {
+        const chunkFunctionCalls = chunk.functionCalls ?? [];
+        if (chunkFunctionCalls.length > 0) {
+          functionCalls.push(...chunkFunctionCalls);
+          continue;
+        }
+
+        const text = chunk.text;
+        if (!text) continue;
+
+        textParts.push(text);
+        await onTextDelta?.(text);
+      }
+
       if (functionCalls.length > 1) {
         throw new Error("Gemini returned more than one media generation call");
       }
@@ -119,17 +138,16 @@ export class GeminiClient implements ChatClient {
         throw new Error(`Gemini returned an unsupported function: ${functionName}`);
       }
 
-      const text = response.text?.trim();
+      const text = textParts.join("").trim();
       if (!text) {
         throw new Error("Gemini returned an empty chat response");
       }
 
       return { type: ChatResultType.REPLY, content: text };
     } catch (err) {
-      throw new ChatUnavailableError(
-        "Gemini chat routing is unavailable",
-        { cause: err },
-      );
+      throw new ChatUnavailableError("Gemini chat routing is unavailable", {
+        cause: err,
+      });
     }
   }
 }

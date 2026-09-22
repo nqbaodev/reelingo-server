@@ -1,7 +1,9 @@
 import type { ChatInput, ChatResult } from "../domain";
 
+export type ChatTextDeltaHandler = (delta: string) => Promise<void>;
+
 export interface ChatClient {
-  respond(input: ChatInput): Promise<ChatResult>;
+  respond(input: ChatInput, onTextDelta?: ChatTextDeltaHandler): Promise<ChatResult>;
 }
 
 export class ChatUnavailableError extends Error {

@@ -188,7 +188,8 @@ The send endpoint returns immediately with the persisted user message:
 ```
 
 The client then calls the response endpoint and shows the typing indicator while
-that request is pending. Its successful response contains both sides of the turn:
+that request is pending. Without an explicit streaming accept header, its
+successful JSON response contains both sides of the turn:
 
 ```json
 {
@@ -196,6 +197,24 @@ that request is pending. Its successful response contains both sides of the turn
   "assistantMessage": { "role": "assistant" }
 }
 ```
+
+For realtime output, the client sends the same command with
+`Accept: text/event-stream` and its normal Bearer authorization header. The
+server responds with versioned SSE data using these ordered events:
+
+- `chat.started` after the pending run is claimed;
+- zero or more `assistant.delta` events for ordinary text output;
+- `generation.queued` after a media-generation request is committed;
+- `chat.completed` after the final assistant message and chat-run state are
+  committed;
+- `chat.failed` when processing fails after streaming has started.
+
+Heartbeat frames are SSE comments and carry no business state. Text deltas are
+temporary display data; `chat.completed` contains the canonical persisted turn.
+The server does not persist or replay individual SSE events, so clients must not
+treat SSE delivery as durable state. Browser clients use streaming `fetch` rather
+than native `EventSource` because this protected endpoint requires an
+`Authorization` header.
 
 Polling uses `GET` on the same response path. It is a read-only recovery endpoint
 and returns only the durable run state plus the result when available:
@@ -213,8 +232,11 @@ and returns only the durable run state plus the result when available:
 
 Once the run is `completed`, `assistantMessage` contains the persisted assistant
 message. Polling does not claim, start, or retry a run; the client uses `POST` for
-that command. Clients should poll only after the processing request is disconnected
-or after reload, apply backoff with jitter, and stop on `completed` or `failed`.
+that command. Clients should poll only after the JSON/SSE processing request is
+disconnected or after reload, apply backoff with jitter, and stop on `completed`
+or `failed`. Disconnecting SSE stops delivery but does not cancel the in-process
+Gemini call; while the server process remains alive, it continues and persists the
+final result for polling recovery.
 
 For a media tool call, `userMessage.generation` contains the pending request and
 `assistantMessage` contains the queue confirmation. This confirmation is not the
@@ -276,9 +298,11 @@ first user message. Sending a later message uses one transaction to verify
 conversation and media ownership, update the parent conversation timestamp, and
 insert the user message, ordered media links, and pending chat run. The response
 endpoint claims that run before calling Gemini outside every database transaction.
-A short follow-up transaction persists either the normal assistant reply or both
-the pending generation snapshot and its assistant queue confirmation, then marks
-the chat run completed.
+Gemini's streaming adapter emits text deltas without persisting each chunk. A
+short follow-up transaction persists either the assembled normal assistant reply
+or both the pending generation snapshot and its assistant queue confirmation,
+then marks the chat run completed. The terminal SSE event is sent only after this
+transaction commits.
 
 If Gemini is unavailable, the response endpoint returns 503 and marks the chat run
 failed. The user message remains stored, and the client may retry the same response
