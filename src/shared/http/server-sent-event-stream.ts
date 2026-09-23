@@ -1,9 +1,13 @@
 import type { ServerResponse } from "node:http";
 
-const HEARTBEAT_INTERVAL_MS = 15_000;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
 const EVENT_NAME_LINE_BREAK = /[\r\n]/u;
 
 type FlushableServerResponse = ServerResponse & { flush?: () => void };
+
+export interface ServerSentEventStreamOptions {
+  heartbeatIntervalMs?: number;
+}
 
 enum EventStreamState {
   IDLE = "idle",
@@ -27,15 +31,29 @@ function createJsonEventFrame(event: string, data: unknown): string {
 /** Owns one HTTP SSE response, including ordered writes and disconnect cleanup. */
 export class ServerSentEventStream {
   private state: EventStreamState;
+  private readonly heartbeatIntervalMs: number;
   private heartbeat: NodeJS.Timeout | undefined;
   private pendingWrite = Promise.resolve();
 
-  constructor(private readonly response: FlushableServerResponse) {
+  constructor(
+    private readonly response: FlushableServerResponse,
+    options: ServerSentEventStreamOptions = {},
+  ) {
+    this.heartbeatIntervalMs =
+      options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+    if (
+      !Number.isSafeInteger(this.heartbeatIntervalMs) ||
+      this.heartbeatIntervalMs <= 0
+    ) {
+      throw new RangeError("SSE heartbeat interval must be a positive integer");
+    }
+
     this.state =
       response.destroyed || response.writableEnded
         ? EventStreamState.CLOSED
         : EventStreamState.IDLE;
     response.on("close", () => this.markClosed());
+    response.on("error", () => this.markClosed());
   }
 
   get isIdle(): boolean {
@@ -47,6 +65,8 @@ export class ServerSentEventStream {
   }
 
   sendJson(event: string, data: unknown): Promise<void> {
+    if (this.isClosed) return Promise.resolve();
+
     return this.enqueue(createJsonEventFrame(event, data));
   }
 
@@ -56,7 +76,11 @@ export class ServerSentEventStream {
     if (this.isClosed || this.response.writableEnded) return;
 
     this.state = EventStreamState.CLOSED;
-    this.response.end();
+    try {
+      this.response.end();
+    } catch {
+      this.markClosed();
+    }
   }
 
   private enqueue(frame: string): Promise<void> {
@@ -77,12 +101,17 @@ export class ServerSentEventStream {
     this.state = EventStreamState.OPEN;
     this.response.statusCode = 200;
     this.response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-    this.response.setHeader("Cache-Control", "no-cache, no-transform");
+    this.response.setHeader(
+      "Cache-Control",
+      "private, no-cache, no-store, must-revalidate, max-age=0, no-transform",
+    );
+    this.response.setHeader("Pragma", "no-cache");
+    this.response.setHeader("Expires", "0");
     this.response.setHeader("X-Accel-Buffering", "no");
     this.response.flushHeaders();
     this.heartbeat = setInterval(() => {
       void this.enqueue(": ping\n\n");
-    }, HEARTBEAT_INTERVAL_MS);
+    }, this.heartbeatIntervalMs);
     this.heartbeat.unref();
   }
 

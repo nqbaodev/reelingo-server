@@ -100,6 +100,7 @@ export class GeminiClient implements ChatClient {
 
       const textParts: string[] = [];
       const functionCalls: FunctionCall[] = [];
+      let textDeltaHandler = onTextDelta;
       for await (const chunk of response) {
         const chunkFunctionCalls = chunk.functionCalls ?? [];
         if (chunkFunctionCalls.length > 0) {
@@ -111,7 +112,13 @@ export class GeminiClient implements ChatClient {
         if (!text) continue;
 
         textParts.push(text);
-        await onTextDelta?.(text);
+        if (textDeltaHandler) {
+          try {
+            await textDeltaHandler(text);
+          } catch {
+            textDeltaHandler = undefined;
+          }
+        }
       }
 
       if (functionCalls.length > 1) {

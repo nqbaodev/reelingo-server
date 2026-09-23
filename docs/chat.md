@@ -26,11 +26,14 @@ executable API contract; update this document when those decisions change.
 - The current name field is `name`, with a maximum length of 120 characters;
   null bytes are rejected before persistence.
 - `createdAt` and `updatedAt` are stored as `TIMESTAMPTZ(3)` and returned as ISO
-  8601 UTC strings.
-- Creating a message updates the parent conversation's `updatedAt` in the same
-  transaction, so active conversations move to the top of the list.
-- Conversation lists order by `updatedAt DESC, id DESC`. The UUID is only a stable
-  tie-breaker when timestamps match.
+  8601 UTC strings. `updatedAt` changes only when the conversation record itself
+  changes; creating a nested message does not update it.
+- Conversation list items include `lastMessageAt`, derived from the newest
+  message's `createdAt` without storing a duplicate timestamp on the conversation.
+  A conversation without a message falls back to its own `createdAt`.
+- Conversation lists order by `lastMessageAt DESC, id DESC`. The opaque cursor
+  carries both values so the UUID remains a stable tie-breaker when timestamps
+  match.
 - The create endpoint accepts `{ "content": "..." }`. It creates the conversation,
   first `user` message, and its pending chat run atomically. Because the response
   currently returns only the conversation, the client loads messages to obtain the
@@ -92,6 +95,15 @@ Create from the first text message:
 - A chat run is `pending`, `processing`, `completed`, or `failed`. Both the trigger
   user message and the resulting assistant message expose the same chat-run ID and
   status. A completed run stores its assistant message ID as `resultMessageId`.
+- A media generation uses the same four-state lifecycle. Its internal `updatedAt`
+  is a worker claim version and lease timestamp, allowing stale `processing` jobs
+  to be reclaimed after interruption. It is not a completion timestamp and is not
+  part of the public message contract.
+- The generation repository atomically claims the oldest pending row, or the
+  oldest stale processing row when no pending row is available, using PostgreSQL
+  row locking with `SKIP LOCKED`. Claim renewal and failure updates require the
+  current `updatedAt` version, so a worker that lost its lease cannot change the
+  newer claim.
 - The response endpoint is idempotent after completion and returns the existing
   user/assistant turn. A concurrent request while a run is processing returns 409.
   Failed runs may be retried. A processing claim older than the Gemini timeout plus
@@ -236,7 +248,9 @@ that command. Clients should poll only after the JSON/SSE processing request is
 disconnected or after reload, apply backoff with jitter, and stop on `completed`
 or `failed`. Disconnecting SSE stops delivery but does not cancel the in-process
 Gemini call; while the server process remains alive, it continues and persists the
-final result for polling recovery.
+final result for polling recovery. An SSE delivery failure is logged at the HTTP
+boundary and is not classified as a Gemini failure, so it does not mark the chat
+run failed.
 
 For a media tool call, `userMessage.generation` contains the pending request and
 `assistantMessage` contains the queue confirmation. This confirmation is not the
@@ -286,6 +300,8 @@ PostgreSQL constraints enforce the valid stored shapes:
   `Media`;
 - generation: exactly one generation per trigger message and at most one result
   message per generation;
+- generation worker claims must condition their updates on both status and
+  `updatedAt` so only one worker owns the current lease;
 - deleting a conversation cascades to its messages.
 - deleting media referenced by a message is restricted.
 
@@ -295,14 +311,20 @@ therefore enforces that every message has content or at least one media item.
 
 Creating a conversation uses one atomic nested write for the conversation and its
 first user message. Sending a later message uses one transaction to verify
-conversation and media ownership, update the parent conversation timestamp, and
-insert the user message, ordered media links, and pending chat run. The response
+conversation and media ownership and insert the user message, ordered media links,
+and pending chat run. Conversation activity is derived from the newest message;
+message writes do not modify the parent conversation timestamp. The response
 endpoint claims that run before calling Gemini outside every database transaction.
 Gemini's streaming adapter emits text deltas without persisting each chunk. A
 short follow-up transaction persists either the assembled normal assistant reply
 or both the pending generation snapshot and its assistant queue confirmation,
 then marks the chat run completed. The terminal SSE event is sent only after this
 transaction commits.
+
+Generation claims provide at-least-once processing rather than an exactly-once
+provider guarantee. A future provider adapter must use the generation ID as an
+idempotency key when supported, because a process can stop after an external
+provider accepts work but before the local completion transaction commits.
 
 If Gemini is unavailable, the response endpoint returns 503 and marks the chat run
 failed. The user message remains stored, and the client may retry the same response
@@ -311,7 +333,8 @@ endpoint without creating another prompt.
 ## Cursor pagination
 
 - All list responses use `{ "items": [...], "nextCursor": string | null }`.
-- Conversations use an opaque cursor containing `updatedAt` and `id`.
+- Conversations use an opaque cursor containing `lastMessageAt` and
+  `conversationId`.
 - Messages order by `createdAt DESC, id DESC` and use those fields in the opaque
   cursor. The next page therefore loads older messages.
 - Queries fetch `limit + 1`; the extra row determines whether `nextCursor` exists

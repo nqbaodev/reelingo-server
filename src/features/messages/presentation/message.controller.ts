@@ -67,12 +67,7 @@ export class MessageController {
       );
       sendSuccess(res, toMessageTurnResponse(turn));
     } catch (err) {
-      throw err instanceof ChatUnavailableError
-        ? new ServiceUnavailableError(I18n.serviceUnavailable, {
-            params: { service: "AI chat" },
-            cause: err,
-          })
-        : err;
+      throw toHttpError(err);
     }
   };
 
@@ -80,7 +75,17 @@ export class MessageController {
     const { conversationId, messageId } = req.params as MessageResponseParams;
     const stream = new ServerSentEventStream(res);
     const observer: ChatProgressObserver = {
-      publish: (event) => publishProgressEvent(stream, event),
+      publish: async (event) => {
+        try {
+          await publishProgressEvent(stream, event);
+        } catch (err) {
+          req.log.error(
+            { err, eventType: event.type },
+            "Failed to publish chat progress",
+          );
+          await stream.end();
+        }
+      },
     };
 
     try {

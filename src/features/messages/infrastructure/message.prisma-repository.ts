@@ -24,10 +24,7 @@ import type {
   MessageResponseState,
   MessageRepository,
 } from "./message.repository";
-import {
-  ClaimChatResultType,
-  CreateMessageResultType,
-} from "./message.repository";
+import { ClaimChatResultType, CreateMessageResultType } from "./message.repository";
 
 const messageRelations = {
   mediaLinks: { orderBy: { position: "asc" } },
@@ -86,11 +83,6 @@ export class MessagePrismaRepository implements MessageRepository {
             return { type: CreateMessageResultType.MEDIA_NOT_FOUND };
           }
         }
-
-        await transaction.conversation.update({
-          where: { id: conversation.id },
-          data: { updatedAt: new Date() },
-        });
 
         const record = await transaction.message.create({
           data: {
@@ -223,9 +215,7 @@ export class MessagePrismaRepository implements MessageRepository {
 
     return {
       chatRun: toMessageChatRun(run),
-      assistantMessage: run.resultMessage
-        ? toEntity(run.resultMessage)
-        : null,
+      assistantMessage: run.resultMessage ? toEntity(run.resultMessage) : null,
     };
   }
 
@@ -301,10 +291,6 @@ export class MessagePrismaRepository implements MessageRepository {
           include: messageRelations,
         });
 
-        await transaction.conversation.update({
-          where: { id: run.triggerMessage.conversationId },
-          data: { updatedAt: new Date() },
-        });
         const assistantRecord = await transaction.message.create({
           data: {
             conversationId: run.triggerMessage.conversationId,
@@ -326,11 +312,10 @@ export class MessagePrismaRepository implements MessageRepository {
           where: { id: userRecord.id },
           include: messageRelations,
         });
-        const completedAssistantRecord =
-          await transaction.message.findUniqueOrThrow({
-            where: { id: assistantRecord.id },
-            include: messageRelations,
-          });
+        const completedAssistantRecord = await transaction.message.findUniqueOrThrow({
+          where: { id: assistantRecord.id },
+          include: messageRelations,
+        });
 
         return {
           userMessage: toEntity(completedUserRecord),

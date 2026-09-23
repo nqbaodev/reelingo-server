@@ -1,5 +1,5 @@
 import type { CursorPage } from "@/core/pagination";
-import type { Conversation } from "../domain";
+import type { ConversationSummary } from "../domain";
 import type { ConversationListCursor, ConversationRepository } from "../infrastructure";
 
 export interface ListConversationsOptions {
@@ -13,7 +13,7 @@ export class ListConversationsUseCase {
   execute(
     userId: number,
     options: ListConversationsOptions,
-  ): Promise<CursorPage<Conversation, ConversationListCursor>> {
+  ): Promise<CursorPage<ConversationSummary, ConversationListCursor>> {
     return this.conversations.listByUser({ userId, ...options });
   }
 }

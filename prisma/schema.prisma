@@ -89,10 +89,12 @@ model AiGeneration {
   status           AiGenerationStatus @default(pending)
   configSnapshot   Json               @map("config_snapshot") @db.JsonB
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
   triggerMessage   Message            @relation("AiGenerationTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
   resultMessage    Message?           @relation("AiGenerationResult", fields: [resultMessageId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt, id])
+  @@index([status, updatedAt, id])
   @@map("ai_generations")
 }
 

@@ -163,8 +163,11 @@ const conversation = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
+const conversationSummary = conversation.extend({
+  lastMessageAt: z.iso.datetime(),
+});
 const conversationList = z.object({
-  items: z.array(conversation),
+  items: z.array(conversationSummary),
   nextCursor: z.string().nullable(),
 });
 const aiGenerationConfig = z.object({

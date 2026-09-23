@@ -1,5 +1,6 @@
 import type { ChatInput, ChatResult } from "../domain";
 
+/** Rejection disables further delta delivery but does not cancel the AI response. */
 export type ChatTextDeltaHandler = (delta: string) => Promise<void>;
 
 export interface ChatClient {
