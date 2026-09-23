@@ -81,7 +81,8 @@ effects must describe the same contract:
 - A reusable helper must implement its advertised responsibility completely for
   the supported input domain. Cover meaningful boundaries such as empty values,
   numeric/date limits, malformed external data, cancellation, and repeated calls
-  when they apply. Add focused tests for non-obvious rules and failure cases.
+  when they apply. When automated-test authoring is explicitly requested, add
+  focused tests for non-obvious rules and failure cases.
 - Avoid boolean mode parameters that make one function perform unrelated jobs,
   such as `saveUser(user, true)`. Prefer separate commands or an explicit strategy
   when the behavior and side effects differ.
@@ -187,13 +188,17 @@ external example overrides the requested behavior.
 
 ## Testing
 
+- Test authoring follows the project-wide opt-in rule in
+  [rule.md](../rule.md#verification-and-maintenance). The conventions below apply
+  when the user explicitly requests automated tests; implementation-only work may
+  run existing tests but must not edit them.
 - Integration-test HTTP behavior by booting the real app (`createApp()`) with
   supertest; do not start a real network listener in tests.
 - This project does not keep fake or in-memory repository implementations.
   A test that needs persistence runs against a real PostgreSQL database; do
   not mock the ORM to avoid one.
-- Add tests for meaningful business behavior and failure cases. Do not add
-  tests that merely restate the implementation.
+- When requested, add tests for meaningful business behavior and failure cases.
+  Do not add tests that merely restate the implementation.
 
 ## Async operations and error boundaries
 
@@ -270,7 +275,9 @@ external example overrides the requested behavior.
   Generate secrets with `crypto.randomBytes`; do not rotate `JWT_SECRET` as a
   side effect because rotation invalidates existing sessions.
 - See [secret sources](../README.md#secrets). When adding environment settings,
-  update `.env.example`, the README table, and required values in `tests/setup.ts`.
+  update `.env.example` and the README table. Update required values in
+  `tests/setup.ts` only when automated-test authoring is explicitly in scope;
+  otherwise report the pending test-setup change.
 
 ## Security
 

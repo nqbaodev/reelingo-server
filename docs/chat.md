@@ -369,7 +369,3 @@ When changing this feature, keep the affected surfaces aligned:
 - `src/openapi.ts`, this document, and the README endpoint summary;
 - companion-app request adapters and runtime decoders when that repository is in
   scope.
-
-Do not create or modify automated tests unless the user explicitly requests them.
-Still run the non-test checks appropriate to the change and report database or HTTP
-verification gaps honestly.

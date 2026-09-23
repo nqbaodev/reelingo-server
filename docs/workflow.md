@@ -54,9 +54,11 @@ PostgreSQL behavior being used, and the measured query shape before editing.
 ### 4. Implement
 
 Make the smallest complete change. Keep functions cohesive, dependencies explicit,
-and feature-specific policy out of shared helpers. Update code, tests, migrations,
-OpenAPI, and owning documentation together when the behavior requires them. Remove
-unused code introduced by the change and leave unrelated work intact.
+and feature-specific policy out of shared helpers. Update code, migrations, OpenAPI,
+and owning documentation together when the behavior requires them. Automated-test
+authoring is a separate, opt-in scope: do not create or modify test files unless the
+user explicitly requests tests in the current task. Remove unused code introduced
+by the change and leave unrelated work intact.
 
 ### 5. Verify
 
@@ -84,13 +86,13 @@ Use these as starting points, then add checks required by the actual risk:
 | Task | Expected path |
 | --- | --- |
 | Mechanical rename/extraction | Inspect callers → edit → check imports/types/lint; avoid tests that mirror the rename |
-| Bug fix | Reproduce → identify cause/boundary → fix → meaningful regression test → affected checks |
-| Use-case/domain behavior | Define invariant and failures → implement in owning layer → focused test → `npm run check` |
-| HTTP/API contract | Define request/response/errors → update all contract surfaces → supertest behavior → `npm run check` |
+| Bug fix | Reproduce → identify cause/boundary → fix → run affected existing checks; add a regression test only when requested |
+| Use-case/domain behavior | Define invariant and failures → implement in owning layer → run relevant existing tests and `npm run check` |
+| HTTP/API contract | Define request/response/errors → update all contract surfaces → exercise existing supertest/manual behavior → `npm run check` |
 | Prisma schema/data | Assess data/destructive risk → schema and migration → generate → real-database constraint/migration check → `npm run verify` when cross-layer |
 | Raw SQL or repository query optimization | State why Prisma Client is insufficient or slow → keep SQL in infrastructure → parameterize values and type returned rows → inspect `EXPLAIN`/real DB behavior where relevant → `npm run check` |
 | Index or database performance | State workload and current query plan/latency → change schema/migration or query → compare the same workload with `EXPLAIN`/measurement → run correctness checks |
-| Auth/security | Define trust and authorization boundary → implement narrow mapping → test success/failure/replay/ownership cases → inspect logs for leakage |
+| Auth/security | Define trust and authorization boundary → implement narrow mapping → verify success/failure/replay/ownership through existing or manual checks → inspect logs for leakage |
 | Performance | State workload/metric → measure baseline → change → measure same workload → run correctness checks |
 | Cross-repository integration | Compare contracts → change each repository within scope → verify each with its own workflow → run integration check or report the gap |
 
@@ -100,10 +102,15 @@ documents for routine changes.
 
 ## Verification
 
+Running existing tests is verification, not authorization to edit them. Unless the
+user explicitly requests automated tests in the current task, do not create,
+modify, rename, or delete test files, snapshots, or test-only fixtures. Report
+missing regression coverage as a handoff gap for a separate test phase.
+
 | Change | Required evidence |
 | --- | --- |
 | Code or configuration | `npm run check` |
-| Use-case or domain behavior | Relevant `npm test -- <test-file>`; add regression cases for meaningful failure modes |
+| Use-case or domain behavior | Run the relevant existing `npm test -- <test-file>`; add regression cases only when explicitly requested |
 | HTTP/API behavior | Exercise the real app with supertest; for manual verification, run `npm run dev` and call the endpoint. Inspect responses and relevant logs |
 | Prisma schema | `npm run prisma:generate`; run `npm run prisma:migrate` against a real Postgres when the change affects the database |
 | Raw SQL or transaction behavior | `npm run check`; run a focused integration/manual check against real local/disposable PostgreSQL when the SQL, locking, or returned rows are material to correctness |
