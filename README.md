@@ -61,30 +61,37 @@ at startup and owns all environment-backed settings. `src/config/config.ts`
 exposes the public `config` facade that application code imports — never
 `process.env`. `src/shared/http/endpoints.ts` owns static route paths.
 
-| Variable                      | Required | Default                   | Purpose                                                      |
-| ----------------------------- | -------- | ------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`                | yes      | —                         | PostgreSQL connection string                                 |
-| `DATABASE_CONNECT_TIMEOUT_MS` | no       | `3000`                    | Pool connection/acquisition timeout; max 60,000 ms           |
-| `DATABASE_QUERY_TIMEOUT_MS`   | no       | `5000`                    | PostgreSQL statement and client query timeout; max 60,000 ms |
-| `GOOGLE_CLIENT_ID`            | yes      | —                         | OAuth client ID the Google ID token must be issued for       |
-| `GEMINI_API_KEY`              | yes      | —                         | Google AI Studio key; server-only                            |
-| `JWT_SECRET`                  | yes      | —                         | Signing key, at least 32 characters                          |
-| `NODE_ENV`                    | no       | `development`             | `development` \| `test` \| `production`                      |
-| `PORT`                        | no       | `3000`                    | HTTP port                                                    |
-| `LOG_LEVEL`                   | no       | `info`                    | Pino level                                                   |
-| `CORS_ORIGIN`                 | no       | `*`                       | Allowed origin                                               |
-| `PUBLIC_BASE_URL`             | no       | `http://localhost:<PORT>` | Absolute base URL used in media upload responses             |
-| `MEDIA_STORAGE_ROOT`          | no       | `storage/media`           | Local filesystem directory for uploaded media                |
-| `GEMINI_MODEL`                | no       | `gemini-2.5-flash`        | Model id, changeable without a deploy                        |
-| `GEMINI_TIMEOUT_MS`           | no       | `30000`                   | Gemini request timeout; max 300,000 ms                       |
-| `JWT_ISSUER`                  | no       | `reelingo-server`         | `iss` claim                                                  |
-| `JWT_AUDIENCE`                | no       | `reelingo-api`            | `aud` claim                                                  |
-| `ACCESS_TOKEN_TTL_MINUTES`    | no       | `15`                      | Access token lifetime                                        |
-| `SESSION_TTL_MINUTES`         | no       | `10080`                   | Session and refresh token lifetime (7 days)                  |
-| `AUTH_RATE_LIMIT`             | no       | `20`                      | Requests per window on login and refresh                     |
-| `AUTH_RATE_WINDOW_SECONDS`    | no       | `60`                      | Auth rate-limit window                                       |
-| `API_RATE_LIMIT`              | no       | `100`                     | Requests per window on `/api/v1`                             |
-| `API_RATE_WINDOW_SECONDS`     | no       | `60`                      | API rate-limit window                                        |
+| Variable                         | Required | Default                    | Purpose                                                      |
+| -------------------------------- | -------- | -------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                   | yes      | —                          | PostgreSQL connection string                                 |
+| `DATABASE_CONNECT_TIMEOUT_MS`    | no       | `3000`                     | Pool connection/acquisition timeout; max 60,000 ms           |
+| `DATABASE_QUERY_TIMEOUT_MS`      | no       | `5000`                     | PostgreSQL statement and client query timeout; max 60,000 ms |
+| `GOOGLE_CLIENT_ID`               | yes      | —                          | OAuth client ID the Google ID token must be issued for       |
+| `GEMINI_API_KEY`                 | yes      | —                          | Google AI Studio key; server-only                            |
+| `JWT_SECRET`                     | yes      | —                          | Signing key, at least 32 characters                          |
+| `NODE_ENV`                       | no       | `development`              | `development` \| `test` \| `production`                      |
+| `PORT`                           | no       | `3000`                     | HTTP port                                                    |
+| `LOG_LEVEL`                      | no       | `info`                     | Pino level                                                   |
+| `CORS_ORIGIN`                    | no       | `*`                        | Allowed origin                                               |
+| `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`  | Absolute base URL used in media upload responses             |
+| `MEDIA_STORAGE_ROOT`             | no       | `storage/media`            | Local filesystem directory for uploaded media                |
+| `GEMINI_MODEL`                   | no       | `gemini-2.5-flash`         | Model id, changeable without a deploy                        |
+| `GEMINI_TIMEOUT_MS`              | no       | `30000`                    | Gemini request timeout; max 300,000 ms                       |
+| `GEMINI_IMAGE_MODEL`             | no       | `gemini-3.1-flash-image`   | Image-generation model id                                    |
+| `GEMINI_VIDEO_MODEL`             | no       | `veo-3.1-generate-preview` | Video-generation model id                                    |
+| `AI_GENERATION_WORKER_ENABLED`   | no       | `false`                    | Enables billed background image/video generation             |
+| `AI_GENERATION_POLL_INTERVAL_MS` | no       | `1000`                     | Delay while the generation queue is empty                    |
+| `AI_GENERATION_LEASE_MS`         | no       | `60000`                    | Worker lease duration, renewed while a job is running        |
+| `AI_GENERATION_TIMEOUT_MS`       | no       | `600000`                   | Overall image/video provider timeout                         |
+| `AI_VIDEO_POLL_INTERVAL_MS`      | no       | `10000`                    | Delay between video operation status checks                  |
+| `JWT_ISSUER`                     | no       | `reelingo-server`          | `iss` claim                                                  |
+| `JWT_AUDIENCE`                   | no       | `reelingo-api`             | `aud` claim                                                  |
+| `ACCESS_TOKEN_TTL_MINUTES`       | no       | `15`                       | Access token lifetime                                        |
+| `SESSION_TTL_MINUTES`            | no       | `10080`                    | Session and refresh token lifetime (7 days)                  |
+| `AUTH_RATE_LIMIT`                | no       | `20`                       | Requests per window on login and refresh                     |
+| `AUTH_RATE_WINDOW_SECONDS`       | no       | `60`                       | Auth rate-limit window                                       |
+| `API_RATE_LIMIT`                 | no       | `100`                      | Requests per window on `/api/v1`                             |
+| `API_RATE_WINDOW_SECONDS`        | no       | `60`                       | API rate-limit window                                        |
 
 ### Secrets
 
@@ -229,19 +236,20 @@ the prefix; health and documentation paths are mounted at the root.
 | `GET`   | `/api/v1/conversations`                                              | List conversations with cursor pagination                      |
 | `PATCH` | `/api/v1/conversations/:conversationId`                              | Update an owned conversation's name                            |
 | `POST`  | `/api/v1/conversations/:conversationId/messages`                     | Store a prompt and pending chat run                            |
+| `GET`   | `/api/v1/messages/events`                                            | Subscribe to background generation events over SSE             |
 | `GET`   | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Poll the assistant response status                             |
 | `POST`  | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Generate and persist the assistant response; supports SSE      |
 | `GET`   | `/api/v1/conversations/:conversationId/messages`                     | List messages with cursor pagination                           |
 | `POST`  | `/api/v1/media`                                                      | Upload one JPEG, PNG, or WebP image up to 2 MiB                |
 | `POST`  | `/api/v1/media/delete`                                               | Delete owned uploaded images that are not attached to messages |
-| `GET`   | `/api/v1/media/:mediaId`                                             | Read an owned uploaded image                                   |
+| `GET`   | `/api/v1/media/:mediaId`                                             | Read owned uploaded or generated media                         |
 
 ### Local media storage
 
-Uploaded images are written below `MEDIA_STORAGE_ROOT`; the database stores the
-generated storage key, not an absolute filesystem path or public URL. The Docker
-image declares `/app/storage/media` as a volume. Mount a named volume at that path
-so uploaded files survive container replacement.
+Uploaded images and generated media are written below `MEDIA_STORAGE_ROOT`; the
+database stores the generated storage key, not an absolute filesystem path or
+public URL. The Docker image declares `/app/storage/media` as a volume. Mount a
+named volume at that path so uploaded files survive container replacement.
 
 The upload and media endpoints require a Bearer token. The returned media URL
 therefore identifies the image endpoint; clients must include their access token
@@ -300,17 +308,24 @@ The default response remains JSON. To receive realtime text and status events, c
 the same endpoint with `Accept: text/event-stream` using streaming `fetch` and the
 normal Bearer authorization header. Gemini then either streams normal chat text or
 selects the image/video generation tool.
-Chat text is persisted as an assistant message. A media tool call currently creates
-a pending generation record and an assistant message confirming it was queued; the
-image/video provider is not wired yet. Gemini connectivity, quota, and
-invalid-response failures return
-`503 SERVICE_UNAVAILABLE`.
+Chat text is persisted as an assistant message. A media tool call creates a pending
+generation without persisting a temporary queue-confirmation message. When
+`AI_GENERATION_WORKER_ENABLED=true`, the worker generates the media, asks Gemini for
+a concise completion text, and atomically persists both in one assistant message.
+Gemini connectivity, quota, and invalid-response failures during request chat
+return `503 SERVICE_UNAVAILABLE`; background generation failures are persisted on
+the generation and emitted through the message event stream when connected.
 
-If the JSON or SSE processing request is disconnected or the page reloads, the client polls
+The client may also keep `GET /api/v1/messages/events` open with streaming `fetch`.
+The stream emits `generation.completed` with the final assistant message or
+`generation.failed`; these events are best-effort and are not replayed.
+
+If the JSON or SSE processing request is disconnected or the page reloads, the
+client polls
 `GET /api/v1/conversations/:conversationId/messages/:messageId/response`. The
-response includes the durable chat-run status and returns `assistantMessage` as
-`null` until processing completes. Polling reads state only; it never starts or
-retries Gemini processing.
+response includes durable chat-run and generation status and returns
+`assistantMessage` as `null` until processing completes. Polling reads state only;
+it never starts or retries Gemini processing.
 
 ## Request tracing
 

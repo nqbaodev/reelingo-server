@@ -254,7 +254,8 @@ Implement domain/application/infrastructure/presentation only for a concrete
 business requirement — do not add sample logic to fill out a layer. Express
 serves the HTTP API; Prisma is the only persistence adapter currently wired
 up. Google Identity and Gemini are the wired external services, and the `auth`
-feature owns authentication. No queue or background worker has been added.
+feature owns authentication. The `ai` feature owns the in-process media-generation
+worker; PostgreSQL generation rows are its durable queue and lease state.
 
 For a service integration (email, storage, a third-party API), put the adapter
 and any required port in the feature's `infrastructure`, following the repository

@@ -88,13 +88,13 @@ Create from the first text message:
 - The prompt is not duplicated in the generation table: `triggerMessageId`
   points to the user message containing it.
 - A normal AI response is persisted as a new `assistant` message. A media tool
-  call creates a pending generation associated with the triggering user message
-  and an `assistant` message confirming that generation was queued. The tool call
-  provides this confirmation in the user's language, so no second Gemini request
-  is required.
+  call creates a pending generation associated with the triggering user message.
+  Queue confirmation is an ephemeral `generation.queued` event and is not stored
+  as a message.
 - A chat run is `pending`, `processing`, `completed`, or `failed`. Both the trigger
   user message and the resulting assistant message expose the same chat-run ID and
-  status. A completed run stores its assistant message ID as `resultMessageId`.
+  status. A media-routing run may be completed with a null `resultMessageId` while
+  its generation is pending; the worker assigns the final assistant message later.
 - A media generation uses the same four-state lifecycle. Its internal `updatedAt`
   is a worker claim version and lease timestamp, allowing stale `processing` jobs
   to be reclaimed after interruption. It is not a completion timestamp and is not
@@ -108,10 +108,11 @@ Create from the first text message:
   user/assistant turn. A concurrent request while a run is processing returns 409.
   Failed runs may be retried. A processing claim older than the Gemini timeout plus
   a safety buffer may be reclaimed after a server interruption.
-- When provider execution is added, it must create one `assistant` message, attach
-  its ordered output media through `MessageMedia`, and set the generation's
-  `resultMessageId`. This makes each generated media result traceable to the
-  original prompt.
+- The generation worker creates the media first, then asks Gemini for a concise
+  completion text in the user's language. One transaction creates a single
+  `assistant` message containing that text and its ordered `MessageMedia` rows,
+  completes the generation, and assigns the message to both generation and chat
+  run `resultMessageId` fields.
 - Message responses expose the associated `generation` on both sides: the user
   prompt has `triggerMessageId` equal to its own ID, while the assistant result
   has the same generation ID and points back to that trigger message.
@@ -201,7 +202,7 @@ The send endpoint returns immediately with the persisted user message:
 
 The client then calls the response endpoint and shows the typing indicator while
 that request is pending. Without an explicit streaming accept header, its
-successful JSON response contains both sides of the turn:
+successful JSON response contains both sides of a normal text turn:
 
 ```json
 {
@@ -210,6 +211,9 @@ successful JSON response contains both sides of the turn:
 }
 ```
 
+For media generation, the routing response has `assistantMessage: null`; the
+`generation.queued` event and `userMessage.generation` identify the durable job.
+
 For realtime output, the client sends the same command with
 `Accept: text/event-stream` and its normal Bearer authorization header. The
 server responds with versioned SSE data using these ordered events:
@@ -217,12 +221,12 @@ server responds with versioned SSE data using these ordered events:
 - `chat.started` after the pending run is claimed;
 - zero or more `assistant.delta` events for ordinary text output;
 - `generation.queued` after a media-generation request is committed;
-- `chat.completed` after the final assistant message and chat-run state are
-  committed;
+- `chat.completed` after the text reply or generation request is committed;
 - `chat.failed` when processing fails after streaming has started.
 
 Heartbeat frames are SSE comments and carry no business state. Text deltas are
-temporary display data; `chat.completed` contains the canonical persisted turn.
+temporary display data; `chat.completed` contains the canonical persisted routing
+state and may have a null assistant message for generation.
 The server does not persist or replay individual SSE events, so clients must not
 treat SSE delivery as durable state. Browser clients use streaming `fetch` rather
 than native `EventSource` because this protected endpoint requires an
@@ -238,35 +242,38 @@ and returns only the durable run state plus the result when available:
     "status": "processing",
     "resultMessageId": null
   },
+  "generation": null,
   "assistantMessage": null
 }
 ```
 
-Once the run is `completed`, `assistantMessage` contains the persisted assistant
-message. Polling does not claim, start, or retry a run; the client uses `POST` for
-that command. Clients should poll only after the JSON/SSE processing request is
-disconnected or after reload, apply backoff with jitter, and stop on `completed`
-or `failed`. Disconnecting SSE stops delivery but does not cancel the in-process
-Gemini call; while the server process remains alive, it continues and persists the
-final result for polling recovery. An SSE delivery failure is logged at the HTTP
-boundary and is not classified as a Gemini failure, so it does not mark the chat
-run failed.
+For ordinary chat, a completed run has its persisted `assistantMessage`. For media,
+the response also exposes `generation`; the run can already be completed while
+`assistantMessage` remains null until that generation is completed. Polling never
+claims, starts, or retries work. Clients apply backoff with jitter and stop when
+the generation is `completed` or `failed`, or when the normal chat result is
+available.
 
-For a media tool call, `userMessage.generation` contains the pending request and
-`assistantMessage` contains the queue confirmation. This confirmation is not the
-generation result message: the future media worker must create a separate assistant
-message with the output media and assign it to `resultMessageId`.
+The client keeps one authenticated `GET /api/v1/messages/events` streaming-fetch
+connection for background results. It begins with `stream.connected`, then emits
+`generation.completed` with the canonical assistant message or
+`generation.failed` with identifying IDs. The in-memory event transport is
+best-effort, process-local, and not replayed. After disconnect, reload, process
+restart, or load-balancer reassignment, the client recovers from polling and the
+persisted message list rather than assuming an event was delivered.
 
 Reloading the page does not lose the user prompt or processing state: both are in
-PostgreSQL. The client reloads messages, inspects `chatRun.status`, calls `POST` on
-the response endpoint for `pending` or `failed`, and polls its `GET` endpoint while
-the status is `processing`. Only the temporary local typing animation is lost on
-reload.
+PostgreSQL. The client reloads messages, calls `POST` for a pending or failed chat
+run, and polls `GET` while chat routing or media generation is still processing.
+Only temporary local typing and queue animations are lost on reload.
 
 ## Media
 
 - `POST /api/v1/media` accepts exactly one `multipart/form-data` field named
   `file`. It currently accepts JPEG, PNG, or WebP images up to 2 MiB.
+- The worker may create image or video `Media` rows. Generated output is available
+  through the same authenticated `GET /api/v1/media/:mediaId` endpoint; video
+  upload from clients remains unsupported.
 - The upload boundary checks the actual file signature and does not trust the
   client-provided filename or MIME type. The detected MIME type is persisted.
 - `Media.id` is a database-generated UUID. The initial table stores only `id`,
@@ -317,9 +324,17 @@ message writes do not modify the parent conversation timestamp. The response
 endpoint claims that run before calling Gemini outside every database transaction.
 Gemini's streaming adapter emits text deltas without persisting each chunk. A
 short follow-up transaction persists either the assembled normal assistant reply
-or both the pending generation snapshot and its assistant queue confirmation,
-then marks the chat run completed. The terminal SSE event is sent only after this
-transaction commits.
+or the pending generation snapshot, then marks the chat run completed. The
+terminal request SSE event is sent only after this transaction commits.
+
+When enabled, one background worker polls for jobs, atomically claims a pending or
+stale generation, and renews its lease while provider work runs outside a database
+transaction. It creates image/video outputs first and then generates the final
+assistant text. Files are stored before one short completion transaction inserts
+the `Media` and `MessageMedia` rows, creates the assistant message, and conditionally
+completes the still-owned generation. Failed or lost claims clean up stored files
+when possible. Worker shutdown aborts in-flight local work; its processing row is
+left for stale-lease recovery.
 
 Generation claims provide at-least-once processing rather than an exactly-once
 provider guarantee. A future provider adapter must use the generation ID as an
@@ -349,7 +364,6 @@ The following behavior is intentionally not implemented yet:
 - replacing local media storage with an object-storage provider;
 - supporting video upload and video-specific metadata such as duration and a
   thumbnail;
-- calling image/video providers and persisting the assistant result message;
 - adding previous messages or a conversation summary to AI context;
 - sending uploaded media bytes to a multimodal chat model (current AI context
   includes a text marker for attachments, not their contents);

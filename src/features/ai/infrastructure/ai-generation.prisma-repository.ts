@@ -1,11 +1,14 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { AiGenerationStatus as PrismaAiGenerationStatus } from "@/generated/prisma/enums";
+import { MAX_MESSAGE_MEDIA_COUNT } from "@/config";
 import { MediaType } from "@/features/media/domain";
-import { parseAiGenerationConfig } from "../domain";
+import { MessageRole, type Message } from "@/features/messages/domain";
+import { AiGenerationStatus, parseAiGenerationConfig } from "../domain";
 import type {
   AiGenerationRepository,
   ClaimedAiGeneration,
   ClaimNextAiGenerationInput,
+  CompleteAiGenerationInput,
 } from "./ai-generation.repository";
 
 interface ClaimedAiGenerationRow {
@@ -22,6 +25,8 @@ interface ClaimedAiGenerationRow {
 interface ClaimVersionRow {
   claimVersion: Date;
 }
+
+class AiGenerationClaimLostError extends Error {}
 
 function isValidDate(value: unknown): value is Date {
   return value instanceof Date && !Number.isNaN(value.getTime());
@@ -152,6 +157,125 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
     }
 
     return renewedVersion;
+  }
+
+  async completeClaim({
+    id,
+    claimVersion,
+    content,
+    media,
+  }: CompleteAiGenerationInput): Promise<Message | null> {
+    if (media.length < 1 || media.length > MAX_MESSAGE_MEDIA_COUNT) {
+      throw new RangeError(
+        `AI generation result must contain between 1 and ${MAX_MESSAGE_MEDIA_COUNT} media items`,
+      );
+    }
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const generation = await transaction.aiGeneration.findFirst({
+          where: {
+            id,
+            status: PrismaAiGenerationStatus.processing,
+            updatedAt: claimVersion,
+          },
+          select: {
+            id: true,
+            triggerMessageId: true,
+            type: true,
+            configSnapshot: true,
+            triggerMessage: {
+              select: {
+                conversationId: true,
+                conversation: { select: { userId: true } },
+                triggeredChatRun: { select: { id: true, status: true } },
+              },
+            },
+          },
+        });
+        if (!generation) return null;
+
+        const mediaRecords = [];
+        for (const output of media) {
+          mediaRecords.push(
+            await transaction.media.create({
+              data: {
+                userId: generation.triggerMessage.conversation.userId,
+                type: generation.type,
+                storageKey: output.storageKey,
+                mimeType: output.mimeType,
+              },
+              select: { id: true },
+            }),
+          );
+        }
+
+        const resultMessage = await transaction.message.create({
+          data: {
+            conversationId: generation.triggerMessage.conversationId,
+            role: MessageRole.ASSISTANT,
+            content,
+            mediaLinks: {
+              create: mediaRecords.map(({ id: mediaId }, position) => ({
+                mediaId,
+                position,
+              })),
+            },
+          },
+          select: { id: true, createdAt: true },
+        });
+
+        const completed = await transaction.aiGeneration.updateMany({
+          where: {
+            id,
+            status: PrismaAiGenerationStatus.processing,
+            updatedAt: claimVersion,
+          },
+          data: {
+            status: PrismaAiGenerationStatus.completed,
+            resultMessageId: resultMessage.id,
+          },
+        });
+        if (completed.count !== 1) {
+          throw new AiGenerationClaimLostError();
+        }
+
+        const chatRun = generation.triggerMessage.triggeredChatRun;
+        if (chatRun) {
+          await transaction.chatRun.update({
+            where: { id: chatRun.id },
+            data: { resultMessageId: resultMessage.id },
+          });
+        }
+
+        return {
+          id: resultMessage.id,
+          conversationId: generation.triggerMessage.conversationId,
+          role: MessageRole.ASSISTANT,
+          content,
+          mediaIds: mediaRecords.map(({ id: mediaId }) => mediaId),
+          generation: {
+            id: generation.id,
+            triggerMessageId: generation.triggerMessageId,
+            type: toMediaType(generation.type),
+            status: AiGenerationStatus.COMPLETED,
+            config: parseAiGenerationConfig(generation.configSnapshot),
+            resultMessageId: resultMessage.id,
+          },
+          chatRun: chatRun
+            ? {
+                id: chatRun.id,
+                status: chatRun.status,
+                resultMessageId: resultMessage.id,
+              }
+            : null,
+          createdAt: resultMessage.createdAt,
+        };
+      });
+    } catch (err) {
+      if (err instanceof AiGenerationClaimLostError) return null;
+      throw err;
+    }
   }
 
   async failClaim(id: string, claimVersion: Date): Promise<boolean> {

@@ -76,19 +76,16 @@ export class RespondToMessageUseCase {
           });
         },
       );
-      const content = normalizeAssistantContent(result.content);
-
       const turn =
         result.type === ChatResultType.REPLY
           ? await this.messages.completeChatReply({
               runId: claim.runId,
               claimVersion: claim.claimVersion,
-              content,
+              content: normalizeAssistantContent(result.content),
             })
           : await this.messages.completeChatGeneration({
               runId: claim.runId,
               claimVersion: claim.claimVersion,
-              content,
               type: result.mediaType,
               config:
                 claim.context.generationSettings[result.mediaType] ??

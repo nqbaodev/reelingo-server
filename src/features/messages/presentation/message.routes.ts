@@ -13,6 +13,11 @@ export function createMessageRouter(controller: MessageController): Router {
   return createBaseRouter([
     {
       method: HttpMethod.GET,
+      path: endpoints.messages.events,
+      handler: controller.events,
+    },
+    {
+      method: HttpMethod.GET,
       path: endpoints.messages.response,
       middlewares: [validate({ params: messageResponseParamsSchema })],
       handler: controller.getResponse,

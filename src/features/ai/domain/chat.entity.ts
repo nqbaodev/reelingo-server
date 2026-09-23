@@ -1,8 +1,5 @@
 import { MediaType } from "@/features/media/domain";
-import {
-  parseAiGenerationConfig,
-  type AiGenerationConfig,
-} from "./ai-generation.entity";
+import { parseAiGenerationConfig, type AiGenerationConfig } from "./ai-generation.entity";
 
 export const CHAT_RUN_LEASE_BUFFER_MS = 30_000;
 
@@ -13,8 +10,7 @@ export const ChatRunStatus = {
   FAILED: "failed",
 } as const;
 
-export type ChatRunStatus =
-  (typeof ChatRunStatus)[keyof typeof ChatRunStatus];
+export type ChatRunStatus = (typeof ChatRunStatus)[keyof typeof ChatRunStatus];
 
 export interface ChatContext {
   intentHint: MediaType | null;
@@ -37,15 +33,13 @@ export const ChatResultType = {
   GENERATION: "generation",
 } as const;
 
-export type ChatResultType =
-  (typeof ChatResultType)[keyof typeof ChatResultType];
+export type ChatResultType = (typeof ChatResultType)[keyof typeof ChatResultType];
 
 export type ChatResult =
   | { type: typeof ChatResultType.REPLY; content: string }
   | {
       type: typeof ChatResultType.GENERATION;
       mediaType: MediaType;
-      content: string;
     };
 
 export function parseChatContext(value: unknown): ChatContext {
@@ -79,16 +73,12 @@ export function parseChatContext(value: unknown): ChatContext {
       ...(settings[MediaType.IMAGE] === undefined
         ? {}
         : {
-            [MediaType.IMAGE]: parseAiGenerationConfig(
-              settings[MediaType.IMAGE],
-            ),
+            [MediaType.IMAGE]: parseAiGenerationConfig(settings[MediaType.IMAGE]),
           }),
       ...(settings[MediaType.VIDEO] === undefined
         ? {}
         : {
-            [MediaType.VIDEO]: parseAiGenerationConfig(
-              settings[MediaType.VIDEO],
-            ),
+            [MediaType.VIDEO]: parseAiGenerationConfig(settings[MediaType.VIDEO]),
           }),
     },
   };

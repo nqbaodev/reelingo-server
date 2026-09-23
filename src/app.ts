@@ -5,7 +5,11 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { config } from "@/config";
 import { createAiModule } from "@/features/ai/ai.module";
-import type { ChatClient } from "@/features/ai/infrastructure";
+import type {
+  AiGenerationWorker,
+  ChatClient,
+  MediaGenerationClient,
+} from "@/features/ai/infrastructure";
 import { createAuthModule } from "@/features/auth/auth.module";
 import { createConversationsModule } from "@/features/conversations/conversations.module";
 import { createHealthModule } from "@/features/health/health.module";
@@ -28,10 +32,16 @@ import { openApiDocument } from "@/openapi";
 
 interface CreateAppOptions {
   chatClient?: ChatClient;
+  mediaGenerationClient?: MediaGenerationClient;
   database?: PrismaClient;
 }
 
-export function createApp(options: CreateAppOptions = {}): Express {
+export interface ApplicationRuntime {
+  app: Express;
+  generationWorker: AiGenerationWorker;
+}
+
+export function createApplication(options: CreateAppOptions = {}): ApplicationRuntime {
   const app = express();
 
   // Global middleware
@@ -54,10 +64,15 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const database = options.database ?? prisma;
   const authModule = createAuthModule(database);
   const healthModule = createHealthModule(database);
-  const aiModule = createAiModule(options.chatClient);
   const conversationsModule = createConversationsModule(database);
   const mediaModule = createMediaModule(database);
-  const messagesModule = createMessagesModule(database, aiModule.client);
+  const aiModule = createAiModule(
+    database,
+    mediaModule.storage,
+    options.chatClient,
+    options.mediaGenerationClient,
+  );
+  const messagesModule = createMessagesModule(database, aiModule.client, aiModule.events);
   const usersModule = createUsersModule(database);
 
   // Public routes
@@ -81,5 +96,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  return app;
+  return { app, generationWorker: aiModule.worker };
+}
+
+export function createApp(options: CreateAppOptions = {}): Express {
+  return createApplication(options).app;
 }

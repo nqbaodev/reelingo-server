@@ -37,7 +37,7 @@ const messageRelations = {
 interface CompleteChatInput {
   runId: string;
   claimVersion: Date;
-  content: string;
+  content?: string;
   generation?: {
     type: MediaType;
     config: AiGenerationConfig;
@@ -142,14 +142,14 @@ export class MessagePrismaRepository implements MessageRepository {
       }
 
       if (run.status === ChatRunStatus.COMPLETED) {
-        if (!run.resultMessage) {
-          throw new Error("Completed chat run has no result message");
+        if (!run.resultMessage && !run.triggerMessage.triggeredGeneration) {
+          throw new Error("Completed chat run has no reply or media generation");
         }
         return {
           type: ClaimChatResultType.COMPLETED,
           turn: {
             userMessage: toEntity(run.triggerMessage),
-            assistantMessage: toEntity(run.resultMessage),
+            assistantMessage: run.resultMessage ? toEntity(run.resultMessage) : null,
           },
         };
       }
@@ -203,18 +203,25 @@ export class MessagePrismaRepository implements MessageRepository {
         id: true,
         status: true,
         resultMessageId: true,
+        triggerMessage: { include: messageRelations },
         resultMessage: { include: messageRelations },
       },
     });
     if (!run) {
       return null;
     }
-    if (run.status === ChatRunStatus.COMPLETED && !run.resultMessage) {
-      throw new Error("Completed chat run has no result message");
+    const triggerMessage = toEntity(run.triggerMessage);
+    if (
+      run.status === ChatRunStatus.COMPLETED &&
+      !run.resultMessage &&
+      !triggerMessage.generation
+    ) {
+      throw new Error("Completed chat run has no reply or media generation");
     }
 
     return {
       chatRun: toMessageChatRun(run),
+      generation: triggerMessage.generation,
       assistantMessage: run.resultMessage ? toEntity(run.resultMessage) : null,
     };
   }
@@ -230,14 +237,12 @@ export class MessagePrismaRepository implements MessageRepository {
   async completeChatGeneration({
     runId,
     claimVersion,
-    content,
     type,
     config,
   }: CompleteChatGenerationInput): Promise<ChatTurn | null> {
     return this.completeChat({
       runId,
       claimVersion,
-      content,
       generation: { type, config },
     });
   }
@@ -261,20 +266,25 @@ export class MessagePrismaRepository implements MessageRepository {
   }: CompleteChatInput): Promise<ChatTurn | null> {
     try {
       return await this.prisma.$transaction(async (transaction) => {
-        const run = await transaction.chatRun.findFirst({
+        const completed = await transaction.chatRun.updateMany({
           where: {
             id: runId,
             status: ChatRunStatus.PROCESSING,
             updatedAt: claimVersion,
           },
+          data: { status: ChatRunStatus.COMPLETED },
+        });
+        if (completed.count === 0) {
+          return null;
+        }
+
+        const run = await transaction.chatRun.findUniqueOrThrow({
+          where: { id: runId },
           select: {
             triggerMessageId: true,
             triggerMessage: { select: { conversationId: true } },
           },
         });
-        if (!run) {
-          return null;
-        }
 
         const userRecord = await transaction.message.update({
           where: { id: run.triggerMessageId },
@@ -291,35 +301,40 @@ export class MessagePrismaRepository implements MessageRepository {
           include: messageRelations,
         });
 
-        const assistantRecord = await transaction.message.create({
-          data: {
-            conversationId: run.triggerMessage.conversationId,
-            role: MessageRole.ASSISTANT,
-            content,
-          },
-          include: messageRelations,
-        });
+        const assistantRecord = content
+          ? await transaction.message.create({
+              data: {
+                conversationId: run.triggerMessage.conversationId,
+                role: MessageRole.ASSISTANT,
+                content,
+              },
+              include: messageRelations,
+            })
+          : null;
 
-        await transaction.chatRun.update({
-          where: { id: runId },
-          data: {
-            status: ChatRunStatus.COMPLETED,
-            resultMessageId: assistantRecord.id,
-          },
-        });
+        if (assistantRecord) {
+          await transaction.chatRun.update({
+            where: { id: runId },
+            data: { resultMessageId: assistantRecord.id },
+          });
+        }
 
         const completedUserRecord = await transaction.message.findUniqueOrThrow({
           where: { id: userRecord.id },
           include: messageRelations,
         });
-        const completedAssistantRecord = await transaction.message.findUniqueOrThrow({
-          where: { id: assistantRecord.id },
-          include: messageRelations,
-        });
+        const completedAssistantRecord = assistantRecord
+          ? await transaction.message.findUniqueOrThrow({
+              where: { id: assistantRecord.id },
+              include: messageRelations,
+            })
+          : null;
 
         return {
           userMessage: toEntity(completedUserRecord),
-          assistantMessage: toEntity(completedAssistantRecord),
+          assistantMessage: completedAssistantRecord
+            ? toEntity(completedAssistantRecord)
+            : null,
         };
       });
     } catch (err) {

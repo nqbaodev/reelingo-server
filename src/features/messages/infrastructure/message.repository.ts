@@ -5,7 +5,7 @@ import type {
   MessageChatRun,
 } from "@/features/ai/domain";
 import type { MediaType } from "@/features/media/domain";
-import type { Message, NewMessage } from "../domain";
+import type { Message, MessageGeneration, NewMessage } from "../domain";
 
 export interface MessageListCursor {
   createdAt: Date;
@@ -41,11 +41,12 @@ export interface ListMessagesInput {
 
 export interface ChatTurn {
   userMessage: Message;
-  assistantMessage: Message;
+  assistantMessage: Message | null;
 }
 
 export interface MessageResponseState {
   chatRun: MessageChatRun;
+  generation: MessageGeneration | null;
   assistantMessage: Message | null;
 }
 
@@ -90,7 +91,9 @@ export interface CompleteChatReplyInput {
   content: string;
 }
 
-export interface CompleteChatGenerationInput extends CompleteChatReplyInput {
+export interface CompleteChatGenerationInput {
+  runId: string;
+  claimVersion: Date;
   type: MediaType;
   config: AiGenerationConfig;
 }
@@ -102,13 +105,9 @@ export interface MessageRepository {
   listByConversation(
     input: ListMessagesInput,
   ): Promise<CursorPage<Message, MessageListCursor> | null>;
-  getResponse(
-    input: GetMessageResponseInput,
-  ): Promise<MessageResponseState | null>;
+  getResponse(input: GetMessageResponseInput): Promise<MessageResponseState | null>;
   claimChat(input: ClaimChatInput): Promise<ClaimChatResult>;
   completeChatReply(input: CompleteChatReplyInput): Promise<ChatTurn | null>;
-  completeChatGeneration(
-    input: CompleteChatGenerationInput,
-  ): Promise<ChatTurn | null>;
+  completeChatGeneration(input: CompleteChatGenerationInput): Promise<ChatTurn | null>;
   failChat(runId: string, claimVersion: Date): Promise<void>;
 }

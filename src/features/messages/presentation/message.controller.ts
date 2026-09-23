@@ -4,6 +4,11 @@ import { AppError, ServiceUnavailableError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
 import { ChatUnavailableError } from "@/features/ai/infrastructure";
+import {
+  AiGenerationEventType,
+  type AiGenerationEvent,
+  type AiGenerationEvents,
+} from "@/features/ai/application";
 import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import { ServerSentEventStream } from "@/shared/http/server-sent-event-stream";
 import type {
@@ -33,6 +38,7 @@ interface MessageControllerDeps {
   getMessageResponse: GetMessageResponseUseCase;
   listMessages: ListMessagesUseCase;
   respondToMessage: RespondToMessageUseCase;
+  generationEvents: AiGenerationEvents;
 }
 
 export class MessageController {
@@ -73,7 +79,7 @@ export class MessageController {
 
   private respondWithEventStream = async (req: Request, res: Response) => {
     const { conversationId, messageId } = req.params as MessageResponseParams;
-    const stream = new ServerSentEventStream(res);
+    const stream = createEventStream(req, res);
     const observer: ChatProgressObserver = {
       publish: async (event) => {
         try {
@@ -122,6 +128,29 @@ export class MessageController {
     sendSuccess(res, toMessageResponseStateResponse(response));
   };
 
+  events = async (req: Request, res: Response) => {
+    const stream = createEventStream(req, res);
+    const userId = requireCurrentUserId(req);
+    const unsubscribe = this.deps.generationEvents.subscribe(userId, (event) => {
+      void publishGenerationEvent(stream, event).catch(async (err: unknown) => {
+        req.log.error(
+          { err, eventType: event.type },
+          "Failed to publish AI generation event",
+        );
+        await stream.end();
+      });
+    });
+
+    try {
+      await stream.sendJson(MessageStreamEvent.CONNECTED, {
+        v: STREAM_EVENT_VERSION,
+      });
+      await stream.waitUntilClosed();
+    } finally {
+      unsubscribe();
+    }
+  };
+
   list = async (req: Request, res: Response) => {
     const { conversationId } = req.params as MessageConversationParams;
     const page = await this.deps.listMessages.execute(
@@ -133,14 +162,45 @@ export class MessageController {
   };
 }
 
+function createEventStream(req: Request, res: Response): ServerSentEventStream {
+  return new ServerSentEventStream(res, {
+    onError: (err) => req.log.error({ err }, "SSE transport failed"),
+  });
+}
+
 const STREAM_EVENT_VERSION = 1;
 const MessageStreamEvent = {
+  CONNECTED: "stream.connected",
   STARTED: "chat.started",
   TEXT_DELTA: "assistant.delta",
   GENERATION_QUEUED: "generation.queued",
   COMPLETED: "chat.completed",
   FAILED: "chat.failed",
+  GENERATION_COMPLETED: "generation.completed",
+  GENERATION_FAILED: "generation.failed",
 } as const;
+
+async function publishGenerationEvent(
+  stream: ServerSentEventStream,
+  event: AiGenerationEvent,
+): Promise<void> {
+  switch (event.type) {
+    case AiGenerationEventType.COMPLETED:
+      await stream.sendJson(MessageStreamEvent.GENERATION_COMPLETED, {
+        v: STREAM_EVENT_VERSION,
+        generationId: event.generationId,
+        message: toMessageResponse(event.message),
+      });
+      return;
+    case AiGenerationEventType.FAILED:
+      await stream.sendJson(MessageStreamEvent.GENERATION_FAILED, {
+        v: STREAM_EVENT_VERSION,
+        generationId: event.generationId,
+        conversationId: event.conversationId,
+        triggerMessageId: event.triggerMessageId,
+      });
+  }
+}
 
 async function publishProgressEvent(
   stream: ServerSentEventStream,

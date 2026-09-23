@@ -43,11 +43,12 @@ export function toMessageResponse(message: Message): MessageResponse {
 
 export interface MessageTurnResponse {
   userMessage: MessageResponse;
-  assistantMessage: MessageResponse;
+  assistantMessage: MessageResponse | null;
 }
 
 export interface MessageResponseStateResponse {
   chatRun: MessageResponseState["chatRun"];
+  generation: MessageResponseState["generation"];
   assistantMessage: MessageResponse | null;
 }
 
@@ -56,18 +57,19 @@ export function toMessageResponseStateResponse(
 ): MessageResponseStateResponse {
   return {
     chatRun: response.chatRun,
+    generation: response.generation,
     assistantMessage: response.assistantMessage
       ? toMessageResponse(response.assistantMessage)
       : null,
   };
 }
 
-export function toMessageTurnResponse(
-  turn: ChatTurn,
-): MessageTurnResponse {
+export function toMessageTurnResponse(turn: ChatTurn): MessageTurnResponse {
   return {
     userMessage: toMessageResponse(turn.userMessage),
-    assistantMessage: toMessageResponse(turn.assistantMessage),
+    assistantMessage: turn.assistantMessage
+      ? toMessageResponse(turn.assistantMessage)
+      : null,
   };
 }
 

@@ -7,6 +7,7 @@ type FlushableServerResponse = ServerResponse & { flush?: () => void };
 
 export interface ServerSentEventStreamOptions {
   heartbeatIntervalMs?: number;
+  onError?: (error: unknown) => void;
 }
 
 enum EventStreamState {
@@ -32,8 +33,13 @@ function createJsonEventFrame(event: string, data: unknown): string {
 export class ServerSentEventStream {
   private state: EventStreamState;
   private readonly heartbeatIntervalMs: number;
+  private readonly onError: ((error: unknown) => void) | undefined;
   private heartbeat: NodeJS.Timeout | undefined;
   private pendingWrite = Promise.resolve();
+  private resolveClosed!: () => void;
+  private readonly closed = new Promise<void>((resolve) => {
+    this.resolveClosed = resolve;
+  });
 
   constructor(
     private readonly response: FlushableServerResponse,
@@ -41,6 +47,7 @@ export class ServerSentEventStream {
   ) {
     this.heartbeatIntervalMs =
       options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+    this.onError = options.onError;
     if (
       !Number.isSafeInteger(this.heartbeatIntervalMs) ||
       this.heartbeatIntervalMs <= 0
@@ -52,8 +59,14 @@ export class ServerSentEventStream {
       response.destroyed || response.writableEnded
         ? EventStreamState.CLOSED
         : EventStreamState.IDLE;
+    if (this.isClosed) {
+      this.resolveClosed();
+    }
     response.on("close", () => this.markClosed());
-    response.on("error", () => this.markClosed());
+    response.on("error", (error) => {
+      this.reportError(error);
+      this.markClosed();
+    });
   }
 
   get isIdle(): boolean {
@@ -70,15 +83,21 @@ export class ServerSentEventStream {
     return this.enqueue(createJsonEventFrame(event, data));
   }
 
+  waitUntilClosed(): Promise<void> {
+    return this.closed;
+  }
+
   async end(): Promise<void> {
     this.stopHeartbeat();
     await this.pendingWrite;
     if (this.isClosed || this.response.writableEnded) return;
 
-    this.state = EventStreamState.CLOSED;
     try {
       this.response.end();
-    } catch {
+    } catch (error) {
+      this.reportError(error);
+      // Closing is best-effort after the response transport has failed.
+    } finally {
       this.markClosed();
     }
   }
@@ -87,7 +106,8 @@ export class ServerSentEventStream {
     if (this.isClosed) return Promise.resolve();
     try {
       this.open();
-    } catch {
+    } catch (error) {
+      this.reportError(error);
       this.markClosed();
       return Promise.resolve();
     }
@@ -127,7 +147,8 @@ export class ServerSentEventStream {
       if (!canContinue) {
         await this.waitUntilWritableOrClosed();
       }
-    } catch {
+    } catch (error) {
+      this.reportError(error);
       this.markClosed();
     }
   }
@@ -149,8 +170,11 @@ export class ServerSentEventStream {
   }
 
   private markClosed(): void {
+    if (this.isClosed) return;
+
     this.state = EventStreamState.CLOSED;
     this.stopHeartbeat();
+    this.resolveClosed();
   }
 
   private stopHeartbeat(): void {
@@ -158,5 +182,9 @@ export class ServerSentEventStream {
 
     clearInterval(this.heartbeat);
     this.heartbeat = undefined;
+  }
+
+  private reportError(error: unknown): void {
+    this.onError?.(error);
   }
 }

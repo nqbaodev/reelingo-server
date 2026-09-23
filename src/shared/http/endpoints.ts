@@ -13,6 +13,7 @@ export const endpoints = {
     byId: "/conversations/:conversationId",
   },
   messages: {
+    events: "/messages/events",
     byConversation: "/conversations/:conversationId/messages",
     response: "/conversations/:conversationId/messages/:messageId/response",
   },

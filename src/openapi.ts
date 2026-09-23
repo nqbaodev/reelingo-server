@@ -210,10 +210,11 @@ const messageList = z.object({
 });
 const messageTurn = z.object({
   userMessage: message,
-  assistantMessage: message,
+  assistantMessage: message.nullable(),
 });
 const messageResponseState = z.object({
   chatRun: messageChatRun,
+  generation: messageGeneration.nullable(),
   assistantMessage: message.nullable(),
 });
 const messageTurnSuccess = z.object({
@@ -398,6 +399,30 @@ export const openApiDocument = {
         },
       },
     },
+    [`${endpoints.apiPrefix}${endpoints.messages.events}`]: {
+      get: {
+        tags: ["Messages"],
+        operationId: "subscribeMessageEvents",
+        summary: "Subscribe to background message events",
+        description:
+          "Opens an authenticated SSE stream for background AI generation completion and failure events. Events are not replayed; reload recovery uses the persisted message list and response status endpoints.",
+        parameters: languageParameters,
+        responses: {
+          200: {
+            description: "Background message event stream",
+            headers: responseHeaders,
+            content: {
+              "text/event-stream": {
+                schema: { type: "string" },
+                example:
+                  'event: stream.connected\ndata: {"v":1}\n\nevent: generation.completed\ndata: {"v":1,"generationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","message":{}}\n\n',
+              },
+            },
+          },
+          ...protectedErrors,
+        },
+      },
+    },
     [`${endpoints.apiPrefix}${endpoints.messages.byConversation}`.replace(
       ":conversationId",
       "{conversationId}",
@@ -454,7 +479,7 @@ export const openApiDocument = {
         operationId: "getMessageResponse",
         summary: "Read the assistant response status for a message",
         description:
-          "Polling endpoint for a persisted chat run. Returns a null assistantMessage until the run completes. This request never starts or retries AI processing.",
+          "Polling endpoint for a persisted chat run. A queued media generation keeps assistantMessage null until its worker creates the final message. This request never starts or retries AI processing.",
         parameters: [
           ...languageParameters,
           {
@@ -481,7 +506,7 @@ export const openApiDocument = {
         operationId: "respondToMessage",
         summary: "Generate the assistant response for a message",
         description:
-          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. Send Accept: text/event-stream to receive chat.started, assistant.delta, generation.queued, chat.completed, or chat.failed events. Without that explicit media type, the response remains JSON. Repeating a completed request returns the existing turn.",
+          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. A generation response has assistantMessage null until the background worker finishes. Send Accept: text/event-stream to receive chat.started, assistant.delta, generation.queued, chat.completed, or chat.failed events. Without that explicit media type, the response remains JSON. Repeating a completed request returns the existing state.",
         parameters: [
           ...languageParameters,
           {
@@ -576,7 +601,7 @@ export const openApiDocument = {
       get: {
         tags: ["Media"],
         operationId: "getMedia",
-        summary: "Get an owned uploaded image",
+        summary: "Get owned media content",
         parameters: [
           ...languageParameters,
           {
@@ -594,6 +619,8 @@ export const openApiDocument = {
               "image/jpeg": { schema: { type: "string", format: "binary" } },
               "image/png": { schema: { type: "string", format: "binary" } },
               "image/webp": { schema: { type: "string", format: "binary" } },
+              "video/mp4": { schema: { type: "string", format: "binary" } },
+              "video/webm": { schema: { type: "string", format: "binary" } },
             },
           },
           ...errors(404, 422),
