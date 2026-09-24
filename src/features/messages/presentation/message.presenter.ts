@@ -3,16 +3,28 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/core/pagination";
-import type { Message } from "../domain";
-import { toMediaLink } from "@/features/media/presentation/media.presenter";
-import type { MessageListCursor } from "../infrastructure";
+import type { Message, MessageGeneration } from "../domain";
+import type {
+  ChatTurn,
+  MessageListCursor,
+  MessageResponseState,
+} from "../infrastructure";
 
 export interface MessageResponse {
   id: string;
   conversationId: string;
   role: Message["role"];
   content: string | null;
-  media: { id: string; path: string; url: string }[];
+  mediaIds: string[];
+  generation: {
+    id: string;
+    triggerMessageId: string;
+    type: MessageGeneration["type"];
+    status: MessageGeneration["status"];
+    config: MessageGeneration["config"];
+    resultMessageId: string | null;
+  } | null;
+  chatRun: Message["chatRun"];
   createdAt: string;
 }
 
@@ -22,8 +34,42 @@ export function toMessageResponse(message: Message): MessageResponse {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
-    media: message.media.map((item) => toMediaLink(item.id)),
+    mediaIds: message.mediaIds,
+    generation: message.generation,
+    chatRun: message.chatRun,
     createdAt: message.createdAt.toISOString(),
+  };
+}
+
+export interface MessageTurnResponse {
+  userMessage: MessageResponse;
+  assistantMessage: MessageResponse | null;
+}
+
+export interface MessageResponseStateResponse {
+  chatRun: MessageResponseState["chatRun"];
+  generation: MessageResponseState["generation"];
+  assistantMessage: MessageResponse | null;
+}
+
+export function toMessageResponseStateResponse(
+  response: MessageResponseState,
+): MessageResponseStateResponse {
+  return {
+    chatRun: response.chatRun,
+    generation: response.generation,
+    assistantMessage: response.assistantMessage
+      ? toMessageResponse(response.assistantMessage)
+      : null,
+  };
+}
+
+export function toMessageTurnResponse(turn: ChatTurn): MessageTurnResponse {
+  return {
+    userMessage: toMessageResponse(turn.userMessage),
+    assistantMessage: turn.assistantMessage
+      ? toMessageResponse(turn.assistantMessage)
+      : null,
   };
 }
 

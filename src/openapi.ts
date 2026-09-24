@@ -9,7 +9,14 @@ import {
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
-import { generateTextSchema } from "@/features/ai/presentation/ai.validators";
+import {
+  IMAGE_GENERATION_ASPECT_RATIOS,
+  IMAGE_GENERATION_RESOLUTIONS,
+  MAX_AI_GENERATION_OUTPUT_COUNT,
+  MIN_AI_GENERATION_OUTPUT_COUNT,
+  VIDEO_GENERATION_ASPECT_RATIOS,
+  VIDEO_GENERATION_RESOLUTIONS,
+} from "@/features/ai/domain";
 import {
   googleLoginSchema,
   refreshTokenSchema,
@@ -23,6 +30,7 @@ import { MessageRole } from "@/features/messages/domain";
 import {
   createMessageSchema,
   messageConversationParamsSchema,
+  messageResponseParamsSchema,
 } from "@/features/messages/presentation/message.validators";
 import {
   deleteMediaSchema,
@@ -158,23 +166,79 @@ const conversation = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
+const conversationSummary = conversation.extend({
+  lastMessageAt: z.iso.datetime(),
+});
 const conversationList = z.object({
-  items: z.array(conversation),
+  items: z.array(conversationSummary),
   nextCursor: z.string().nullable(),
+});
+const imageGenerationConfig = z.object({
+  aspectRatio: z.enum(IMAGE_GENERATION_ASPECT_RATIOS).nullable(),
+  resolution: z.enum(IMAGE_GENERATION_RESOLUTIONS).nullable(),
+  outputCount: z
+    .number()
+    .int()
+    .min(MIN_AI_GENERATION_OUTPUT_COUNT)
+    .max(MAX_AI_GENERATION_OUTPUT_COUNT),
+  enhancePrompt: z.literal(false),
+});
+const videoGenerationConfig = z.object({
+  aspectRatio: z.enum(VIDEO_GENERATION_ASPECT_RATIOS).nullable(),
+  resolution: z.enum(VIDEO_GENERATION_RESOLUTIONS).nullable(),
+  outputCount: z.literal(1),
+  enhancePrompt: z.boolean(),
+});
+const generationBase = {
+  id: z.uuid(),
+  triggerMessageId: z.uuid(),
+  status: z.enum(["pending", "processing", "completed", "failed"]),
+  resultMessageId: z.uuid().nullable(),
+};
+const messageGeneration = z.discriminatedUnion("type", [
+  z.object({
+    ...generationBase,
+    type: z.literal("image"),
+    config: imageGenerationConfig,
+  }),
+  z.object({
+    ...generationBase,
+    type: z.literal("video"),
+    config: videoGenerationConfig,
+  }),
+]);
+const messageChatRun = z.object({
+  id: z.uuid(),
+  status: z.enum(["pending", "processing", "completed", "failed"]),
+  resultMessageId: z.uuid().nullable(),
 });
 const message = z.object({
   id: z.uuid(),
   conversationId: z.uuid(),
   role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
   content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
-  media: z.array(
-    z.object({ id: z.uuid(), path: z.string().startsWith("/"), url: z.url() }),
-  ),
+  mediaIds: z.array(z.uuid()).max(4),
+  generation: messageGeneration.nullable(),
+  chatRun: messageChatRun.nullable(),
   createdAt: z.iso.datetime(),
 });
 const messageList = z.object({
   items: z.array(message),
   nextCursor: z.string().nullable(),
+});
+const messageTurn = z.object({
+  userMessage: message,
+  assistantMessage: message.nullable(),
+});
+const messageResponseState = z.object({
+  chatRun: messageChatRun,
+  generation: messageGeneration.nullable(),
+  assistantMessage: message.nullable(),
+});
+const messageTurnSuccess = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  data: messageTurn,
 });
 const media = z.object({
   id: z.uuid(),
@@ -353,6 +417,30 @@ export const openApiDocument = {
         },
       },
     },
+    [`${endpoints.apiPrefix}${endpoints.messages.events}`]: {
+      get: {
+        tags: ["Messages"],
+        operationId: "subscribeMessageEvents",
+        summary: "Subscribe to background message events",
+        description:
+          "Opens an authenticated SSE stream for background AI generation completion and failure events. Events are not replayed; reload recovery uses the persisted message list and response status endpoints.",
+        parameters: languageParameters,
+        responses: {
+          200: {
+            description: "Background message event stream",
+            headers: responseHeaders,
+            content: {
+              "text/event-stream": {
+                schema: { type: "string" },
+                example:
+                  'event: stream.connected\ndata: {"v":1}\n\nevent: generation.completed\ndata: {"v":1,"generationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","message":{}}\n\n',
+              },
+            },
+          },
+          ...protectedErrors,
+        },
+      },
+    },
     [`${endpoints.apiPrefix}${endpoints.messages.byConversation}`.replace(
       ":conversationId",
       "{conversationId}",
@@ -381,9 +469,9 @@ export const openApiDocument = {
       post: {
         tags: ["Messages"],
         operationId: "sendMessage",
-        summary: "Send text and/or multiple media items",
+        summary: "Send a message to the AI conversation",
         description:
-          "Accepts content, up to 50 uploaded mediaIds, or both. Every media item must belong to the authenticated user.",
+          "Persists the user message and a pending chat run, then returns immediately. Optional aiContext carries a session preference and generation settings; it is not an explicit mode. Call the message response endpoint to run Gemini.",
         parameters: [
           ...languageParameters,
           {
@@ -395,8 +483,87 @@ export const openApiDocument = {
         ],
         requestBody: requestBody(createMessageSchema),
         responses: {
-          201: success(message, "Message sent"),
+          201: success(message, "Message accepted for AI processing"),
           ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.messages.response}`
+      .replace(":conversationId", "{conversationId}")
+      .replace(":messageId", "{messageId}")]: {
+      get: {
+        tags: ["Messages"],
+        operationId: "getMessageResponse",
+        summary: "Read the assistant response status for a message",
+        description:
+          "Polling endpoint for a persisted chat run. A queued media generation keeps assistantMessage null until its worker creates the final message. This request never starts or retries AI processing.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.conversationId),
+          },
+          {
+            name: "messageId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.messageId),
+          },
+        ],
+        responses: {
+          200: success(messageResponseState, "Assistant response status"),
+          ...errors(404, 422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Messages"],
+        operationId: "respondToMessage",
+        summary: "Generate the assistant response for a message",
+        description:
+          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. A generation response has assistantMessage null until the background worker finishes. Send Accept: text/event-stream to receive chat.started, assistant.delta, generation.queued, chat.completed, or chat.failed events. Without that explicit media type, the response remains JSON. Repeating a completed request returns the existing state.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "Accept",
+            in: "header",
+            required: false,
+            description:
+              "Use text/event-stream for a streamed response. Defaults to application/json.",
+            schema: { type: "string" },
+          },
+          {
+            name: "conversationId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.conversationId),
+          },
+          {
+            name: "messageId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(messageResponseParamsSchema.shape.messageId),
+          },
+        ],
+        responses: {
+          200: {
+            description: "Assistant response persisted or streamed",
+            headers: responseHeaders,
+            content: {
+              "application/json": {
+                schema: jsonSchema(messageTurnSuccess, "output"),
+              },
+              "text/event-stream": {
+                schema: { type: "string" },
+                example:
+                  'event: chat.started\ndata: {"v":1,"runId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8"}\n\nevent: assistant.delta\ndata: {"v":1,"delta":"Hello"}\n\nevent: chat.completed\ndata: {"v":1,"userMessage":{},"assistantMessage":{}}\n\n',
+              },
+            },
+          },
+          ...errors(404, 409, 422),
           ...protectedErrors,
         },
       },
@@ -452,7 +619,7 @@ export const openApiDocument = {
       get: {
         tags: ["Media"],
         operationId: "getMedia",
-        summary: "Get an owned uploaded image",
+        summary: "Get owned media content",
         parameters: [
           ...languageParameters,
           {
@@ -470,21 +637,13 @@ export const openApiDocument = {
               "image/jpeg": { schema: { type: "string", format: "binary" } },
               "image/png": { schema: { type: "string", format: "binary" } },
               "image/webp": { schema: { type: "string", format: "binary" } },
+              "video/mp4": { schema: { type: "string", format: "binary" } },
+              "video/webm": { schema: { type: "string", format: "binary" } },
             },
           },
           ...errors(404, 422),
           ...protectedErrors,
         },
-      },
-    },
-    [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {
-      post: {
-        tags: ["AI"],
-        operationId: "generateText",
-        summary: "Generate text with Gemini",
-        parameters: languageParameters,
-        requestBody: requestBody(generateTextSchema),
-        responses: { 200: success(z.object({ text: z.string() })), ...authErrors },
       },
     },
   },

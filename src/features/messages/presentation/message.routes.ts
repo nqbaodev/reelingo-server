@@ -6,10 +6,28 @@ import {
   createMessageSchema,
   listMessagesQuerySchema,
   messageConversationParamsSchema,
+  messageResponseParamsSchema,
 } from "./message.validators";
 
 export function createMessageRouter(controller: MessageController): Router {
   return createBaseRouter([
+    {
+      method: HttpMethod.GET,
+      path: endpoints.messages.events,
+      handler: controller.events,
+    },
+    {
+      method: HttpMethod.GET,
+      path: endpoints.messages.response,
+      middlewares: [validate({ params: messageResponseParamsSchema })],
+      handler: controller.getResponse,
+    },
+    {
+      method: HttpMethod.POST,
+      path: endpoints.messages.response,
+      middlewares: [validate({ params: messageResponseParamsSchema })],
+      handler: controller.respond,
+    },
     {
       method: HttpMethod.GET,
       path: endpoints.messages.byConversation,

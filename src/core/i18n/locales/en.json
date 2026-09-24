@@ -4,7 +4,6 @@
   "signedIn": "Signed in successfully",
   "sessionRefreshed": "Session refreshed successfully",
   "signedOut": "Signed out successfully",
-  "textGenerated": "Text generated successfully",
   "conversationCreated": "Conversation created successfully",
   "messageSent": "Message sent successfully",
   "mediaUploaded": "Media uploaded successfully",
@@ -25,6 +24,8 @@
 
   "userNotFound": "User not found",
   "conversationNotFound": "Conversation not found",
+  "messageNotFound": "Message not found",
+  "chatAlreadyProcessing": "AI response is already processing",
   "mediaNotFound": "Media not found",
   "mediaFileRequired": "An image file is required",
   "invalidMediaUpload": "Media upload is invalid",

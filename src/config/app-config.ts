@@ -26,6 +26,36 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
   GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   GEMINI_TIMEOUT_MS: z.coerce.number().int().positive().max(300_000).default(30_000),
+  GEMINI_IMAGE_MODEL: z.string().min(1).default("gemini-3.1-flash-image"),
+  GEMINI_VIDEO_MODEL: z.string().min(1).default("veo-3.1-fast-generate-preview"),
+  AI_GENERATION_WORKER_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AI_GENERATION_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(60_000)
+    .default(1_000),
+  AI_GENERATION_LEASE_MS: z.coerce
+    .number()
+    .int()
+    .min(10_000)
+    .max(300_000)
+    .default(60_000),
+  AI_GENERATION_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(30_000)
+    .max(900_000)
+    .default(600_000),
+  AI_VIDEO_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(60_000)
+    .default(2_000),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_ISSUER: z.string().default("reelingo-server"),
   JWT_AUDIENCE: z.string().default("reelingo-api"),
@@ -117,6 +147,15 @@ export const appConfig = {
       apiKey: validatedEnv.GEMINI_API_KEY,
       model: validatedEnv.GEMINI_MODEL,
       timeoutMs: validatedEnv.GEMINI_TIMEOUT_MS,
+    },
+    generation: {
+      workerEnabled: validatedEnv.AI_GENERATION_WORKER_ENABLED,
+      pollIntervalMs: validatedEnv.AI_GENERATION_POLL_INTERVAL_MS,
+      leaseMs: validatedEnv.AI_GENERATION_LEASE_MS,
+      timeoutMs: validatedEnv.AI_GENERATION_TIMEOUT_MS,
+      videoPollIntervalMs: validatedEnv.AI_VIDEO_POLL_INTERVAL_MS,
+      imageModel: validatedEnv.GEMINI_IMAGE_MODEL,
+      videoModel: validatedEnv.GEMINI_VIDEO_MODEL,
     },
   },
 

@@ -3,7 +3,7 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/core/pagination";
-import type { Conversation } from "../domain";
+import type { Conversation, ConversationSummary } from "../domain";
 import type { ConversationListCursor } from "../infrastructure";
 
 export interface ConversationResponse {
@@ -11,6 +11,10 @@ export interface ConversationResponse {
   name: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ConversationSummaryResponse extends ConversationResponse {
+  lastMessageAt: string;
 }
 
 export function toConversationResponse(conversation: Conversation): ConversationResponse {
@@ -23,14 +27,17 @@ export function toConversationResponse(conversation: Conversation): Conversation
 }
 
 export function toConversationListResponse(
-  page: CursorPage<Conversation, ConversationListCursor>,
-): CursorListResponse<ConversationResponse> {
+  page: CursorPage<ConversationSummary, ConversationListCursor>,
+): CursorListResponse<ConversationSummaryResponse> {
   return {
-    items: page.items.map(toConversationResponse),
+    items: page.items.map((conversation) => ({
+      ...toConversationResponse(conversation),
+      lastMessageAt: conversation.lastMessageAt.toISOString(),
+    })),
     nextCursor: page.nextCursor
       ? encodeCursor({
-          updatedAt: page.nextCursor.updatedAt.toISOString(),
-          id: page.nextCursor.id,
+          lastMessageAt: page.nextCursor.lastMessageAt.toISOString(),
+          conversationId: page.nextCursor.conversationId,
         })
       : null,
   };

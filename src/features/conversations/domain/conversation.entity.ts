@@ -5,3 +5,7 @@ export interface Conversation {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface ConversationSummary extends Conversation {
+  lastMessageAt: Date;
+}

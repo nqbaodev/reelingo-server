@@ -19,5 +19,6 @@ export function createMediaModule(prisma: PrismaClient) {
 
   return {
     router: createMediaRouter(controller),
+    storage,
   };
 }

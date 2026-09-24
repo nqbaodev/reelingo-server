@@ -13,15 +13,14 @@ export const endpoints = {
     byId: "/conversations/:conversationId",
   },
   messages: {
+    events: "/messages/events",
     byConversation: "/conversations/:conversationId/messages",
+    response: "/conversations/:conversationId/messages/:messageId/response",
   },
   media: {
     upload: "/media",
     delete: "/media/delete",
     byId: "/media/:mediaId",
-  },
-  ai: {
-    generate: "/ai/generate",
   },
   health: {
     liveness: "/health",

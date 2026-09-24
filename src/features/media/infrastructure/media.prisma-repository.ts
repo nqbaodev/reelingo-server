@@ -8,6 +8,8 @@ function toPrismaMediaType(type: MediaType): PrismaMediaType {
   switch (type) {
     case MediaType.IMAGE:
       return PrismaMediaType.image;
+    case MediaType.VIDEO:
+      return PrismaMediaType.video;
   }
 }
 
@@ -51,8 +53,8 @@ export class MediaPrismaRepository implements MediaRepository {
         AND media."id" IN (${Prisma.join(uniqueIds)})
         AND NOT EXISTS (
           SELECT 1
-          FROM "message_media" AS link
-          WHERE link."media_id" = media."id"
+          FROM "message_media" AS message_media
+          WHERE message_media."media_id" = media."id"
         )
       RETURNING media."id", media."storage_key" AS "storageKey"
     `);

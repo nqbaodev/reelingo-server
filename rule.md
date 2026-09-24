@@ -69,6 +69,15 @@ Use npm and [the engineering workflow](docs/workflow.md). Test meaningful
 behavior and failure cases; do not add tests merely to mirror implementation.
 Report the checks actually run and any verification gaps.
 
+- Treat implementation and automated-test authoring as separate scopes. Do not
+  create, modify, rename, or delete automated test files, snapshots, or test-only
+  fixtures during implementation unless the user explicitly requests tests in the
+  current task.
+- Running existing tests is allowed and remains part of verification. Do not weaken
+  or remove an existing assertion to make an implementation pass.
+- When requested behavior lacks automated coverage, report that gap and leave test
+  authoring for a separately requested test phase.
+
 Update the document that owns a decision and link to it elsewhere. Keep
 `AGENTS.md` an entry point, this file a concise rule set, and detailed guidance in
 `docs/`. Use [the docs index](docs/README.md) to choose what to read.

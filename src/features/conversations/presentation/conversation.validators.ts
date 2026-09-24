@@ -23,8 +23,8 @@ export const conversationParamsSchema = z.strictObject({
 });
 
 const conversationCursorPayloadSchema = z.strictObject({
-  updatedAt: z.iso.datetime(),
-  id: z.uuid(),
+  lastMessageAt: z.iso.datetime(),
+  conversationId: z.uuid(),
 });
 
 export const listConversationsQuerySchema = z
@@ -36,8 +36,8 @@ export const listConversationsQuerySchema = z
     limit,
     cursor: cursor
       ? {
-          updatedAt: new Date(cursor.updatedAt),
-          id: cursor.id,
+          lastMessageAt: new Date(cursor.lastMessageAt),
+          conversationId: cursor.conversationId,
         }
       : undefined,
   }));
