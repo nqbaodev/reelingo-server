@@ -167,7 +167,9 @@ const message = z.object({
   conversationId: z.uuid(),
   role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
   content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
-  mediaId: z.uuid().nullable(),
+  media: z.array(
+    z.object({ id: z.uuid(), path: z.string().startsWith("/"), url: z.url() }),
+  ),
   createdAt: z.iso.datetime(),
 });
 const messageList = z.object({
@@ -379,9 +381,9 @@ export const openApiDocument = {
       post: {
         tags: ["Messages"],
         operationId: "sendMessage",
-        summary: "Send text and/or one media item",
+        summary: "Send text and/or multiple media items",
         description:
-          "Accepts content, one uploaded mediaId, or both. The media must belong to the authenticated user.",
+          "Accepts content, up to 50 uploaded mediaIds, or both. Every media item must belong to the authenticated user.",
         parameters: [
           ...languageParameters,
           {
@@ -436,8 +438,7 @@ export const openApiDocument = {
         tags: ["Media"],
         operationId: "deleteMedia",
         summary: "Delete unattached uploaded media",
-        description:
-          `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
+        description: `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
         parameters: languageParameters,
         requestBody: requestBody(deleteMediaSchema),
         responses: {
@@ -447,36 +448,35 @@ export const openApiDocument = {
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]:
-      {
-        get: {
-          tags: ["Media"],
-          operationId: "getMedia",
-          summary: "Get an owned uploaded image",
-          parameters: [
-            ...languageParameters,
-            {
-              name: "mediaId",
-              in: "path",
-              required: true,
-              schema: jsonSchema(mediaParamsSchema.shape.mediaId),
-            },
-          ],
-          responses: {
-            200: {
-              description: "Image bytes",
-              headers: responseHeaders,
-              content: {
-                "image/jpeg": { schema: { type: "string", format: "binary" } },
-                "image/png": { schema: { type: "string", format: "binary" } },
-                "image/webp": { schema: { type: "string", format: "binary" } },
-              },
-            },
-            ...errors(404, 422),
-            ...protectedErrors,
+    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]: {
+      get: {
+        tags: ["Media"],
+        operationId: "getMedia",
+        summary: "Get an owned uploaded image",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "mediaId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(mediaParamsSchema.shape.mediaId),
           },
+        ],
+        responses: {
+          200: {
+            description: "Image bytes",
+            headers: responseHeaders,
+            content: {
+              "image/jpeg": { schema: { type: "string", format: "binary" } },
+              "image/png": { schema: { type: "string", format: "binary" } },
+              "image/webp": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          ...errors(404, 422),
+          ...protectedErrors,
         },
       },
+    },
     [`${endpoints.apiPrefix}${endpoints.ai.generate}`]: {
       post: {
         tags: ["AI"],

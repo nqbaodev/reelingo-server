@@ -5,15 +5,14 @@ export const MessageRole = {
 
 export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];
 
-export type MessagePayload =
-  | {
-      content: string;
-      mediaId: string | null;
-    }
-  | {
-      content: string | null;
-      mediaId: string;
-    };
+export interface MessageMedia {
+  id: string;
+}
+
+export interface MessagePayload {
+  content: string | null;
+  mediaIds: string[];
+}
 
 interface MessageBase {
   id: string;
@@ -22,7 +21,7 @@ interface MessageBase {
   createdAt: Date;
 }
 
-export type Message = MessageBase & MessagePayload;
+export type Message = MessageBase & { content: string | null; media: MessageMedia[] };
 
 export type NewMessage = {
   conversationId: string;

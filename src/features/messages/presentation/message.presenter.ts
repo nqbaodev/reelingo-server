@@ -4,6 +4,7 @@ import {
   type CursorPage,
 } from "@/core/pagination";
 import type { Message } from "../domain";
+import { toMediaLink } from "@/features/media/presentation/media.presenter";
 import type { MessageListCursor } from "../infrastructure";
 
 export interface MessageResponse {
@@ -11,7 +12,7 @@ export interface MessageResponse {
   conversationId: string;
   role: Message["role"];
   content: string | null;
-  mediaId: string | null;
+  media: { id: string; path: string; url: string }[];
   createdAt: string;
 }
 
@@ -21,7 +22,7 @@ export function toMessageResponse(message: Message): MessageResponse {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
-    mediaId: message.mediaId,
+    media: message.media.map((item) => toMediaLink(item.id)),
     createdAt: message.createdAt.toISOString(),
   };
 }

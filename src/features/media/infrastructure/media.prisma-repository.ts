@@ -51,8 +51,8 @@ export class MediaPrismaRepository implements MediaRepository {
         AND media."id" IN (${Prisma.join(uniqueIds)})
         AND NOT EXISTS (
           SELECT 1
-          FROM "messages" AS message
-          WHERE message."media_id" = media."id"
+          FROM "message_media" AS link
+          WHERE link."media_id" = media."id"
         )
       RETURNING media."id", media."storage_key" AS "storageKey"
     `);

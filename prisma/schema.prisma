@@ -51,15 +51,13 @@ enum MediaType {
 model Message {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   conversationId String       @map("conversation_id") @db.Uuid
-  mediaId        String?      @map("media_id") @db.Uuid
   role           MessageRole
   content        String?      @db.Text
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  media          Media?       @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  media          MessageMedia[]
 
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
-  @@index([mediaId])
   @@map("messages")
 }
 
@@ -71,7 +69,7 @@ model Media {
   mimeType   String    @map("mime_type") @db.VarChar(255)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages   Message[]
+  messages   MessageMedia[]
 
   @@index([userId])
   @@map("media")
@@ -86,4 +84,17 @@ model RevokedKey {
 
   @@index([expiresAt])
   @@map("revoked_keys")
+}
+
+model MessageMedia {
+  messageId String @map("message_id") @db.Uuid
+  mediaId   String @map("media_id") @db.Uuid
+  position  Int
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  media     Media @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@id([messageId, mediaId])
+  @@unique([messageId, position])
+  @@index([mediaId])
+  @@map("message_media")
 }

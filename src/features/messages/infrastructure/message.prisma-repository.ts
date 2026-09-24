@@ -1,7 +1,7 @@
 import { createCursorPage, type CursorPage } from "@/core/pagination";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
-import type { Message, NewMessage } from "../domain";
+import type { Message } from "../domain";
 import { toEntity } from "./message.mapper";
 import type {
   CreateMessageForConversationInput,
@@ -11,15 +11,6 @@ import type {
   MessageRepository,
 } from "./message.repository";
 import { CreateMessageResultType } from "./message.repository";
-
-function toCreateData(message: NewMessage): Prisma.MessageUncheckedCreateInput {
-  return {
-    conversationId: message.conversationId,
-    role: message.role,
-    content: message.content,
-    mediaId: message.mediaId,
-  };
-}
 
 export class MessagePrismaRepository implements MessageRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -38,12 +29,11 @@ export class MessagePrismaRepository implements MessageRepository {
           return { type: CreateMessageResultType.CONVERSATION_NOT_FOUND };
         }
 
-        if (message.mediaId !== null) {
-          const media = await transaction.media.findFirst({
-            where: { id: message.mediaId, userId },
-            select: { id: true },
+        if (message.mediaIds.length > 0) {
+          const ownedCount = await transaction.media.count({
+            where: { id: { in: message.mediaIds }, userId },
           });
-          if (!media) {
+          if (ownedCount !== message.mediaIds.length) {
             return { type: CreateMessageResultType.MEDIA_NOT_FOUND };
           }
         }
@@ -54,7 +44,18 @@ export class MessagePrismaRepository implements MessageRepository {
         });
 
         const record = await transaction.message.create({
-          data: toCreateData(message),
+          data: {
+            conversationId: message.conversationId,
+            role: message.role,
+            content: message.content,
+            media: {
+              create: message.mediaIds.map((mediaId, position) => ({
+                position,
+                media: { connect: { id: mediaId } },
+              })),
+            },
+          },
+          include: { media: { include: { media: true }, orderBy: { position: "asc" } } },
         });
 
         return {
@@ -101,6 +102,7 @@ export class MessagePrismaRepository implements MessageRepository {
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
+      include: { media: { include: { media: true }, orderBy: { position: "asc" } } },
     });
     const messages = records.map(toEntity);
 

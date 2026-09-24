@@ -15,8 +15,13 @@ export interface DeletedMediaResponse {
   deletedIds: string[];
 }
 
-function getMediaPath(mediaId: string): string {
+export function getMediaPath(mediaId: string): string {
   return `${endpoints.apiPrefix}${endpoints.media.byId.replace(":mediaId", mediaId)}`;
+}
+
+export function toMediaLink(id: string): { id: string; path: string; url: string } {
+  const path = getMediaPath(id);
+  return { id, path, url: new URL(path, config.server.publicBaseUrl).toString() };
 }
 
 export function toMediaResponse(media: Media): MediaResponse {

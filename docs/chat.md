@@ -9,7 +9,7 @@ executable API contract; update this document when those decisions change.
 - `features/conversations` owns conversation creation from the first text message,
   listing, and name updates.
 - `features/messages` owns message validation, persistence, listing, and the
-  reference from a message to one uploaded media record.
+  references from a message to uploaded media records.
 - `features/media` owns authenticated image upload, local file storage, media
   persistence, and owned media retrieval.
 - `features/ai` currently exposes standalone Gemini text generation. It is not yet
@@ -58,9 +58,9 @@ Create from the first text message:
 - `Message.id` is a database-generated UUID.
 - `role` is either `user` or `assistant`. The public send-message endpoint always
   assigns `user`; clients cannot choose or spoof the role.
-- A message contains `content`, one uploaded `mediaId`, or both. At least one must
-  be present, and multiple media items are not supported.
-- `mediaId` must reference media owned by the authenticated user. A missing or
+- A message contains `content`, one to fifty uploaded media IDs, or both. At least one must
+  be present.
+- Every ID in `mediaIds` must reference media owned by the authenticated user. A missing or
   non-owned media record returns the same 404 outcome and does not reveal another
   user's data.
 - Text content is trimmed, cannot be empty, and is limited to 8,000 characters.
@@ -86,12 +86,12 @@ Text-only request:
 }
 ```
 
-Text with one image:
+Text with images:
 
 ```json
 {
   "content": "What is in this image?",
-  "mediaId": "6aa7ba5e-5bf0-43ec-bb58-068e21cad413"
+  "mediaIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
@@ -99,12 +99,14 @@ Image-only message:
 
 ```json
 {
-  "mediaId": "6aa7ba5e-5bf0-43ec-bb58-068e21cad413"
+  "mediaIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
 Upload the image first with `POST /api/v1/media`, then send the returned `id` as
-`mediaId`. The message endpoint never accepts raw file bytes, storage paths, URLs,
+`mediaIds`. Message responses contain a `media` array, ordered as requested,
+with each item containing `id`, authenticated API `path`, and absolute `url`.
+The message endpoint never accepts raw file bytes, storage paths, URLs,
 MIME types, or file sizes.
 
 ## Media
@@ -133,16 +135,16 @@ MIME types, or file sizes.
 - A future S3/R2 adapter can replace local storage through the media storage
   contract without changing the upload use case or API response.
 - Upload and message creation are separate requests. An upload remains unattached
-  until its `id` is used as a message's `mediaId`.
+  until its `id` is used in a message's `mediaIds`.
 
 ## Persistence invariants
 
-PostgreSQL constraints enforce the valid stored shapes:
-
-- text-only: non-empty `content`, with `mediaId` null;
-- media with optional text: a non-null `mediaId` referencing `Media`;
-- deleting a conversation cascades to its messages.
-- deleting media referenced by a message is restricted.
+PostgreSQL constraints enforce non-blank stored content, media foreign keys,
+unique media per message, and stable media positions. The request validator
+enforces at least one of content or media; the join table cannot enforce this
+across rows. Deleting a conversation cascades to its messages and media links.
+Deleting media referenced by a message is restricted. Existing single-media
+messages are copied into the join table at position zero by the migration.
 
 Creating a conversation uses one atomic nested write for the conversation and its
 first user message. Sending a later message uses one transaction to verify both
@@ -171,7 +173,7 @@ The following behavior is intentionally not implemented yet:
 - building AI context from previous messages;
 - replacing the initial name with an AI-generated summary;
 - creating a conversation from a media-only first message;
-- multi-media messages, message edits, and message deletion.
+- message edits and message deletion.
 
 ## Change checklist
 

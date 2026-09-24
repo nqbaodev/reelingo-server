@@ -11,31 +11,21 @@ export const messageContentSchema = z
   .min(1)
   .max(MAX_MESSAGE_CONTENT_LENGTH)
   .refine((content) => !content.includes(NULL_BYTE));
-const rawCreateMessageSchema = z
+export const createMessageSchema = z
   .strictObject({
     content: messageContentSchema.optional(),
-    mediaId: z.uuid().optional(),
+    mediaIds: z
+      .array(z.uuid())
+      .min(1)
+      .max(50)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
   })
-  .refine((input) => input.content !== undefined || input.mediaId !== undefined);
-
-export const createMessageSchema = rawCreateMessageSchema.transform(
-  (input): MessagePayload => {
-    if (!input.mediaId) {
-      if (input.content === undefined) {
-        throw new Error("Validated message payload has no content or mediaId");
-      }
-      return {
-        content: input.content,
-        mediaId: null,
-      };
-    }
-
-    return {
-      content: input.content ?? null,
-      mediaId: input.mediaId,
-    };
-  },
-);
+  .refine((input) => input.content !== undefined || input.mediaIds !== undefined)
+  .transform((input): MessagePayload => ({
+    content: input.content ?? null,
+    mediaIds: input.mediaIds ?? [],
+  }));
 
 export const messageConversationParamsSchema = z.strictObject({
   conversationId: z.uuid(),

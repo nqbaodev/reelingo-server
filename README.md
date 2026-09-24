@@ -61,30 +61,30 @@ at startup and owns all environment-backed settings. `src/config/config.ts`
 exposes the public `config` facade that application code imports — never
 `process.env`. `src/shared/http/endpoints.ts` owns static route paths.
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `DATABASE_URL` | yes | — | PostgreSQL connection string |
-| `DATABASE_CONNECT_TIMEOUT_MS` | no | `3000` | Pool connection/acquisition timeout; max 60,000 ms |
-| `DATABASE_QUERY_TIMEOUT_MS` | no | `5000` | PostgreSQL statement and client query timeout; max 60,000 ms |
-| `GOOGLE_CLIENT_ID` | yes | — | OAuth client ID the Google ID token must be issued for |
-| `GEMINI_API_KEY` | yes | — | Google AI Studio key; server-only |
-| `JWT_SECRET` | yes | — | Signing key, at least 32 characters |
-| `NODE_ENV` | no | `development` | `development` \| `test` \| `production` |
-| `PORT` | no | `3000` | HTTP port |
-| `LOG_LEVEL` | no | `info` | Pino level |
-| `CORS_ORIGIN` | no | `*` | Allowed origin |
-| `PUBLIC_BASE_URL` | no | `http://localhost:<PORT>` | Absolute base URL used in media upload responses |
-| `MEDIA_STORAGE_ROOT` | no | `storage/media` | Local filesystem directory for uploaded media |
-| `GEMINI_MODEL` | no | `gemini-2.5-flash` | Model id, changeable without a deploy |
-| `GEMINI_TIMEOUT_MS` | no | `30000` | Gemini request timeout; max 300,000 ms |
-| `JWT_ISSUER` | no | `reelingo-server` | `iss` claim |
-| `JWT_AUDIENCE` | no | `reelingo-api` | `aud` claim |
-| `ACCESS_TOKEN_TTL_MINUTES` | no | `15` | Access token lifetime |
-| `SESSION_TTL_MINUTES` | no | `10080` | Session and refresh token lifetime (7 days) |
-| `AUTH_RATE_LIMIT` | no | `20` | Requests per window on login and refresh |
-| `AUTH_RATE_WINDOW_SECONDS` | no | `60` | Auth rate-limit window |
-| `API_RATE_LIMIT` | no | `100` | Requests per window on `/api/v1` |
-| `API_RATE_WINDOW_SECONDS` | no | `60` | API rate-limit window |
+| Variable                      | Required | Default                   | Purpose                                                      |
+| ----------------------------- | -------- | ------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                | yes      | —                         | PostgreSQL connection string                                 |
+| `DATABASE_CONNECT_TIMEOUT_MS` | no       | `3000`                    | Pool connection/acquisition timeout; max 60,000 ms           |
+| `DATABASE_QUERY_TIMEOUT_MS`   | no       | `5000`                    | PostgreSQL statement and client query timeout; max 60,000 ms |
+| `GOOGLE_CLIENT_ID`            | yes      | —                         | OAuth client ID the Google ID token must be issued for       |
+| `GEMINI_API_KEY`              | yes      | —                         | Google AI Studio key; server-only                            |
+| `JWT_SECRET`                  | yes      | —                         | Signing key, at least 32 characters                          |
+| `NODE_ENV`                    | no       | `development`             | `development` \| `test` \| `production`                      |
+| `PORT`                        | no       | `3000`                    | HTTP port                                                    |
+| `LOG_LEVEL`                   | no       | `info`                    | Pino level                                                   |
+| `CORS_ORIGIN`                 | no       | `*`                       | Allowed origin                                               |
+| `PUBLIC_BASE_URL`             | no       | `http://localhost:<PORT>` | Absolute base URL used in media upload responses             |
+| `MEDIA_STORAGE_ROOT`          | no       | `storage/media`           | Local filesystem directory for uploaded media                |
+| `GEMINI_MODEL`                | no       | `gemini-2.5-flash`        | Model id, changeable without a deploy                        |
+| `GEMINI_TIMEOUT_MS`           | no       | `30000`                   | Gemini request timeout; max 300,000 ms                       |
+| `JWT_ISSUER`                  | no       | `reelingo-server`         | `iss` claim                                                  |
+| `JWT_AUDIENCE`                | no       | `reelingo-api`            | `aud` claim                                                  |
+| `ACCESS_TOKEN_TTL_MINUTES`    | no       | `15`                      | Access token lifetime                                        |
+| `SESSION_TTL_MINUTES`         | no       | `10080`                   | Session and refresh token lifetime (7 days)                  |
+| `AUTH_RATE_LIMIT`             | no       | `20`                      | Requests per window on login and refresh                     |
+| `AUTH_RATE_WINDOW_SECONDS`    | no       | `60`                      | Auth rate-limit window                                       |
+| `API_RATE_LIMIT`              | no       | `100`                     | Requests per window on `/api/v1`                             |
+| `API_RATE_WINDOW_SECONDS`     | no       | `60`                      | API rate-limit window                                        |
 
 ### Secrets
 
@@ -92,11 +92,11 @@ Three variables are secrets. They live only in `.env` (gitignored) or the
 deployment's secret store — never in `.env.example`, commits, logs, chat, or
 pull-request text.
 
-| Secret | Where it comes from | Notes |
-| --- | --- | --- |
-| `JWT_SECRET` | Generate locally with the command below | Every environment gets its own value. **Rotating it invalidates every issued access and refresh token**, signing all users out at once — intended when the key is suspected leaked, disruptive otherwise. |
-| `GOOGLE_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID | Not actually secret (it ships in frontend code), but treat the accompanying *client secret* as one — this server never needs it, so do not store it here. |
-| `GEMINI_API_KEY` | Google AI Studio → Get API key | Server-only; billed per call. |
+| Secret             | Where it comes from                                                        | Notes                                                                                                                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`       | Generate locally with the command below                                    | Every environment gets its own value. **Rotating it invalidates every issued access and refresh token**, signing all users out at once — intended when the key is suspected leaked, disruptive otherwise. |
+| `GOOGLE_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID | Not actually secret (it ships in frontend code), but treat the accompanying _client secret_ as one — this server never needs it, so do not store it here.                                                 |
+| `GEMINI_API_KEY`   | Google AI Studio → Get API key                                             | Server-only; billed per call.                                                                                                                                                                             |
 
 Generate a fresh `JWT_SECRET`:
 
@@ -152,14 +152,14 @@ psql -h localhost -p 5432 -U reelingo -d reelingo_dev -c "\dt"
 npx prisma migrate status
 ```
 
-| Error message | Cause | Fix |
-| --- | --- | --- |
-| `Connection refused` | Server not running, or wrong port | Check `pg_isready` |
-| `role "..." does not exist` | Role not created yet | See the role step above |
-| `database "..." does not exist` | Database not created yet | See the database step above |
-| `password authentication failed` | Password differs from `DATABASE_URL` | Align `.env` with the role's password |
-| `P1010: User was denied access` | Usually a port-5432 clash with Docker | Check `lsof` |
-| `P3014: could not create the shadow database` | Role is missing `CREATEDB` | `ALTER ROLE reelingo CREATEDB;` |
+| Error message                                 | Cause                                 | Fix                                   |
+| --------------------------------------------- | ------------------------------------- | ------------------------------------- |
+| `Connection refused`                          | Server not running, or wrong port     | Check `pg_isready`                    |
+| `role "..." does not exist`                   | Role not created yet                  | See the role step above               |
+| `database "..." does not exist`               | Database not created yet              | See the database step above           |
+| `password authentication failed`              | Password differs from `DATABASE_URL`  | Align `.env` with the role's password |
+| `P1010: User was denied access`               | Usually a port-5432 clash with Docker | Check `lsof`                          |
+| `P3014: could not create the shadow database` | Role is missing `CREATEDB`            | `ALTER ROLE reelingo CREATEDB;`       |
 
 ### Inspect the data
 
@@ -185,20 +185,20 @@ quits.
 
 ## Scripts
 
-| Script | Description |
-| --- | --- |
-| `npm run dev` | Run the dev server with hot reload (tsx) |
-| `npm run build` | Compile TypeScript into `dist/` |
-| `npm start` | Run the compiled build (production) |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` / `lint:fix` | ESLint |
-| `npm run format` | Prettier |
-| `npm run check` | typecheck + lint |
-| `npm test` / `test:watch` | Run/watch Vitest unit and HTTP integration tests |
-| `npm run verify` | TypeScript + lint + tests + production build; coverage limits are in docs/workflow.md |
-| `npm run prisma:generate` | Generate the Prisma Client |
-| `npm run prisma:migrate` | Run migrations (dev) |
-| `npm run prisma:studio` | Open Prisma Studio |
+| Script                      | Description                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `npm run dev`               | Run the dev server with hot reload (tsx)                                              |
+| `npm run build`             | Compile TypeScript into `dist/`                                                       |
+| `npm start`                 | Run the compiled build (production)                                                   |
+| `npm run typecheck`         | `tsc --noEmit`                                                                        |
+| `npm run lint` / `lint:fix` | ESLint                                                                                |
+| `npm run format`            | Prettier                                                                              |
+| `npm run check`             | typecheck + lint                                                                      |
+| `npm test` / `test:watch`   | Run/watch Vitest unit and HTTP integration tests                                      |
+| `npm run verify`            | TypeScript + lint + tests + production build; coverage limits are in docs/workflow.md |
+| `npm run prisma:generate`   | Generate the Prisma Client                                                            |
+| `npm run prisma:migrate`    | Run migrations (dev)                                                                  |
+| `npm run prisma:studio`     | Open Prisma Studio                                                                    |
 
 ## API
 
@@ -209,31 +209,31 @@ the prefix; health and documentation paths are mounted at the root.
 
 ### Public
 
-| Method | Path | Description |
-| --- | --- | --- |
+| Method | Path                        | Description                                                   |
+| ------ | --------------------------- | ------------------------------------------------------------- |
 | `POST` | `/api/v1/auth/login/google` | Exchange a Google ID token for an access + refresh token pair |
-| `POST` | `/api/v1/auth/refresh` | Rotate a refresh token into a new pair |
-| `GET` | `/health` | Health check |
-| `GET` | `/ready` | PostgreSQL readiness; 503 when unreachable |
-| `GET` | `/docs/` | Swagger UI with JWT authorization |
-| `GET` | `/openapi.json` | OpenAPI 3.1 document |
+| `POST` | `/api/v1/auth/refresh`      | Rotate a refresh token into a new pair                        |
+| `GET`  | `/health`                   | Health check                                                  |
+| `GET`  | `/ready`                    | PostgreSQL readiness; 503 when unreachable                    |
+| `GET`  | `/docs/`                    | Swagger UI with JWT authorization                             |
+| `GET`  | `/openapi.json`             | OpenAPI 3.1 document                                          |
 
 ### Requires `Authorization: Bearer <accessToken>`
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/v1/me` | Current authenticated user |
-| `PATCH` | `/api/v1/me` | Update the current user's name or avatar |
-| `POST` | `/api/v1/auth/logout` | Revoke the current session |
-| `POST` | `/api/v1/conversations` | Create a conversation from its first text message |
-| `GET` | `/api/v1/conversations` | List conversations with cursor pagination |
-| `PATCH` | `/api/v1/conversations/:conversationId` | Update an owned conversation's name |
-| `POST` | `/api/v1/conversations/:conversationId/messages` | Send text and/or one uploaded media by `mediaId` |
-| `GET` | `/api/v1/conversations/:conversationId/messages` | List messages with cursor pagination |
-| `POST` | `/api/v1/media` | Upload one JPEG, PNG, or WebP image up to 2 MiB |
-| `POST` | `/api/v1/media/delete` | Delete owned uploaded images that are not attached to messages |
-| `GET` | `/api/v1/media/:mediaId` | Read an owned uploaded image |
-| `POST` | `/api/v1/ai/generate` | Generate text from a prompt with Gemini |
+| Method  | Path                                             | Description                                                    |
+| ------- | ------------------------------------------------ | -------------------------------------------------------------- |
+| `GET`   | `/api/v1/me`                                     | Current authenticated user                                     |
+| `PATCH` | `/api/v1/me`                                     | Update the current user's name or avatar                       |
+| `POST`  | `/api/v1/auth/logout`                            | Revoke the current session                                     |
+| `POST`  | `/api/v1/conversations`                          | Create a conversation from its first text message              |
+| `GET`   | `/api/v1/conversations`                          | List conversations with cursor pagination                      |
+| `PATCH` | `/api/v1/conversations/:conversationId`          | Update an owned conversation's name                            |
+| `POST`  | `/api/v1/conversations/:conversationId/messages` | Send text and/or up to 50 uploaded media by `mediaIds`         |
+| `GET`   | `/api/v1/conversations/:conversationId/messages` | List messages with cursor pagination                           |
+| `POST`  | `/api/v1/media`                                  | Upload one JPEG, PNG, or WebP image up to 2 MiB                |
+| `POST`  | `/api/v1/media/delete`                           | Delete owned uploaded images that are not attached to messages |
+| `GET`   | `/api/v1/media/:mediaId`                         | Read an owned uploaded image                                   |
+| `POST`  | `/api/v1/ai/generate`                            | Generate text from a prompt with Gemini                        |
 
 ### Local media storage
 
@@ -303,6 +303,11 @@ Clients may send a request ID containing 1–128 ASCII letters, digits, dots,
 underscores, or hyphens; otherwise the server generates a UUID. HTTP logs and
 errors logged through `req.log` carry the same ID in `req.id`.
 
+The HTTP logger emits structured request-received and response-completed events
+with the request ID, method, path, status, and duration. Client errors use `warn`;
+server and unhandled errors use `error`. Request bodies, query values,
+authorization headers, and cookies are not logged.
+
 These patterns are adapted from AIM Core's `src/core/middleware/request_id.py`,
 `src/core/logging.py`, and `src/integrations/agent_runtime/adapters/http_adapter.py`
 in the AIM OS server repository. Reelingo uses Pino for request-scoped logging
@@ -359,11 +364,13 @@ and put interpolation values in `params`:
 import { I18n } from "@/core/i18n";
 
 throw new NotFoundError(I18n.userNotFound);
-throw new ServiceUnavailableError(I18n.serviceUnavailable, { params: { service: "Gemini" } });
+throw new ServiceUnavailableError(I18n.serviceUnavailable, {
+  params: { service: "Gemini" },
+});
 ```
 
 `I18n` is derived from `en.json` at both runtime and type level — the JSON
-key *is* the property name, no case conversion — so it needs no maintenance, offers
+key _is_ the property name, no case conversion — so it needs no maintenance, offers
 autocomplete, and a removed key breaks every caller at compile time — the same
 ergonomics as Flutter's generated `AppLocalizations`.
 
