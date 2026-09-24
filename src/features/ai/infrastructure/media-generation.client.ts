@@ -26,9 +26,29 @@ export interface MediaGenerationClient {
   generateCompletionText(input: GenerateCompletionTextInput): Promise<string>;
 }
 
+export const MediaGenerationFailureType = {
+  RETRYABLE: "retryable",
+  BLOCKED: "blocked",
+  INVALID: "invalid",
+  UNKNOWN: "unknown",
+} as const;
+
+export type MediaGenerationFailureType =
+  (typeof MediaGenerationFailureType)[keyof typeof MediaGenerationFailureType];
+
+interface MediaGenerationErrorOptions extends ErrorOptions {
+  failureType?: MediaGenerationFailureType;
+  providerCode?: string | null;
+}
+
 export class MediaGenerationUnavailableError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
+  readonly failureType: MediaGenerationFailureType;
+  readonly providerCode: string | null;
+
+  constructor(message: string, options: MediaGenerationErrorOptions = {}) {
     super(message, options);
     this.name = new.target.name;
+    this.failureType = options.failureType ?? MediaGenerationFailureType.UNKNOWN;
+    this.providerCode = options.providerCode ?? null;
   }
 }

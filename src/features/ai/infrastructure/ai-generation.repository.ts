@@ -25,7 +25,7 @@ export interface GeneratedMediaRecord {
 export interface CompleteAiGenerationInput {
   id: string;
   claimVersion: Date;
-  content: string;
+  content: string | null;
   media: readonly GeneratedMediaRecord[];
 }
 

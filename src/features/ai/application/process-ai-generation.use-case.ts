@@ -107,24 +107,27 @@ export class ProcessAiGenerationUseCase {
         throw new Error("AI generation requires a text prompt");
       }
 
-      const outputs = await this.generator.generate({
-        generationId: generation.id,
-        prompt: generation.prompt,
-        type: generation.type,
-        config: generation.config,
-        signal,
-      });
+      const [outputs, completionText] = await Promise.all([
+        this.generator.generate({
+          generationId: generation.id,
+          prompt: generation.prompt,
+          type: generation.type,
+          config: generation.config,
+          signal,
+        }),
+        this.generator
+          .generateCompletionText({
+            prompt: generation.prompt,
+            type: generation.type,
+            outputCount: generation.config.outputCount,
+            signal,
+          })
+          .then(normalizeCompletionText)
+          .catch(() => null),
+      ]);
       if (outputs.length < 1 || outputs.length > MAX_MESSAGE_MEDIA_COUNT) {
         throw new Error("AI media provider returned an invalid output count");
       }
-      const content = normalizeCompletionText(
-        await this.generator.generateCompletionText({
-          prompt: generation.prompt,
-          type: generation.type,
-          outputCount: outputs.length,
-          signal,
-        }),
-      );
       const storedMedia = [];
       for (const output of outputs) {
         const storageKey = await this.storage.storeGenerated({
@@ -151,7 +154,7 @@ export class ProcessAiGenerationUseCase {
       const message = await this.generations.completeClaim({
         id: generation.id,
         claimVersion,
-        content,
+        content: completionText,
         media: storedMedia,
       });
       if (!message) {
@@ -176,10 +179,7 @@ export class ProcessAiGenerationUseCase {
       const secondaryFailures = await this.deleteStoredMedia(storedKeys);
       if (!signal.aborted && claimVersion) {
         try {
-          const failed = await this.generations.failClaim(
-            generation.id,
-            claimVersion,
-          );
+          const failed = await this.generations.failClaim(generation.id, claimVersion);
           if (failed) {
             this.events.publish({
               type: AiGenerationEventType.FAILED,

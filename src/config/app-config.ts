@@ -27,7 +27,7 @@ const envSchema = z.object({
   GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   GEMINI_TIMEOUT_MS: z.coerce.number().int().positive().max(300_000).default(30_000),
   GEMINI_IMAGE_MODEL: z.string().min(1).default("gemini-3.1-flash-image"),
-  GEMINI_VIDEO_MODEL: z.string().min(1).default("veo-3.1-generate-preview"),
+  GEMINI_VIDEO_MODEL: z.string().min(1).default("veo-3.1-fast-generate-preview"),
   AI_GENERATION_WORKER_ENABLED: z
     .enum(["true", "false"])
     .default("false")
@@ -55,7 +55,7 @@ const envSchema = z.object({
     .int()
     .min(1_000)
     .max(60_000)
-    .default(10_000),
+    .default(2_000),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_ISSUER: z.string().default("reelingo-server"),
   JWT_AUDIENCE: z.string().default("reelingo-api"),

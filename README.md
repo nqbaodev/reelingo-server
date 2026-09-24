@@ -61,37 +61,37 @@ at startup and owns all environment-backed settings. `src/config/config.ts`
 exposes the public `config` facade that application code imports — never
 `process.env`. `src/shared/http/endpoints.ts` owns static route paths.
 
-| Variable                         | Required | Default                    | Purpose                                                      |
-| -------------------------------- | -------- | -------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`                   | yes      | —                          | PostgreSQL connection string                                 |
-| `DATABASE_CONNECT_TIMEOUT_MS`    | no       | `3000`                     | Pool connection/acquisition timeout; max 60,000 ms           |
-| `DATABASE_QUERY_TIMEOUT_MS`      | no       | `5000`                     | PostgreSQL statement and client query timeout; max 60,000 ms |
-| `GOOGLE_CLIENT_ID`               | yes      | —                          | OAuth client ID the Google ID token must be issued for       |
-| `GEMINI_API_KEY`                 | yes      | —                          | Google AI Studio key; server-only                            |
-| `JWT_SECRET`                     | yes      | —                          | Signing key, at least 32 characters                          |
-| `NODE_ENV`                       | no       | `development`              | `development` \| `test` \| `production`                      |
-| `PORT`                           | no       | `3000`                     | HTTP port                                                    |
-| `LOG_LEVEL`                      | no       | `info`                     | Pino level                                                   |
-| `CORS_ORIGIN`                    | no       | `*`                        | Allowed origin                                               |
-| `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`  | Absolute base URL used in media upload responses             |
-| `MEDIA_STORAGE_ROOT`             | no       | `storage/media`            | Local filesystem directory for uploaded media                |
-| `GEMINI_MODEL`                   | no       | `gemini-2.5-flash`         | Model id, changeable without a deploy                        |
-| `GEMINI_TIMEOUT_MS`              | no       | `30000`                    | Gemini request timeout; max 300,000 ms                       |
-| `GEMINI_IMAGE_MODEL`             | no       | `gemini-3.1-flash-image`   | Image-generation model id                                    |
-| `GEMINI_VIDEO_MODEL`             | no       | `veo-3.1-generate-preview` | Video-generation model id                                    |
-| `AI_GENERATION_WORKER_ENABLED`   | no       | `false`                    | Enables billed background image/video generation             |
-| `AI_GENERATION_POLL_INTERVAL_MS` | no       | `1000`                     | Delay while the generation queue is empty                    |
-| `AI_GENERATION_LEASE_MS`         | no       | `60000`                    | Worker lease duration, renewed while a job is running        |
-| `AI_GENERATION_TIMEOUT_MS`       | no       | `600000`                   | Overall image/video provider timeout                         |
-| `AI_VIDEO_POLL_INTERVAL_MS`      | no       | `10000`                    | Delay between video operation status checks                  |
-| `JWT_ISSUER`                     | no       | `reelingo-server`          | `iss` claim                                                  |
-| `JWT_AUDIENCE`                   | no       | `reelingo-api`             | `aud` claim                                                  |
-| `ACCESS_TOKEN_TTL_MINUTES`       | no       | `15`                       | Access token lifetime                                        |
-| `SESSION_TTL_MINUTES`            | no       | `10080`                    | Session and refresh token lifetime (7 days)                  |
-| `AUTH_RATE_LIMIT`                | no       | `20`                       | Requests per window on login and refresh                     |
-| `AUTH_RATE_WINDOW_SECONDS`       | no       | `60`                       | Auth rate-limit window                                       |
-| `API_RATE_LIMIT`                 | no       | `100`                      | Requests per window on `/api/v1`                             |
-| `API_RATE_WINDOW_SECONDS`        | no       | `60`                       | API rate-limit window                                        |
+| Variable                         | Required | Default                         | Purpose                                                      |
+| -------------------------------- | -------- | ------------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                   | yes      | —                               | PostgreSQL connection string                                 |
+| `DATABASE_CONNECT_TIMEOUT_MS`    | no       | `3000`                          | Pool connection/acquisition timeout; max 60,000 ms           |
+| `DATABASE_QUERY_TIMEOUT_MS`      | no       | `5000`                          | PostgreSQL statement and client query timeout; max 60,000 ms |
+| `GOOGLE_CLIENT_ID`               | yes      | —                               | OAuth client ID the Google ID token must be issued for       |
+| `GEMINI_API_KEY`                 | yes      | —                               | Google AI Studio key; server-only                            |
+| `JWT_SECRET`                     | yes      | —                               | Signing key, at least 32 characters                          |
+| `NODE_ENV`                       | no       | `development`                   | `development` \| `test` \| `production`                      |
+| `PORT`                           | no       | `3000`                          | HTTP port                                                    |
+| `LOG_LEVEL`                      | no       | `info`                          | Pino level                                                   |
+| `CORS_ORIGIN`                    | no       | `*`                             | Allowed origin                                               |
+| `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`       | Absolute base URL used in media upload responses             |
+| `MEDIA_STORAGE_ROOT`             | no       | `storage/media`                 | Local filesystem directory for uploaded media                |
+| `GEMINI_MODEL`                   | no       | `gemini-2.5-flash`              | Model id, changeable without a deploy                        |
+| `GEMINI_TIMEOUT_MS`              | no       | `30000`                         | Gemini request timeout; max 300,000 ms                       |
+| `GEMINI_IMAGE_MODEL`             | no       | `gemini-3.1-flash-image`        | Image-generation model id                                    |
+| `GEMINI_VIDEO_MODEL`             | no       | `veo-3.1-fast-generate-preview` | Low-latency video-generation model id                        |
+| `AI_GENERATION_WORKER_ENABLED`   | no       | `false`                         | Enables billed background image/video generation             |
+| `AI_GENERATION_POLL_INTERVAL_MS` | no       | `1000`                          | Delay while the generation queue is empty                    |
+| `AI_GENERATION_LEASE_MS`         | no       | `60000`                         | Worker lease duration, renewed while a job is running        |
+| `AI_GENERATION_TIMEOUT_MS`       | no       | `600000`                        | Overall image/video provider timeout                         |
+| `AI_VIDEO_POLL_INTERVAL_MS`      | no       | `2000`                          | Delay between video operation status checks                  |
+| `JWT_ISSUER`                     | no       | `reelingo-server`               | `iss` claim                                                  |
+| `JWT_AUDIENCE`                   | no       | `reelingo-api`                  | `aud` claim                                                  |
+| `ACCESS_TOKEN_TTL_MINUTES`       | no       | `15`                            | Access token lifetime                                        |
+| `SESSION_TTL_MINUTES`            | no       | `10080`                         | Session and refresh token lifetime (7 days)                  |
+| `AUTH_RATE_LIMIT`                | no       | `20`                            | Requests per window on login and refresh                     |
+| `AUTH_RATE_WINDOW_SECONDS`       | no       | `60`                            | Auth rate-limit window                                       |
+| `API_RATE_LIMIT`                 | no       | `100`                           | Requests per window on `/api/v1`                             |
+| `API_RATE_WINDOW_SECONDS`        | no       | `60`                            | API rate-limit window                                        |
 
 ### Secrets
 

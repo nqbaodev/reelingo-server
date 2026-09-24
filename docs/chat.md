@@ -80,8 +80,10 @@ Create from the first text message:
   video settings. `intentHint` is only a hint; it cannot trigger generation on its
   own. If the prompt asks for media but does not identify image or video, the AI
   should ask a clarifying question as normal assistant text.
-- Generation settings contain aspect ratio, resolution, quality, output count,
-  and prompt enhancement. They are not persisted for ordinary chat. When the AI
+- Image settings contain a supported aspect ratio, `512`/`1K`/`2K`/`4K`
+  resolution, and one to four outputs. Video settings contain `16:9` or `9:16`,
+  `720p`/`1080p`/`4k`, exactly one output, and optional prompt enhancement. They
+  are not persisted for ordinary chat. When the AI
   chooses a media tool, the matching image/video settings are copied into the new
   generation row as an immutable JSONB snapshot. Missing settings use server
   defaults.
@@ -108,11 +110,18 @@ Create from the first text message:
   user/assistant turn. A concurrent request while a run is processing returns 409.
   Failed runs may be retried. A processing claim older than the Gemini timeout plus
   a safety buffer may be reclaimed after a server interruption.
-- The generation worker creates the media first, then asks Gemini for a concise
-  completion text in the user's language. One transaction creates a single
-  `assistant` message containing that text and its ordered `MessageMedia` rows,
-  completes the generation, and assigns the message to both generation and chat
-  run `resultMessageId` fields.
+- The generation worker creates media and requests a concise completion text in
+  parallel. Completion text is best-effort and may be null, so a secondary text
+  request cannot discard successfully generated media. One transaction creates a
+  single `assistant` message and its ordered `MessageMedia` rows, completes the
+  generation, and assigns the message to both generation and chat run
+  `resultMessageId` fields.
+- Image generation sends at most two provider requests concurrently. A multi-image
+  request succeeds when at least one image is valid, preserving successful outputs
+  instead of discarding the whole batch when a sibling request fails.
+- Video generation polls Veo with a bounded increasing delay and jitter. The initial
+  interval remains short for fast jobs, while longer jobs reduce unnecessary provider
+  requests; cancellation is checked before each follow-up poll.
 - Message responses expose the associated `generation` on both sides: the user
   prompt has `triggerMessageId` equal to its own ID, while the assistant result
   has the same generation ID and points back to that trigger message.
@@ -173,9 +182,8 @@ Prompt requesting image generation:
       "image": {
         "aspectRatio": "16:9",
         "resolution": "1K",
-        "quality": "medium",
         "outputCount": 2,
-        "enhancePrompt": true
+        "enhancePrompt": false
       }
     }
   }

@@ -10,9 +10,12 @@ import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import {
-  MAX_AI_GENERATION_CONFIG_VALUE_LENGTH,
+  IMAGE_GENERATION_ASPECT_RATIOS,
+  IMAGE_GENERATION_RESOLUTIONS,
   MAX_AI_GENERATION_OUTPUT_COUNT,
   MIN_AI_GENERATION_OUTPUT_COUNT,
+  VIDEO_GENERATION_ASPECT_RATIOS,
+  VIDEO_GENERATION_RESOLUTIONS,
 } from "@/features/ai/domain";
 import {
   googleLoginSchema,
@@ -170,25 +173,40 @@ const conversationList = z.object({
   items: z.array(conversationSummary),
   nextCursor: z.string().nullable(),
 });
-const aiGenerationConfig = z.object({
-  aspectRatio: z.string().max(MAX_AI_GENERATION_CONFIG_VALUE_LENGTH).nullable(),
-  resolution: z.string().max(MAX_AI_GENERATION_CONFIG_VALUE_LENGTH).nullable(),
-  quality: z.string().max(MAX_AI_GENERATION_CONFIG_VALUE_LENGTH).nullable(),
+const imageGenerationConfig = z.object({
+  aspectRatio: z.enum(IMAGE_GENERATION_ASPECT_RATIOS).nullable(),
+  resolution: z.enum(IMAGE_GENERATION_RESOLUTIONS).nullable(),
   outputCount: z
     .number()
     .int()
     .min(MIN_AI_GENERATION_OUTPUT_COUNT)
     .max(MAX_AI_GENERATION_OUTPUT_COUNT),
+  enhancePrompt: z.literal(false),
+});
+const videoGenerationConfig = z.object({
+  aspectRatio: z.enum(VIDEO_GENERATION_ASPECT_RATIOS).nullable(),
+  resolution: z.enum(VIDEO_GENERATION_RESOLUTIONS).nullable(),
+  outputCount: z.literal(1),
   enhancePrompt: z.boolean(),
 });
-const messageGeneration = z.object({
+const generationBase = {
   id: z.uuid(),
   triggerMessageId: z.uuid(),
-  type: z.enum(["image", "video"]),
   status: z.enum(["pending", "processing", "completed", "failed"]),
-  config: aiGenerationConfig,
   resultMessageId: z.uuid().nullable(),
-});
+};
+const messageGeneration = z.discriminatedUnion("type", [
+  z.object({
+    ...generationBase,
+    type: z.literal("image"),
+    config: imageGenerationConfig,
+  }),
+  z.object({
+    ...generationBase,
+    type: z.literal("video"),
+    config: videoGenerationConfig,
+  }),
+]);
 const messageChatRun = z.object({
   id: z.uuid(),
   status: z.enum(["pending", "processing", "completed", "failed"]),

@@ -1,10 +1,10 @@
 import { z } from "zod";
-import {
-  MAX_MESSAGE_CONTENT_LENGTH,
-  MAX_MESSAGE_MEDIA_COUNT,
-} from "@/config";
+import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_MEDIA_COUNT } from "@/config";
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
-import { aiGenerationConfigSchema } from "@/features/ai/presentation/ai-generation.validators";
+import {
+  imageGenerationConfigSchema,
+  videoGenerationConfigSchema,
+} from "@/features/ai/presentation/ai-generation.validators";
 import { MediaType } from "@/features/media/domain";
 import type { CreateMessagePayload } from "../domain";
 
@@ -18,8 +18,8 @@ export const messageContentSchema = z
   .refine((content) => !content.includes(NULL_BYTE));
 
 const aiGenerationSettingsSchema = z.strictObject({
-  [MediaType.IMAGE]: aiGenerationConfigSchema.optional(),
-  [MediaType.VIDEO]: aiGenerationConfigSchema.optional(),
+  [MediaType.IMAGE]: imageGenerationConfigSchema.optional(),
+  [MediaType.VIDEO]: videoGenerationConfigSchema.optional(),
 });
 
 const aiContextSchema = z.strictObject({
