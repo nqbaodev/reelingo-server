@@ -25,7 +25,14 @@ export function errorHandler(
   const expected = normalizeHttpError(err);
   if (expected) {
     if (expected.statusCode >= 500) {
-      req.log.error({ err: expected }, expected.message);
+      req.log.error(
+        {
+          err: expected,
+          statusCode: expected.statusCode,
+          errorCode: expected.code,
+        },
+        expected.message,
+      );
     }
     res.status(expected.statusCode).json({
       success: false,
@@ -38,7 +45,10 @@ export function errorHandler(
     return;
   }
 
-  req.log.error({ err }, "Unhandled error");
+  req.log.error(
+    { err, statusCode: 500, errorCode: "INTERNAL_SERVER_ERROR" },
+    "Unhandled error",
+  );
   res.status(500).json({
     success: false,
     message: translate(I18n.somethingWentWrong, req.language),
