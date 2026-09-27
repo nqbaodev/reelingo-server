@@ -1,2 +1,2 @@
-export * from "./ai-generation.entity";
-export * from "./chat.entity";
+export * from "./entities/ai-generation.entity";
+export * from "./entities/chat.entity";

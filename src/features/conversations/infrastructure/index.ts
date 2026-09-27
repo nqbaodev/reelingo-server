@@ -1,2 +1,2 @@
-export * from "./conversation.prisma-repository";
-export * from "./conversation.repository";
+export * from "./repositories/conversation.prisma-repository";
+export * from "./repositories/conversation.repository";

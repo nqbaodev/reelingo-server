@@ -1,1 +1,1 @@
-export * from "./update-profile.use-case";
+export * from "./use-cases/update-profile.use-case";

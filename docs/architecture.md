@@ -19,6 +19,23 @@ permit one layer to take over another layer's work.
 | `features/<feature>/presentation` | Routes, authentication/validation middleware, controllers, Zod request schemas, presenters, and HTTP error mapping | Query Prisma, call provider SDKs directly, construct infrastructure, or contain business/persistence rules |
 | `features/<feature>/<feature>.module.ts` | Composition root that constructs concrete dependencies and exposes routers/middleware | Implement request handling, business rules, database queries, or provider behavior |
 
+Each layer groups files into responsibility-based subfolders. These subfolders are
+navigation categories, not additional architectural layers:
+
+| Layer | Common subfolders |
+| --- | --- |
+| `domain` | `entities`, `value-objects`, `rules` |
+| `application` | `use-cases`, `events` |
+| `infrastructure` | `repositories`, `mappers`, `clients`, `services`, `stores`, `storage`, `events`, `workers` |
+| `presentation` | `controllers`, `presenters`, `routes`, `validators`, `middlewares`, `authentication` |
+
+Create only categories that contain current code, and name any new category after
+the concrete responsibility it groups. Keep each layer's `index.ts` at the layer
+root as its public barrel. Keep `<feature>.module.ts` at the feature root because it
+wires dependencies across all four layers. A root-level re-export may remain as a
+temporary compatibility entry point for an existing direct import, but it must not
+contain implementation behavior.
+
 Layer boundaries apply to behavior as well as imports:
 
 - Presentation converts validated HTTP input to use-case input and converts the
@@ -152,7 +169,7 @@ concrete benefit and verify the affected behavior, not the pattern's class names
 ## Entity mapping
 
 Keep persistence/provider-to-entity conversions in the owning feature's
-`infrastructure/<source>.mapper.ts`, exposed as `toEntity`. Import each mapper
+`infrastructure/mappers/<source>.mapper.ts`, exposed as `toEntity`. Import each mapper
 directly rather than re-exporting identical names from a barrel. Adapters
 validate external data before mapping it; mappers only convert its shape.
 Keep provider/Prisma types out of `domain`, and keep entity-to-HTTP conversions
@@ -195,7 +212,8 @@ reuse. Do not swallow errors, return misleading fallbacks, or accept unrelated m
 flags merely to make one helper serve multiple responsibilities. Test meaningful
 edge cases when the behavior is non-trivial.
 
-`bearer-token.ts` and `requireAuth` stay in the auth presentation layer:
+`presentation/authentication/bearer-token.ts` and `requireAuth` stay in the auth
+presentation layer:
 their current callers belong to auth. The parser reads a single credential
 without throwing HTTP errors; the middleware decides how to reject invalid
 input. `requireAuth` reads the feature's request context.
@@ -268,14 +286,17 @@ explicitly changed and documented.
 
 ## Add a feature
 
-1. `src/features/<name>/domain/` — define the entity.
-2. `src/features/<name>/infrastructure/` — define the repository interface and
-   implement it with Prisma.
-3. `src/features/<name>/application/` — write use cases; depend on the
+1. `src/features/<name>/domain/entities/` — define the entity and add domain rules
+   under `domain/rules/` when the feature needs them.
+2. `src/features/<name>/infrastructure/repositories/` — define the repository
+   interface and implement it with Prisma; keep persistence mappings under
+   `infrastructure/mappers/`.
+3. `src/features/<name>/application/use-cases/` — write use cases; depend on the
    repository interface.
-4. `src/features/<name>/presentation/` — Zod validators, a presenter mapping
-   the entity to an HTTP response shape, a controller, and an Express router
-   defined with `createBaseRouter` from `core/http`.
+4. `src/features/<name>/presentation/` — add Zod schemas under `validators/`,
+   entity-to-response mappings under `presenters/`, controllers under
+   `controllers/`, and Express routers under `routes/` using `createBaseRouter`
+   from `core/http`.
 5. `src/features/<name>/<name>.module.ts` — wire the pieces and export
    `router`.
 6. Mount the router in [../src/app.ts](../src/app.ts).

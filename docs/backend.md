@@ -125,7 +125,7 @@ rule are defined in [architecture.md](architecture.md).
   transform data; the owning feature decides the business/HTTP outcome.
   See [Architecture → Shared helpers and utilities](architecture.md#shared-helpers-and-utilities).
 - Put persistence/provider-to-entity mapping in the owning feature's
-  `infrastructure/*.mapper.ts` with a `toEntity` export. Validate in the
+  `infrastructure/mappers/*.mapper.ts` with a `toEntity` export. Validate in the
   adapter before mapping; keep Prisma/SDK types out of `domain`. Import
   mappers directly to avoid collisions between `toEntity` exports. Do not
   create mappers for features that only return primitives.

@@ -20,25 +20,25 @@ import {
 import {
   googleLoginSchema,
   refreshTokenSchema,
-} from "@/features/auth/presentation/auth.validators";
+} from "@/features/auth/presentation/validators/auth.validators";
 import {
   createConversationSchema,
   conversationNameSchema,
   conversationParamsSchema,
-} from "@/features/conversations/presentation/conversation.validators";
+} from "@/features/conversations/presentation/validators/conversation.validators";
 import { MessageRole } from "@/features/messages/domain";
 import {
   createMessageSchema,
   messageConversationParamsSchema,
   messageResponseParamsSchema,
-} from "@/features/messages/presentation/message.validators";
+} from "@/features/messages/presentation/validators/message.validators";
 import {
   deleteMediaSchema,
   mediaParamsSchema,
-} from "@/features/media/presentation/media.validators";
+} from "@/features/media/presentation/validators/media.validators";
 import { SUPPORTED_IMAGE_MIME_TYPES } from "@/features/media/domain";
 import { MAX_USER_ID } from "@/features/users/domain";
-import { updateProfileSchema } from "@/features/users/presentation/user.validators";
+import { updateProfileSchema } from "@/features/users/presentation/validators/user.validators";
 
 // Composition root for the public API contract. Requests reuse runtime validators.
 function jsonSchema(schema: z.ZodType, io: "input" | "output" = "input") {

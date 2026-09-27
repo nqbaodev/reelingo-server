@@ -1,2 +1,2 @@
-export * from "./ai-generation-events";
-export * from "./process-ai-generation.use-case";
+export * from "./events/ai-generation-events";
+export * from "./use-cases/process-ai-generation.use-case";
