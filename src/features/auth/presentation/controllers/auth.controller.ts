@@ -13,9 +13,13 @@ import type {
   RefreshSessionUseCase,
 } from "../../application";
 import { TokenRevocationStoreError } from "../../infrastructure";
+import type {
+  GoogleLoginRequestDto,
+  LogoutResponseDto,
+  RefreshTokenRequestDto,
+} from "../dtos/auth.dto";
 import { toAuthTokensResponse } from "../presenters/auth.presenter";
 import { requireAuth } from "../require-auth";
-import type { GoogleLoginInput, RefreshTokenInput } from "../validators/auth.validators";
 
 interface AuthControllerDeps {
   googleIdTokenVerifier: GoogleIdTokenVerifier;
@@ -28,7 +32,7 @@ export class AuthController {
   constructor(private readonly deps: AuthControllerDeps) {}
 
   loginWithGoogle = async (
-    req: Request<ParamsDictionary, unknown, GoogleLoginInput>,
+    req: Request<ParamsDictionary, unknown, GoogleLoginRequestDto>,
     res: Response,
   ) => {
     const { idToken } = req.body;
@@ -51,7 +55,7 @@ export class AuthController {
   };
 
   refresh = async (
-    req: Request<ParamsDictionary, unknown, RefreshTokenInput>,
+    req: Request<ParamsDictionary, unknown, RefreshTokenRequestDto>,
     res: Response,
   ) => {
     const { refreshToken } = req.body;
@@ -80,6 +84,7 @@ export class AuthController {
           })
         : err;
     }
-    sendSuccess(res, { loggedOut: true }, I18n.signedOut);
+    const response: LogoutResponseDto = { loggedOut: true };
+    sendSuccess(res, response, I18n.signedOut);
   };
 }

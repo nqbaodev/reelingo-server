@@ -174,8 +174,8 @@ project-owned Zod schemas and response definitions. The implementation and OpenA
 form one contract and must change together; neither a stale document nor an
 external example overrides the requested behavior.
 
-- Implement only requested endpoints and fields. Update the route, request
-  validator, controller/use case, presenter, status/error responses, and OpenAPI
+- Implement only requested endpoints and fields. Update the route, request DTO
+  schema, controller/use case, presenter, status/error responses, and OpenAPI
   entry wherever the contract change affects them.
 - Keep runtime validation at trust boundaries. A TypeScript type or OpenAPI schema
   alone does not validate `req.body`, query strings, provider payloads, or database

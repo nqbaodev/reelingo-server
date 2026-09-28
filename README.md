@@ -24,10 +24,10 @@ src/
       domain/            # Pure entities (no Prisma / Express imports)
       application/       # Use cases, depending on the repository interface in infrastructure
       infrastructure/    # Ports, adapters, and *.mapper.ts exports named toEntity
-      presentation/       # Express router, controller, Zod validators, HTTP presenters
+      presentation/       # Express router, controller, request/response DTOs, HTTP presenters
       <feature>.module.ts # Composition root: wire domain <-> infra <-> presentation
   app.ts              # Assemble the Express app, mount feature routers
-  openapi.ts          # Public API contract, reusing Zod request validators
+  openapi.ts          # Public API contract, reusing Zod request DTO schemas
   server.ts           # Entrypoint: start the HTTP server, graceful shutdown
 prisma/
   schema.prisma       # Prisma schema (PostgreSQL)
@@ -441,7 +441,7 @@ i18next; the rest of the app calls `translate(key, language, params)`.
 Start the server, open `/docs/`, and use **Authorize** to enter a Reelingo access
 token. Swagger serves local assets and reads `/openapi.json`; it does not call
 an external schema validator or persist authorization. Request schemas reuse
-the runtime Zod validators. Update `src/openapi.ts` when adding endpoints or
+the runtime Zod DTO schemas. Update `src/openapi.ts` when adding endpoints or
 changing presenter output.
 
 `GET /health` checks process liveness without querying dependencies.

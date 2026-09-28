@@ -1,1 +1,1 @@
-export * from "./validators/user.validators";
+export * from "./dtos/user.dto";

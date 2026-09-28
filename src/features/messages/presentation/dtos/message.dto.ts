@@ -5,9 +5,14 @@ import { containsNullByte } from "@/core/utils";
 import {
   imageGenerationConfigSchema,
   videoGenerationConfigSchema,
-} from "@/features/ai/presentation/validators/ai-generation.validators";
+} from "@/features/ai/presentation/dtos/ai-generation.dto";
+import type { MessageChatRun } from "@/features/ai/domain";
 import { MediaType } from "@/features/media/domain";
-import type { CreateMessagePayload } from "../../domain";
+import type {
+  CreateMessagePayload,
+  Message,
+  MessageGeneration,
+} from "../../domain";
 
 export const messageContentSchema = z
   .string()
@@ -82,7 +87,38 @@ export const listMessagesQuerySchema = z
       : undefined,
   }));
 
-export type CreateMessageBody = z.infer<typeof createMessageSchema>;
-export type MessageConversationParams = z.infer<typeof messageConversationParamsSchema>;
-export type MessageResponseParams = z.infer<typeof messageResponseParamsSchema>;
-export type ListMessagesQuery = z.infer<typeof listMessagesQuerySchema>;
+export type CreateMessageRequestDto = z.infer<typeof createMessageSchema>;
+export type MessageConversationParamsDto = z.infer<
+  typeof messageConversationParamsSchema
+>;
+export type MessageResponseParamsDto = z.infer<typeof messageResponseParamsSchema>;
+export type ListMessagesQueryDto = z.infer<typeof listMessagesQuerySchema>;
+
+export interface MessageResponseDto {
+  id: string;
+  conversationId: string;
+  role: Message["role"];
+  content: string | null;
+  mediaIds: string[];
+  generation: {
+    id: string;
+    triggerMessageId: string;
+    type: MessageGeneration["type"];
+    status: MessageGeneration["status"];
+    config: MessageGeneration["config"];
+    resultMessageId: string | null;
+  } | null;
+  chatRun: Message["chatRun"];
+  createdAt: string;
+}
+
+export interface MessageTurnResponseDto {
+  userMessage: MessageResponseDto;
+  assistantMessage: MessageResponseDto | null;
+}
+
+export interface MessageResponseStateDto {
+  chatRun: MessageChatRun;
+  generation: MessageGeneration | null;
+  assistantMessage: MessageResponseDto | null;
+}

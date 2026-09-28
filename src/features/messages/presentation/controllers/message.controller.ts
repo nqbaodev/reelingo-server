@@ -20,18 +20,18 @@ import type {
   RespondToMessageUseCase,
 } from "../../application";
 import { ChatProgressEventType } from "../../application";
+import type {
+  CreateMessageRequestDto,
+  ListMessagesQueryDto,
+  MessageConversationParamsDto,
+  MessageResponseParamsDto,
+} from "../dtos/message.dto";
 import {
   toMessageListResponse,
   toMessageResponse,
   toMessageResponseStateResponse,
   toMessageTurnResponse,
 } from "../presenters/message.presenter";
-import type {
-  CreateMessageBody,
-  ListMessagesQuery,
-  MessageConversationParams,
-  MessageResponseParams,
-} from "../validators/message.validators";
 
 interface MessageControllerDeps {
   createMessage: CreateMessageUseCase;
@@ -45,10 +45,10 @@ export class MessageController {
   constructor(private readonly deps: MessageControllerDeps) {}
 
   create = async (
-    req: Request<ParamsDictionary, unknown, CreateMessageBody>,
+    req: Request<ParamsDictionary, unknown, CreateMessageRequestDto>,
     res: Response,
   ) => {
-    const { conversationId } = req.params as MessageConversationParams;
+    const { conversationId } = req.params as MessageConversationParamsDto;
     const message = await this.deps.createMessage.execute(
       requireCurrentUserId(req),
       conversationId,
@@ -64,7 +64,7 @@ export class MessageController {
       return;
     }
 
-    const { conversationId, messageId } = req.params as MessageResponseParams;
+    const { conversationId, messageId } = req.params as MessageResponseParamsDto;
     try {
       const turn = await this.deps.respondToMessage.execute(
         requireCurrentUserId(req),
@@ -78,7 +78,7 @@ export class MessageController {
   };
 
   private respondWithEventStream = async (req: Request, res: Response) => {
-    const { conversationId, messageId } = req.params as MessageResponseParams;
+    const { conversationId, messageId } = req.params as MessageResponseParamsDto;
     const stream = createEventStream(req, res);
     const observer: ChatProgressObserver = {
       publish: async (event) => {
@@ -118,7 +118,7 @@ export class MessageController {
   };
 
   getResponse = async (req: Request, res: Response) => {
-    const { conversationId, messageId } = req.params as MessageResponseParams;
+    const { conversationId, messageId } = req.params as MessageResponseParamsDto;
     const response = await this.deps.getMessageResponse.execute(
       requireCurrentUserId(req),
       conversationId,
@@ -152,11 +152,11 @@ export class MessageController {
   };
 
   list = async (req: Request, res: Response) => {
-    const { conversationId } = req.params as MessageConversationParams;
+    const { conversationId } = req.params as MessageConversationParamsDto;
     const page = await this.deps.listMessages.execute(
       requireCurrentUserId(req),
       conversationId,
-      req.validatedQuery as ListMessagesQuery,
+      req.validatedQuery as ListMessagesQueryDto,
     );
     sendSuccess(res, toMessageListResponse(page));
   };

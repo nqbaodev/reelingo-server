@@ -7,7 +7,7 @@ import {
   conversationNameSchema,
   conversationParamsSchema,
   listConversationsQuerySchema,
-} from "../validators/conversation.validators";
+} from "../dtos/conversation.dto";
 
 export function createConversationRouter(controller: ConversationController): Router {
   return createBaseRouter([

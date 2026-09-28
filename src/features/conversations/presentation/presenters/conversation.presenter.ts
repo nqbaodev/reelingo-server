@@ -5,19 +5,14 @@ import {
 } from "@/core/pagination";
 import type { Conversation, ConversationSummary } from "../../domain";
 import type { ConversationListCursor } from "../../infrastructure";
+import type {
+  ConversationResponseDto,
+  ConversationSummaryResponseDto,
+} from "../dtos/conversation.dto";
 
-export interface ConversationResponse {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ConversationSummaryResponse extends ConversationResponse {
-  lastMessageAt: string;
-}
-
-export function toConversationResponse(conversation: Conversation): ConversationResponse {
+export function toConversationResponse(
+  conversation: Conversation,
+): ConversationResponseDto {
   return {
     id: conversation.id,
     name: conversation.name,
@@ -28,7 +23,7 @@ export function toConversationResponse(conversation: Conversation): Conversation
 
 export function toConversationListResponse(
   page: CursorPage<ConversationSummary, ConversationListCursor>,
-): CursorListResponse<ConversationSummaryResponse> {
+): CursorListResponse<ConversationSummaryResponseDto> {
   return {
     items: page.items.map((conversation) => ({
       ...toConversationResponse(conversation),

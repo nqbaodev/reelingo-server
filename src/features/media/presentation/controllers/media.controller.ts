@@ -9,8 +9,8 @@ import type {
   GetMediaContentUseCase,
   UploadImageUseCase,
 } from "../../application";
+import type { DeleteMediaRequestDto, MediaParamsDto } from "../dtos/media.dto";
 import { toDeletedMediaResponse, toMediaResponse } from "../presenters/media.presenter";
-import type { DeleteMediaInput, MediaParams } from "../validators/media.validators";
 
 interface MediaControllerDeps {
   deleteUnusedMedia: DeleteUnusedMediaUseCase;
@@ -34,7 +34,7 @@ export class MediaController {
   };
 
   deleteUnused = async (
-    req: Request<ParamsDictionary, unknown, DeleteMediaInput>,
+    req: Request<ParamsDictionary, unknown, DeleteMediaRequestDto>,
     res: Response,
   ) => {
     const deletedIds = await this.deps.deleteUnusedMedia.execute(
@@ -45,7 +45,7 @@ export class MediaController {
   };
 
   get = async (req: Request<ParamsDictionary>, res: Response) => {
-    const { mediaId } = req.params as MediaParams;
+    const { mediaId } = req.params as MediaParamsDto;
     const result = await this.deps.getMediaContent.execute(
       requireCurrentUserId(req),
       mediaId,

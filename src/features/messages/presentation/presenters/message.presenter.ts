@@ -3,32 +3,19 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/core/pagination";
-import type { Message, MessageGeneration } from "../../domain";
+import type { Message } from "../../domain";
 import type {
   ChatTurn,
   MessageListCursor,
   MessageResponseState,
 } from "../../infrastructure";
+import type {
+  MessageResponseDto,
+  MessageResponseStateDto,
+  MessageTurnResponseDto,
+} from "../dtos/message.dto";
 
-export interface MessageResponse {
-  id: string;
-  conversationId: string;
-  role: Message["role"];
-  content: string | null;
-  mediaIds: string[];
-  generation: {
-    id: string;
-    triggerMessageId: string;
-    type: MessageGeneration["type"];
-    status: MessageGeneration["status"];
-    config: MessageGeneration["config"];
-    resultMessageId: string | null;
-  } | null;
-  chatRun: Message["chatRun"];
-  createdAt: string;
-}
-
-export function toMessageResponse(message: Message): MessageResponse {
+export function toMessageResponse(message: Message): MessageResponseDto {
   return {
     id: message.id,
     conversationId: message.conversationId,
@@ -41,20 +28,9 @@ export function toMessageResponse(message: Message): MessageResponse {
   };
 }
 
-export interface MessageTurnResponse {
-  userMessage: MessageResponse;
-  assistantMessage: MessageResponse | null;
-}
-
-export interface MessageResponseStateResponse {
-  chatRun: MessageResponseState["chatRun"];
-  generation: MessageResponseState["generation"];
-  assistantMessage: MessageResponse | null;
-}
-
 export function toMessageResponseStateResponse(
   response: MessageResponseState,
-): MessageResponseStateResponse {
+): MessageResponseStateDto {
   return {
     chatRun: response.chatRun,
     generation: response.generation,
@@ -64,7 +40,7 @@ export function toMessageResponseStateResponse(
   };
 }
 
-export function toMessageTurnResponse(turn: ChatTurn): MessageTurnResponse {
+export function toMessageTurnResponse(turn: ChatTurn): MessageTurnResponseDto {
   return {
     userMessage: toMessageResponse(turn.userMessage),
     assistantMessage: turn.assistantMessage
@@ -75,7 +51,7 @@ export function toMessageTurnResponse(turn: ChatTurn): MessageTurnResponse {
 
 export function toMessageListResponse(
   page: CursorPage<Message, MessageListCursor>,
-): CursorListResponse<MessageResponse> {
+): CursorListResponse<MessageResponseDto> {
   return {
     items: page.items.map(toMessageResponse),
     nextCursor: page.nextCursor

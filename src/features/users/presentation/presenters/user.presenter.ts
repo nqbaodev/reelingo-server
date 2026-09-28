@@ -1,16 +1,7 @@
 import type { User } from "../../domain";
+import type { CurrentUserResponseDto } from "../dtos/user.dto";
 
-export interface CurrentUserResponse {
-  id: number;
-  email: string;
-  displayName: string;
-  avatarUrl: string | null;
-  countryCode: string | null;
-  phoneNumber: string | null;
-  birthDate: string | null;
-}
-
-export function toCurrentUserResponse(user: User): CurrentUserResponse {
+export function toCurrentUserResponse(user: User): CurrentUserResponseDto {
   return {
     id: user.id,
     email: user.email,

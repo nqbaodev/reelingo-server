@@ -1,30 +1,22 @@
 import { config } from "@/config";
 import { endpoints } from "@/shared/http/endpoints";
-import type { Media, MediaType } from "../../domain";
-
-export interface MediaResponse {
-  id: string;
-  type: MediaType;
-  path: string;
-  url: string;
-  mimeType: string;
-  createdAt: string;
-}
-
-export interface DeletedMediaResponse {
-  deletedIds: string[];
-}
+import type { Media } from "../../domain";
+import type {
+  DeletedMediaResponseDto,
+  MediaLinkDto,
+  MediaResponseDto,
+} from "../dtos/media.dto";
 
 export function getMediaPath(mediaId: string): string {
   return `${endpoints.apiPrefix}${endpoints.media.byId.replace(":mediaId", mediaId)}`;
 }
 
-export function toMediaLink(id: string): { id: string; path: string; url: string } {
+export function toMediaLink(id: string): MediaLinkDto {
   const path = getMediaPath(id);
   return { id, path, url: new URL(path, config.server.publicBaseUrl).toString() };
 }
 
-export function toMediaResponse(media: Media): MediaResponse {
+export function toMediaResponse(media: Media): MediaResponseDto {
   const contentPath = getMediaPath(media.id);
 
   return {
@@ -37,6 +29,8 @@ export function toMediaResponse(media: Media): MediaResponse {
   };
 }
 
-export function toDeletedMediaResponse(deletedIds: string[]): DeletedMediaResponse {
+export function toDeletedMediaResponse(
+  deletedIds: string[],
+): DeletedMediaResponseDto {
   return { deletedIds };
 }

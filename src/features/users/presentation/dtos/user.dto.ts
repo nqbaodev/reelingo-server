@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { MAX_AVATAR_URL_LENGTH, MAX_DISPLAY_NAME_LENGTH } from "@/config";
 import {
   COUNTRY_CODE_PATTERN,
@@ -5,7 +6,6 @@ import {
   NATIONAL_PHONE_NUMBER_PATTERN,
   toDateOnlyString,
 } from "@/core/utils";
-import { z } from "zod";
 
 export const displayNameSchema = z
   .string()
@@ -41,4 +41,14 @@ export const updateProfileSchema = z.strictObject({
   birthDate: birthDateSchema.nullable(),
 });
 
-export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type UpdateProfileRequestDto = z.infer<typeof updateProfileSchema>;
+
+export interface CurrentUserResponseDto {
+  id: number;
+  email: string;
+  displayName: string;
+  avatarUrl: string | null;
+  countryCode: string | null;
+  phoneNumber: string | null;
+  birthDate: string | null;
+}

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { MAX_CONVERSATION_NAME_LENGTH } from "@/config";
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
 import { containsNullByte } from "@/core/utils";
-import { messageContentSchema } from "@/features/messages/presentation/validators/message.validators";
+import { messageContentSchema } from "@/features/messages/presentation/dtos/message.dto";
 
 export const createConversationSchema = z.strictObject({
   content: messageContentSchema,
@@ -41,7 +41,22 @@ export const listConversationsQuerySchema = z
       : undefined,
   }));
 
-export type CreateConversationBody = z.infer<typeof createConversationSchema>;
-export type ConversationNameInput = z.infer<typeof conversationNameSchema>;
-export type ConversationParams = z.infer<typeof conversationParamsSchema>;
-export type ListConversationsQuery = z.infer<typeof listConversationsQuerySchema>;
+export type CreateConversationRequestDto = z.infer<
+  typeof createConversationSchema
+>;
+export type ConversationNameRequestDto = z.infer<typeof conversationNameSchema>;
+export type ConversationParamsDto = z.infer<typeof conversationParamsSchema>;
+export type ListConversationsQueryDto = z.infer<
+  typeof listConversationsQuerySchema
+>;
+
+export interface ConversationResponseDto {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationSummaryResponseDto extends ConversationResponseDto {
+  lastMessageAt: string;
+}
