@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
 import jwt, { type Algorithm, type JwtPayload } from "jsonwebtoken";
 import { MAX_POSTGRES_INTEGER } from "@/config";
-import { MINUTE_MS, toSeconds } from "@/core/utils";
+import { MINUTE_MS, SECOND_MS, toSeconds } from "@/core/utils";
 import {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
+  type RawJwtClaims,
   type TokenClaims,
-  type AuthTokens,
+  type TokenPair,
   type TokenType,
-} from "../../domain";
-import { toEntity, type RawClaims } from "../mappers/jwt.mapper";
+} from "./jwt.types";
 
 interface JwtServiceOptions {
   algorithm: Algorithm;
@@ -23,11 +23,11 @@ interface JwtServiceOptions {
 export class JwtService {
   constructor(private readonly options: JwtServiceOptions) {}
 
-  createAuthTokens(
+  createTokenPair(
     userId: number,
     email: string,
     session?: { id: string; expiresAt: Date },
-  ): AuthTokens {
+  ): TokenPair {
     const issuedAt = new Date();
     const sessionId = session?.id ?? randomUUID();
     const sessionExpiresAt =
@@ -89,7 +89,15 @@ export class JwtService {
       throw new Error(`Invalid token type: expected ${expectedType}, got ${claims.typ}`);
     }
 
-    return toEntity(claims);
+    return {
+      userId: Number(claims.sub),
+      email: claims.email,
+      tokenId: claims.jti,
+      tokenType: claims.typ,
+      sessionId: claims.sid,
+      sessionExpiresAt: new Date(claims.session_exp * SECOND_MS),
+      expiresAt: new Date(claims.exp * SECOND_MS),
+    };
   }
 
   private sign(input: {
@@ -101,7 +109,7 @@ export class JwtService {
     sessionId: string;
     sessionExpiresAt: Date;
   }): string {
-    const payload: RawClaims = {
+    const payload: RawJwtClaims = {
       sub: String(input.userId),
       email: input.email,
       jti: randomUUID(),
@@ -121,7 +129,7 @@ export class JwtService {
   }
 }
 
-function readClaims(payload: JwtPayload): RawClaims {
+function readClaims(payload: JwtPayload): RawJwtClaims {
   const tokenType = readStringClaim(payload, "typ");
   if (tokenType !== ACCESS_TOKEN_TYPE && tokenType !== REFRESH_TOKEN_TYPE) {
     throw new Error(`JWT has invalid token type: ${tokenType}`);

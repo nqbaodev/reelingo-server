@@ -1,6 +1,7 @@
 import { config } from "@/config";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { UserPrismaRepository } from "@/features/users/infrastructure";
+import { JwtService } from "@/services/jwt";
 import { createAuthRateLimiter } from "@/shared/middlewares";
 import {
   LoginWithGoogleUseCase,
@@ -9,7 +10,6 @@ import {
 } from "./application";
 import {
   GoogleIdentityClient,
-  JwtService,
   TokenRevocationPrismaStore,
 } from "./infrastructure";
 import {

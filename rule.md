@@ -38,9 +38,11 @@ not a requirement that every feature contain every layer.
 - Keep repository ports beside their adapters in infrastructure and wire concrete
   dependencies only in `<feature>.module.ts`.
 - Do not call Prisma or construct SDK clients in routes, controllers, or use cases.
-- Keep reusable feature logic in its owning feature. Put only feature-neutral pure
-  helpers in `core/utils` and feature-neutral technical infrastructure in `shared`.
-  Do not move feature policy into generic code to bypass ownership.
+- Keep feature behavior in its owning feature. Standalone technical services live
+  in top-level `services` regardless of consumer count and must not import feature
+  code. Put only feature-neutral pure helpers in `core/utils` and cross-cutting
+  technical infrastructure that is not a service in `shared`. Do not move feature
+  policy into generic code to bypass ownership.
 - When changing an architectural decision, update its owning document and affected
   imports together. External examples do not silently override project decisions.
 - Apply [SOLID and design patterns](docs/architecture.md#solid-and-design-patterns)

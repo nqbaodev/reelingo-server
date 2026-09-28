@@ -3,9 +3,12 @@ import { ServiceUnavailableError, UnauthorizedError } from "@/core/errors";
 import { readBearerToken } from "../authentication/bearer-token";
 import type { User } from "@/features/users/domain";
 import type { UserRepository } from "@/features/users/infrastructure";
-import { ACCESS_TOKEN_TYPE, type TokenClaims } from "../../domain";
 import {
+  ACCESS_TOKEN_TYPE,
   type JwtService,
+  type TokenClaims,
+} from "@/services/jwt";
+import {
   type TokenRevocationStore,
   TokenRevocationStoreError,
 } from "../../infrastructure";
