@@ -1,24 +1,23 @@
 import { OAuth2Client } from "google-auth-library";
 import { isNetworkError } from "@/core/utils";
-import type { GoogleIdentity } from "../../domain";
-import { toEntity } from "../mappers/google-identity.mapper";
+import type { VerifiedGoogleIdentity } from "./google-identity.types";
 
-export class GoogleIdentityError extends Error {
+class GoogleIdTokenError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = new.target.name;
   }
 }
-export class GoogleIdentityUnavailableError extends GoogleIdentityError {}
+export class GoogleIdTokenUnavailableError extends GoogleIdTokenError {}
 
-export class GoogleIdentityClient {
+export class GoogleIdTokenVerifier {
   private readonly client: OAuth2Client;
 
   constructor(private readonly clientId: string) {
-    this.client = new OAuth2Client(clientId);
+    this.client = new OAuth2Client({ clientId });
   }
 
-  async verifyIdToken(idToken: string): Promise<GoogleIdentity> {
+  async verifyIdToken(idToken: string): Promise<VerifiedGoogleIdentity> {
     let payload;
     try {
       const ticket = await this.client.verifyIdToken({
@@ -30,24 +29,28 @@ export class GoogleIdentityClient {
       // A network failure while fetching Google's signing keys is not the
       // caller's fault, so it must not be reported as an invalid token.
       if (isNetworkError(err)) {
-        throw new GoogleIdentityUnavailableError(
+        throw new GoogleIdTokenUnavailableError(
           "Google identity service is unavailable",
           { cause: err },
         );
       }
-      throw new GoogleIdentityError("Invalid Google ID token", { cause: err });
+      throw new GoogleIdTokenError("Invalid Google ID token", { cause: err });
     }
 
     if (!payload) {
-      throw new GoogleIdentityError("Google token payload is empty");
+      throw new GoogleIdTokenError("Google token payload is empty");
     }
     if (!payload.email_verified) {
-      throw new GoogleIdentityError("Google email is not verified");
+      throw new GoogleIdTokenError("Google email is not verified");
     }
     if (!payload.sub || !payload.email) {
-      throw new GoogleIdentityError("Google token is missing required claims");
+      throw new GoogleIdTokenError("Google token is missing required claims");
     }
 
-    return toEntity({ ...payload, email: payload.email });
+    return {
+      googleId: payload.sub,
+      email: payload.email,
+      name: payload.name ?? "",
+    };
   }
 }

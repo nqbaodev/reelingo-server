@@ -2,7 +2,7 @@
 
 Organize code by feature first, then by layer within each feature. The app
 currently composes `health`, `auth`, `users`, `conversations`, `messages`, `media`, and `ai` features on top of
-shared Express/Prisma infrastructure.
+standalone technical services and shared Express/Prisma infrastructure.
 
 ## Responsibilities and dependencies
 
@@ -15,7 +15,7 @@ permit one layer to take over another layer's work.
 | --- | --- | --- |
 | `features/<feature>/domain` | Entities, value types, and business rules that can run without frameworks | Import Express, Prisma, Zod, configuration, provider SDKs, repositories, or HTTP concerns |
 | `features/<feature>/application` | Use-case orchestration, business decisions spanning entities/ports, and application outcomes | Parse HTTP, format responses, call Prisma/SDKs directly, construct adapters, or decide logging/transport policy |
-| `features/<feature>/infrastructure` | Repository ports/adapters, Prisma/provider mapping, external clients, and feature-owned technical services | Read Express request state, format HTTP responses, localize client messages, or decide business outcomes that belong to a use case |
+| `features/<feature>/infrastructure` | Repository ports/adapters, Prisma/provider mapping, external clients, stores, workers, and storage owned by the feature | Read Express request state, format HTTP responses, localize client messages, or decide business outcomes that belong to a use case |
 | `features/<feature>/presentation` | Routes, authentication/validation middleware, controllers, Zod request schemas, presenters, and HTTP error mapping | Query Prisma, call provider SDKs directly, construct infrastructure, or contain business/persistence rules |
 | `features/<feature>/<feature>.module.ts` | Composition root that constructs concrete dependencies and exposes routers/middleware | Implement request handling, business rules, database queries, or provider behavior |
 
@@ -26,8 +26,8 @@ navigation categories, not additional architectural layers:
 | --- | --- |
 | `domain` | `entities`, `value-objects`, `rules` |
 | `application` | `use-cases`, `events` |
-| `infrastructure` | `repositories`, `mappers`, `clients`, `services`, `stores`, `storage`, `events`, `workers` |
-| `presentation` | `controllers`, `presenters`, `routes`, `validators`, `middlewares`, `authentication` |
+| `infrastructure` | `repositories`, `mappers`, `clients`, `stores`, `storage`, `events`, `workers` |
+| `presentation` | `controllers`, `presenters`, `routes`, `validators`, `middlewares` |
 
 Create only categories that contain current code, and name any new category after
 the concrete responsibility it groups. Keep each layer's `index.ts` at the layer
@@ -56,9 +56,9 @@ Layer boundaries apply to behavior as well as imports:
 
 When one operation appears to need work from several layers, split the flow at the
 boundary instead of moving all work into one class. For example: presentation
-validates an ID token string, application requests identity verification and
-resolves the account, infrastructure verifies the token with Google and persists
-the user, and presentation shapes the auth-token response.
+validates an ID token string and requests verification from the standalone Google
+identity service, application resolves the account, infrastructure persists the
+user, and presentation shapes the auth-token response.
 
 ## Project-wide locations
 
@@ -68,6 +68,7 @@ the user, and presentation shapes the auth-token response.
 | `core` | Cross-cutting abstractions independent of any feature (`AppError`, `validate`, pagination, `i18n`) |
 | `core/utils` | Pure technical helpers and their constants; no feature, config, database, or HTTP-response dependencies |
 | `core/i18n` | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
+| `services` | Standalone technical services and their owned public types; services do not import feature code |
 | `shared` | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware) |
 | `app.ts` | Mounts feature routers and cross-cutting middleware |
 | `server.ts` | Starts the HTTP server and handles graceful shutdown |
@@ -75,24 +76,26 @@ the user, and presentation shapes the auth-token response.
 
 ## Services and shared ownership
 
-`Service` describes a role, not a mandatory folder. Application services implement
-use cases; technical services implement mechanisms such as signing tokens or
-calling an SDK. Place them according to ownership and dependencies.
+Application services remain use cases inside their feature. Standalone technical
+services are managed under top-level `services` whether they currently have one or
+many consumers. A service owns its provider-facing types, keeps one-off conversions
+inside the service instead of adding mapper layers, must not import feature code,
+and exposes a narrow public barrel. Features consume services but retain their own
+business decisions and HTTP behavior.
 
-- Keep session policy and auth-specific claims in auth. The current `JwtService`
-  belongs in `auth/infrastructure` because it combines JWT signing with auth
-  token/session behavior.
-- `shared/services` is an acceptable location for a genuinely feature-neutral
-  technical service with current consumers across features. It must not import
-  feature-owned entities or decide a feature's business policy.
+- `services/jwt` owns JWT signing, verification, and token claims.
+- `services/google-identity` owns Google ID-token verification and its verified
+  identity type.
+- `shared` remains the home for cross-cutting infrastructure that is not modeled as
+  a standalone service, such as the Prisma client, logging, and HTTP middleware.
 - Pure reusable transformations belong in `core/utils`. A second caller inside
   the same feature alone is not a reason to move its code out.
 - Do not create a shared wrapper or interface just for a naming convention. Add
   an interface when it expresses a useful dependency contract, supports an actual
   adapter boundary, or enables relevant tests.
 
-This layout is a project decision. A future move to top-level services or another
-layering scheme should update this document and the affected code consistently.
+This layout is a project decision. A future move to another layering scheme should
+update this document and the affected code consistently.
 
 ## SOLID and design patterns
 
@@ -212,7 +215,7 @@ reuse. Do not swallow errors, return misleading fallbacks, or accept unrelated m
 flags merely to make one helper serve multiple responsibilities. Test meaningful
 edge cases when the behavior is non-trivial.
 
-`presentation/authentication/bearer-token.ts` and `requireAuth` stay in the auth
+`presentation/bearer-token.ts` and `presentation/require-auth.ts` stay in the auth
 presentation layer:
 their current callers belong to auth. The parser reads a single credential
 without throwing HTTP errors; the middleware decides how to reject invalid
@@ -240,6 +243,7 @@ presentation  ->  application  ->  infrastructure ports
 
 infrastructure adapters --------------------------> domain
 feature module -----------------------------------> all feature layers
+feature layers/modules ---------------------------> standalone services
 ```
 
 Arrows show allowed compile-time knowledge, not ownership of behavior. Presentation
@@ -275,11 +279,11 @@ up. Google Identity and Gemini are the wired external services, and the `auth`
 feature owns authentication. The `ai` feature owns the in-process media-generation
 worker; PostgreSQL generation rows are its durable queue and lease state.
 
-For a service integration (email, storage, a third-party API), put the adapter
-and any required port in the feature's `infrastructure`, following the repository
-convention above, and wire the concrete adapter in the feature's
-`*.module.ts`. Do not construct a client or call an SDK directly from a
-controller or use case.
+For a standalone technical service (email delivery, token signing, cache), put its
+implementation and provider-facing types under top-level `services` and inject it
+into feature code. A provider client whose behavior is inseparable from one feature
+may remain in that feature's `infrastructure/clients`. Do not construct a client or
+call an SDK directly from a controller or use case.
 Do not introduce another PostgreSQL client or connection pool inside feature code
 while Prisma is the wired persistence adapter unless the architecture decision is
 explicitly changed and documented.

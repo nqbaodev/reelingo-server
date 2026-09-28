@@ -289,9 +289,9 @@ Only temporary local typing and queue animations are lost on reload.
 - `sizeBytes`, original filename, width, height, duration, status, and public URL
   are intentionally not stored. Image size is enforced directly from the uploaded
   bytes before persistence.
-- Files are stored under `MEDIA_STORAGE_ROOT`. A Docker image uses
-  `/app/storage/media`; mount a Docker volume there so files survive container
-  replacement.
+- Uploaded files are stored under `STORAGE_ROOT/media/uploads/{userId}` and AI
+  output under `STORAGE_ROOT/media/generated/{userId}`. A Docker image uses
+  `/app/storage`; mount a Docker volume there so files survive container replacement.
 - The upload response contains a stable authenticated API `path` and an absolute
   `url` derived from `PUBLIC_BASE_URL`. Neither value is persisted.
 - `GET /api/v1/media/:mediaId` returns the image bytes only to the owner.

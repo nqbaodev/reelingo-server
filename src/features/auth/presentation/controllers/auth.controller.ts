@@ -3,22 +3,22 @@ import type { ParamsDictionary } from "express-serve-static-core";
 import { ServiceUnavailableError, UnauthorizedError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
+import {
+  GoogleIdTokenUnavailableError,
+  type GoogleIdTokenVerifier,
+} from "@/services/google-identity";
 import type {
   LoginWithGoogleUseCase,
   LogoutUseCase,
   RefreshSessionUseCase,
 } from "../../application";
-import {
-  type GoogleIdentityClient,
-  GoogleIdentityUnavailableError,
-  TokenRevocationStoreError,
-} from "../../infrastructure";
+import { TokenRevocationStoreError } from "../../infrastructure";
 import { toAuthTokensResponse } from "../presenters/auth.presenter";
-import { requireAuth } from "../authentication/require-auth";
+import { requireAuth } from "../require-auth";
 import type { GoogleLoginInput, RefreshTokenInput } from "../validators/auth.validators";
 
 interface AuthControllerDeps {
-  googleIdentity: GoogleIdentityClient;
+  googleIdTokenVerifier: GoogleIdTokenVerifier;
   loginWithGoogle: LoginWithGoogleUseCase;
   refreshSession: RefreshSessionUseCase;
   logout: LogoutUseCase;
@@ -35,9 +35,9 @@ export class AuthController {
 
     let identity;
     try {
-      identity = await this.deps.googleIdentity.verifyIdToken(idToken);
+      identity = await this.deps.googleIdTokenVerifier.verifyIdToken(idToken);
     } catch (err) {
-      if (err instanceof GoogleIdentityUnavailableError) {
+      if (err instanceof GoogleIdTokenUnavailableError) {
         throw new ServiceUnavailableError(I18n.serviceUnavailable, {
           params: { service: "Google Identity" },
           cause: err,

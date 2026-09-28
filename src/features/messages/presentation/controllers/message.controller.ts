@@ -9,7 +9,7 @@ import {
   type AiGenerationEvent,
   type AiGenerationEvents,
 } from "@/features/ai/application";
-import { requireCurrentUserId } from "@/features/auth/presentation/authentication/require-auth";
+import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import { ServerSentEventStream } from "@/shared/http/server-sent-event-stream";
 import type {
   ChatProgressEvent,

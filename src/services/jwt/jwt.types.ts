@@ -3,14 +3,7 @@ export const REFRESH_TOKEN_TYPE = "refresh";
 
 export type TokenType = typeof ACCESS_TOKEN_TYPE | typeof REFRESH_TOKEN_TYPE;
 
-export interface GoogleIdentity {
-  googleId: string;
-  email: string;
-  name: string;
-  avatarUrl: string | null;
-}
-
-export interface AuthTokens {
+export interface TokenPair {
   accessToken: string;
   refreshToken: string;
 }
@@ -24,7 +17,6 @@ export interface TokenClaims {
   userId: number;
   email: string;
   tokenId: string;
-  tokenType: TokenType;
   sessionId: string;
   sessionExpiresAt: Date;
   expiresAt: Date;

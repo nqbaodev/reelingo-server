@@ -1,6 +1,7 @@
 import { MAX_MESSAGE_CONTENT_LENGTH } from "@/config";
 import { ConflictError, NotFoundError } from "@/core/errors";
 import { I18n } from "@/core/i18n";
+import { normalizeBoundedText } from "@/core/utils";
 import { ChatResultType, createDefaultAiGenerationConfig } from "@/features/ai/domain";
 import { type ChatClient, ChatUnavailableError } from "@/features/ai/infrastructure";
 import {
@@ -11,11 +12,7 @@ import {
 import { ChatProgressEventType, type ChatProgressObserver } from "../events/chat-progress";
 
 function normalizeAssistantContent(content: string): string {
-  const normalized = content.replaceAll(String.fromCharCode(0), "").trim();
-  const bounded = Array.from(normalized)
-    .slice(0, MAX_MESSAGE_CONTENT_LENGTH)
-    .join("")
-    .trim();
+  const bounded = normalizeBoundedText(content, MAX_MESSAGE_CONTENT_LENGTH);
   if (!bounded) {
     throw new ChatUnavailableError("AI chat returned invalid assistant content");
   }

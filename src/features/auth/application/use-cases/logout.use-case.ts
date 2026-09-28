@@ -1,4 +1,4 @@
-import type { TokenClaims } from "../../domain";
+import type { TokenClaims } from "@/services/jwt";
 import type { TokenRevocationStore } from "../../infrastructure";
 
 export class LogoutUseCase {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_MEDIA_COUNT } from "@/config";
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
+import { containsNullByte } from "@/core/utils";
 import {
   imageGenerationConfigSchema,
   videoGenerationConfigSchema,
@@ -8,14 +9,12 @@ import {
 import { MediaType } from "@/features/media/domain";
 import type { CreateMessagePayload } from "../../domain";
 
-const NULL_BYTE = String.fromCharCode(0);
-
 export const messageContentSchema = z
   .string()
   .trim()
   .min(1)
   .max(MAX_MESSAGE_CONTENT_LENGTH)
-  .refine((content) => !content.includes(NULL_BYTE));
+  .refine((content) => !containsNullByte(content));
 
 const aiGenerationSettingsSchema = z.strictObject({
   [MediaType.IMAGE]: imageGenerationConfigSchema.optional(),

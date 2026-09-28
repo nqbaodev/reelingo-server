@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { MAX_CONVERSATION_NAME_LENGTH } from "@/config";
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
+import { containsNullByte } from "@/core/utils";
 import { messageContentSchema } from "@/features/messages/presentation/validators/message.validators";
-
-const NULL_BYTE = String.fromCharCode(0);
 
 export const createConversationSchema = z.strictObject({
   content: messageContentSchema,
@@ -15,7 +14,7 @@ export const conversationNameSchema = z.strictObject({
     .trim()
     .min(1)
     .max(MAX_CONVERSATION_NAME_LENGTH)
-    .refine((name) => !name.includes(NULL_BYTE)),
+    .refine((name) => !containsNullByte(name)),
 });
 
 export const conversationParamsSchema = z.strictObject({

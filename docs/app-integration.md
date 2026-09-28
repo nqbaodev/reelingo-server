@@ -33,9 +33,9 @@ The September 14, 2026 documentation review found a mismatch to resolve during
 integration: the app's migration guide describes `id_token`, `refresh_token`,
 and snake_case login fields; this backend uses `idToken`, `refreshToken`, and
 `data.accessToken` / `data.refreshToken`. Backend login returns tokens only;
-the user is loaded through `/api/v1/me`. The app guide says login verifies `/me`
-before publishing its session. These observations are from documentation and
-backend code, not an end-to-end verification of the current frontend adapter.
+the user is loaded through `/api/v1/auth/me`. The app guide says login verifies
+`/me` before publishing its session. These observations are from documentation
+and backend code, not an end-to-end verification of the current frontend adapter.
 
 Treat that note as a review finding, not an additional API specification. The
 backend's [OpenAPI source](../src/openapi.ts) and implementation define its

@@ -7,11 +7,11 @@ export class UpdateProfileUseCase {
   constructor(private readonly users: UserRepository) {}
 
   async execute(userId: number, data: ProfileUpdate): Promise<User> {
-    const existing = await this.users.findById(userId);
-    if (!existing) {
+    const user = await this.users.updateProfile(userId, data);
+    if (!user) {
       throw new NotFoundError(I18n.userNotFound);
     }
 
-    return this.users.updateProfile(userId, data);
+    return user;
   }
 }

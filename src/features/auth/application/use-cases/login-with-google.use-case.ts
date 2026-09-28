@@ -1,7 +1,7 @@
 import type { User } from "@/features/users/domain";
 import type { UserRepository } from "@/features/users/infrastructure";
-import type { AuthTokens, GoogleIdentity } from "../../domain";
-import type { JwtService } from "../../infrastructure";
+import type { VerifiedGoogleIdentity } from "@/services/google-identity";
+import type { JwtService, TokenPair } from "@/services/jwt";
 
 export class LoginWithGoogleUseCase {
   constructor(
@@ -9,26 +9,25 @@ export class LoginWithGoogleUseCase {
     private readonly jwt: JwtService,
   ) {}
 
-  async execute(identity: GoogleIdentity): Promise<AuthTokens> {
+  async execute(identity: VerifiedGoogleIdentity): Promise<TokenPair> {
     const user = await this.resolveUser(identity);
-    return this.jwt.createAuthTokens(user.id, user.email);
+    return this.jwt.createTokenPair(user.id, user.email);
   }
 
   /**
    * Google's `sub` is the only identity we match on. Login is the sole way an
    * account is created, so an unknown `sub` is always a new user.
    */
-  private async resolveUser(identity: GoogleIdentity): Promise<User> {
+  private async resolveUser(identity: VerifiedGoogleIdentity): Promise<User> {
     const existing = await this.users.findByGoogleId(identity.googleId);
     return existing ?? this.createFromGoogle(identity);
   }
 
-  private createFromGoogle(identity: GoogleIdentity): Promise<User> {
+  private createFromGoogle(identity: VerifiedGoogleIdentity): Promise<User> {
     return this.users.create({
       email: identity.email.trim().toLowerCase(),
-      name: identity.name,
+      displayName: identity.name,
       googleId: identity.googleId,
-      avatarUrl: identity.avatarUrl,
     });
   }
 }

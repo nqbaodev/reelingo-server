@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import type { ParamsDictionary } from "express-serve-static-core";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
-import { requireCurrentUserId } from "@/features/auth/presentation/authentication/require-auth";
+import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import type {
   CreateConversationUseCase,
   ListConversationsUseCase,

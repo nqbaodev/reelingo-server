@@ -6,7 +6,7 @@ export const endpoints = {
     logout: "/auth/logout",
   },
   users: {
-    me: "/me",
+    me: "/auth/me",
   },
   conversations: {
     root: "/conversations",

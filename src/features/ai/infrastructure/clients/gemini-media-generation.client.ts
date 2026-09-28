@@ -3,11 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { GoogleGenAI, ThinkingLevel, type GenerateVideosOperation } from "@google/genai";
-import {
-  detectSupportedImage,
-  matchesFileSignature,
-  MediaType,
-} from "@/features/media/domain";
+import { detectSupportedImage, matchesFileSignature } from "@/core/utils";
+import { MediaType } from "@/features/media/domain";
 import {
   IMAGE_GENERATION_ASPECT_RATIOS,
   IMAGE_GENERATION_RESOLUTIONS,

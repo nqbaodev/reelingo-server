@@ -74,7 +74,7 @@ exposes the public `config` facade that application code imports — never
 | `LOG_LEVEL`                      | no       | `info`                          | Pino level                                                   |
 | `CORS_ORIGIN`                    | no       | `*`                             | Allowed origin                                               |
 | `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`       | Absolute base URL used in media upload responses             |
-| `MEDIA_STORAGE_ROOT`             | no       | `storage/media`                 | Local filesystem directory for uploaded media                |
+| `STORAGE_ROOT`                   | no       | `storage`                       | Root directory for application-managed files                 |
 | `GEMINI_MODEL`                   | no       | `gemini-2.5-flash`              | Model id, changeable without a deploy                        |
 | `GEMINI_TIMEOUT_MS`              | no       | `30000`                         | Gemini request timeout; max 300,000 ms                       |
 | `GEMINI_IMAGE_MODEL`             | no       | `gemini-3.1-flash-image`        | Image-generation model id                                    |
@@ -229,8 +229,8 @@ the prefix; health and documentation paths are mounted at the root.
 
 | Method  | Path                                                                 | Description                                                    |
 | ------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `GET`   | `/api/v1/me`                                                         | Current authenticated user                                     |
-| `PATCH` | `/api/v1/me`                                                         | Update the current user's name or avatar                       |
+| `GET`   | `/api/v1/auth/me`                                                    | Current authenticated user                                     |
+| `PUT`   | `/api/v1/auth/me`                                                    | Replace the current user's editable profile                    |
 | `POST`  | `/api/v1/auth/logout`                                                | Revoke the current session                                     |
 | `POST`  | `/api/v1/conversations`                                              | Create a conversation from its first text message              |
 | `GET`   | `/api/v1/conversations`                                              | List conversations with cursor pagination                      |
@@ -246,10 +246,16 @@ the prefix; health and documentation paths are mounted at the root.
 
 ### Local media storage
 
-Uploaded images and generated media are written below `MEDIA_STORAGE_ROOT`; the
-database stores the generated storage key, not an absolute filesystem path or
-public URL. The Docker image declares `/app/storage/media` as a volume. Mount a
-named volume at that path so uploaded files survive container replacement.
+Uploaded images are written below `STORAGE_ROOT/media/uploads/{userId}` and AI
+output below `STORAGE_ROOT/media/generated/{userId}`. The database stores the
+generated storage key, not an absolute filesystem path or public URL. The Docker
+image declares `/app/storage` as a volume. Mount a named volume at that path so
+stored files survive container replacement.
+
+When upgrading from `MEDIA_STORAGE_ROOT`, set `STORAGE_ROOT` to its parent directory.
+For example, replace `/app/storage/media` with `/app/storage` and mount the volume at
+that new root. Existing `images/...` and `videos/...` database keys continue to
+resolve below the legacy `media/` directory.
 
 The upload and media endpoints require a Bearer token. The returned media URL
 therefore identifies the image endpoint; clients must include their access token
@@ -450,13 +456,13 @@ The patterns are adapted from AIM Core's i18n, error handlers, response
 envelope, OpenAPI, and health modules into Reelingo's TypeScript/Express
 feature architecture. No Python runtime or AIM Core business modules are used.
 
-The users feature exposes only `GET /api/v1/me` and `PATCH /api/v1/me`.
+The users feature exposes only `GET /api/v1/auth/me` and `PUT /api/v1/auth/me`.
 There is no administrative `/api/v1/users` CRUD API.
 
 ### User IDs
 
 User IDs are positive, auto-incrementing PostgreSQL integers. Login and
-`/api/v1/me` expose `id` as a JSON number. IDs can have gaps after rolled-back
+`/api/v1/auth/me` expose `id` as a JSON number. IDs can have gaps after rolled-back
 inserts.
 JWT `sub` remains a string containing the decimal user ID.
 
@@ -465,17 +471,38 @@ new integer IDs to existing users. Previously issued UUID-based access and refre
 tokens are rejected; users must sign in with Google again. Clients must discard
 cached UUID user IDs when deploying this change.
 
+### User profiles
+
+`users` stores account identity (`id`, Google `sub`, and the non-editable email).
+`user_profiles` stores editable personal data in a one-to-one relation whose
+`user_id` is both its primary key and a cascading foreign key to `users.id`.
+The API keeps the current-user representation flat rather than exposing a nested
+`profile` object. Google profile pictures are not imported when an account is
+created; a new profile starts with `avatarUrl: null` until the user sets one.
+
 ### Update your profile
 
-`PATCH /api/v1/me` requires `Authorization: Bearer <accessToken>` and a JSON body
-with at least one of `name` or `avatarUrl`:
+`PUT /api/v1/auth/me` requires `Authorization: Bearer <accessToken>` and a JSON body
+containing every editable profile field:
 
 ```json
-{ "name": "Bao", "avatarUrl": "https://example.com/avatar.jpg" }
+{
+  "displayName": "Bao",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "countryCode": "84",
+  "phoneNumber": "901234567",
+  "birthDate": "1998-05-20"
+}
 ```
 
-`name` is trimmed and must contain 1–120 characters. `avatarUrl` must be an HTTP(S)
-URL of at most 2048 characters, or `null` to clear it. Omitted fields stay unchanged.
-Other fields (including `id`, `email`, and `googleId`) and empty updates return 422.
-The endpoint always updates the authenticated user and returns 200 with
-`{ success, message, data: { id, email, name, avatarUrl } }`, matching `GET /api/v1/me`.
+`displayName` is trimmed and must contain 1–120 characters. `avatarUrl` must be an
+HTTP(S) URL of at most 2048 characters. `countryCode` contains 1–3 calling-code
+digits without `+`; `phoneNumber` contains 4–15 national-number digits without
+spaces, country code, or `+`; and `birthDate` uses the locale-independent
+`YYYY-MM-DD` format and cannot be in the future. The phone data is user-provided,
+unverified, and is not used for authentication or account recovery. Every field is
+required, while nullable fields can be cleared with `null`. Missing or additional
+fields (including `id`, `email`, and `googleId`) return 422. The endpoint always
+updates the authenticated user and returns 200 with flat data:
+`{ success, message, data: { id, email, displayName, avatarUrl, countryCode,
+phoneNumber, birthDate } }`, matching `GET /api/v1/auth/me`.

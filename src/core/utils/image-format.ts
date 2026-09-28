@@ -1,3 +1,5 @@
+import { matchesFileSignature } from "./file-signature";
+
 export const IMAGE_MIME_TYPE = {
   JPEG: "image/jpeg",
   PNG: "image/png",
@@ -10,7 +12,7 @@ export const IMAGE_FILE_EXTENSION = {
   WEBP: "webp",
 } as const;
 
-export const IMAGE_FILE_SIGNATURE = {
+const IMAGE_FILE_SIGNATURE = {
   JPEG: [0xff, 0xd8, 0xff],
   PNG: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
   RIFF: [0x52, 0x49, 0x46, 0x46],
@@ -23,7 +25,7 @@ export const SUPPORTED_IMAGE_MIME_TYPES = [
   IMAGE_MIME_TYPE.WEBP,
 ] as const;
 
-export const SUPPORTED_IMAGE_FORMATS = [
+const SUPPORTED_IMAGE_FORMATS = [
   {
     extension: IMAGE_FILE_EXTENSION.JPEG,
     mimeType: IMAGE_MIME_TYPE.JPEG,
@@ -32,12 +34,7 @@ export const SUPPORTED_IMAGE_FORMATS = [
   {
     extension: IMAGE_FILE_EXTENSION.PNG,
     mimeType: IMAGE_MIME_TYPE.PNG,
-    signatures: [
-      {
-        offset: 0,
-        bytes: IMAGE_FILE_SIGNATURE.PNG,
-      },
-    ],
+    signatures: [{ offset: 0, bytes: IMAGE_FILE_SIGNATURE.PNG }],
   },
   {
     extension: IMAGE_FILE_EXTENSION.WEBP,
@@ -52,3 +49,27 @@ export const SUPPORTED_IMAGE_FORMATS = [
 export type SupportedImageMimeType = (typeof SUPPORTED_IMAGE_MIME_TYPES)[number];
 export type SupportedImageExtension =
   (typeof IMAGE_FILE_EXTENSION)[keyof typeof IMAGE_FILE_EXTENSION];
+
+export interface SupportedImage {
+  extension: SupportedImageExtension;
+  mimeType: SupportedImageMimeType;
+}
+
+export function detectSupportedImage(bytes: Uint8Array): SupportedImage | null {
+  for (const format of SUPPORTED_IMAGE_FORMATS) {
+    if (format.signatures.every((signature) => matchesFileSignature(bytes, signature))) {
+      return {
+        extension: format.extension,
+        mimeType: format.mimeType,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function isSupportedImageMimeType(
+  mimeType: string,
+): mimeType is SupportedImageMimeType {
+  return SUPPORTED_IMAGE_MIME_TYPES.some((supported) => supported === mimeType);
+}

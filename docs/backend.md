@@ -151,7 +151,7 @@ rule are defined in [architecture.md](architecture.md).
   (not found, conflict, validation, unauthorized). Let unexpected errors reach
   `errorHandler` — do not catch-and-swallow them in a use case or controller.
 - Only client-safe error messages reach the client through `AppError`, so they take an `I18n`
-  key. Errors thrown inside infrastructure (`GoogleIdentityError`,
+  key. Errors thrown inside technical services or infrastructure (`GoogleIdTokenError`,
   `TokenRevocationStoreError`, plain `new Error(...)`) are log-only: keep
   their messages in plain English, as specific as possible, and never route
   them through `I18n`. Several distinct internal failures may map to one

@@ -3,7 +3,7 @@ import type { ParamsDictionary } from "express-serve-static-core";
 import { ValidationError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
-import { requireCurrentUserId } from "@/features/auth/presentation/authentication/require-auth";
+import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import type {
   DeleteUnusedMediaUseCase,
   GetMediaContentUseCase,

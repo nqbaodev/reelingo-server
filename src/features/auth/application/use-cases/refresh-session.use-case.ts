@@ -1,7 +1,11 @@
 import { UnauthorizedError } from "@/core/errors";
 import type { UserRepository } from "@/features/users/infrastructure";
-import { type AuthTokens, REFRESH_TOKEN_TYPE } from "../../domain";
-import type { JwtService, TokenRevocationStore } from "../../infrastructure";
+import {
+  REFRESH_TOKEN_TYPE,
+  type JwtService,
+  type TokenPair,
+} from "@/services/jwt";
+import type { TokenRevocationStore } from "../../infrastructure";
 import { I18n } from "@/core/i18n";
 
 export class RefreshSessionUseCase {
@@ -11,7 +15,7 @@ export class RefreshSessionUseCase {
     private readonly revocations: TokenRevocationStore,
   ) {}
 
-  async execute(refreshToken: string): Promise<AuthTokens> {
+  async execute(refreshToken: string): Promise<TokenPair> {
     let claims;
     try {
       claims = this.jwt.verify(refreshToken, REFRESH_TOKEN_TYPE);
@@ -40,7 +44,7 @@ export class RefreshSessionUseCase {
       throw new UnauthorizedError(I18n.invalidToken);
     }
 
-    return this.jwt.createAuthTokens(user.id, user.email, {
+    return this.jwt.createTokenPair(user.id, user.email, {
       id: claims.sessionId,
       expiresAt: claims.sessionExpiresAt,
     });

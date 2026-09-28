@@ -1,6 +1,7 @@
 import { UnsupportedMediaTypeError } from "@/core/errors";
 import { I18n } from "@/core/i18n";
-import { detectSupportedImage, MediaType, type Media } from "../../domain";
+import { detectSupportedImage } from "@/core/utils";
+import { MediaType, type Media } from "../../domain";
 import type { MediaRepository, MediaStorage } from "../../infrastructure";
 
 export class UploadImageUseCase {
@@ -15,7 +16,8 @@ export class UploadImageUseCase {
       throw new UnsupportedMediaTypeError(I18n.unsupportedImageType);
     }
 
-    const storageKey = await this.storage.storeImage({
+    const storageKey = await this.storage.storeUploadedImage({
+      userId,
       bytes,
       extension: image.extension,
     });
