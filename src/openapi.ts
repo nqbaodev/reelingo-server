@@ -22,22 +22,22 @@ import {
 import {
   googleLoginSchema,
   refreshTokenSchema,
-} from "@/features/auth/presentation/validators/auth.validators";
+} from "@/features/auth/presentation/dtos/auth.dto";
 import {
   createConversationSchema,
   conversationNameSchema,
   conversationParamsSchema,
-} from "@/features/conversations/presentation/validators/conversation.validators";
+} from "@/features/conversations/presentation/dtos/conversation.dto";
 import { MessageRole } from "@/features/messages/domain";
 import {
   createMessageSchema,
   messageConversationParamsSchema,
   messageResponseParamsSchema,
-} from "@/features/messages/presentation/validators/message.validators";
+} from "@/features/messages/presentation/dtos/message.dto";
 import {
   deleteMediaSchema,
   mediaParamsSchema,
-} from "@/features/media/presentation/validators/media.validators";
+} from "@/features/media/presentation/dtos/media.dto";
 import {
   avatarUrlSchema,
   birthDateSchema,
@@ -45,9 +45,9 @@ import {
   displayNameSchema,
   phoneNumberSchema,
   updateProfileSchema,
-} from "@/features/users/presentation/validators/user.validators";
+} from "@/features/users/presentation/dtos/user.dto";
 
-// Composition root for the public API contract. Requests reuse runtime validators.
+// Composition root for the public API contract. Requests reuse runtime DTO schemas.
 function jsonSchema(schema: z.ZodType, io: "input" | "output" = "input") {
   const { $schema: _dialect, ...result } = z.toJSONSchema(schema, { io });
   return result;

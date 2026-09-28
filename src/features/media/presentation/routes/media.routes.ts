@@ -2,8 +2,8 @@ import type { Router } from "express";
 import { HttpMethod, createBaseRouter, validate } from "@/core/http";
 import { endpoints } from "@/shared/http/endpoints";
 import type { MediaController } from "../controllers/media.controller";
+import { deleteMediaSchema, mediaParamsSchema } from "../dtos/media.dto";
 import { uploadSingleImage } from "../middlewares/media-upload.middleware";
-import { deleteMediaSchema, mediaParamsSchema } from "../validators/media.validators";
 
 export function createMediaRouter(controller: MediaController): Router {
   return createBaseRouter([

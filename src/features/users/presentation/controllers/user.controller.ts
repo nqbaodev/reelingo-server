@@ -7,8 +7,8 @@ import {
   requireCurrentUserId,
 } from "@/features/auth/presentation/require-auth";
 import type { UpdateProfileUseCase } from "../../application";
+import type { UpdateProfileRequestDto } from "../dtos/user.dto";
 import { toCurrentUserResponse } from "../presenters/user.presenter";
-import type { UpdateProfileInput } from "../validators/user.validators";
 
 interface UserControllerDeps {
   updateProfile: UpdateProfileUseCase;
@@ -23,7 +23,7 @@ export class UserController {
   };
 
   updateProfile = async (
-    req: Request<ParamsDictionary, unknown, UpdateProfileInput>,
+    req: Request<ParamsDictionary, unknown, UpdateProfileRequestDto>,
     res: Response,
   ) => {
     const user = await this.deps.updateProfile.execute(

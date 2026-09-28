@@ -1,1 +1,1 @@
-export * from "./validators/ai-generation.validators";
+export * from "./dtos/ai-generation.dto";

@@ -45,7 +45,7 @@ do not invent endpoints, fields, integrations, or requirements.
 
 Identify the owning feature and assign work to the correct layers. Define relevant
 inputs, outputs, errors, side effects, trust boundaries, database constraints, and
-concurrency behavior. For API work, identify every affected validator, presenter,
+concurrency behavior. For API work, identify every affected DTO schema, presenter,
 OpenAPI entry, and consumer. For schema work, inspect data and migration risk before
 application code depends on the new shape.
 For raw SQL or performance work, define why Prisma Client is insufficient, the

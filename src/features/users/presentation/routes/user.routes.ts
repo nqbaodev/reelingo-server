@@ -2,7 +2,7 @@ import type { Router } from "express";
 import { HttpMethod, createBaseRouter, validate } from "@/core/http";
 import { endpoints } from "@/shared/http/endpoints";
 import type { UserController } from "../controllers/user.controller";
-import { updateProfileSchema } from "../validators/user.validators";
+import { updateProfileSchema } from "../dtos/user.dto";
 
 export function createUserRouter(controller: UserController): Router {
   return createBaseRouter([

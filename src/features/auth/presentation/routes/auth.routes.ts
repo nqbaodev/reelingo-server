@@ -2,7 +2,7 @@ import type { RequestHandler, Router } from "express";
 import { HttpMethod, createBaseRouter, validate } from "@/core/http";
 import { endpoints } from "@/shared/http/endpoints";
 import type { AuthController } from "../controllers/auth.controller";
-import { googleLoginSchema, refreshTokenSchema } from "../validators/auth.validators";
+import { googleLoginSchema, refreshTokenSchema } from "../dtos/auth.dto";
 
 export function createPublicAuthRouter(
   controller: AuthController,

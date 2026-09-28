@@ -7,7 +7,7 @@ import {
   listMessagesQuerySchema,
   messageConversationParamsSchema,
   messageResponseParamsSchema,
-} from "../validators/message.validators";
+} from "../dtos/message.dto";
 
 export function createMessageRouter(controller: MessageController): Router {
   return createBaseRouter([

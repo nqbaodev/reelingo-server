@@ -13,11 +13,11 @@ import {
   toConversationResponse,
 } from "../presenters/conversation.presenter";
 import type {
-  CreateConversationBody,
-  ConversationNameInput,
-  ConversationParams,
-  ListConversationsQuery,
-} from "../validators/conversation.validators";
+  ConversationNameRequestDto,
+  ConversationParamsDto,
+  CreateConversationRequestDto,
+  ListConversationsQueryDto,
+} from "../dtos/conversation.dto";
 
 interface ConversationControllerDeps {
   createConversation: CreateConversationUseCase;
@@ -29,7 +29,7 @@ export class ConversationController {
   constructor(private readonly deps: ConversationControllerDeps) {}
 
   create = async (
-    req: Request<ParamsDictionary, unknown, CreateConversationBody>,
+    req: Request<ParamsDictionary, unknown, CreateConversationRequestDto>,
     res: Response,
   ) => {
     const conversation = await this.deps.createConversation.execute(
@@ -42,16 +42,16 @@ export class ConversationController {
   list = async (req: Request, res: Response) => {
     const page = await this.deps.listConversations.execute(
       requireCurrentUserId(req),
-      req.validatedQuery as ListConversationsQuery,
+      req.validatedQuery as ListConversationsQueryDto,
     );
     sendSuccess(res, toConversationListResponse(page));
   };
 
   updateName = async (
-    req: Request<ParamsDictionary, unknown, ConversationNameInput>,
+    req: Request<ParamsDictionary, unknown, ConversationNameRequestDto>,
     res: Response,
   ) => {
-    const { conversationId } = req.params as ConversationParams;
+    const { conversationId } = req.params as ConversationParamsDto;
     const conversation = await this.deps.updateConversationName.execute(
       requireCurrentUserId(req),
       conversationId,

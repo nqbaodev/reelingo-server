@@ -23,7 +23,7 @@ workflow and report cross-repository compatibility separately.
 
 ## Contract review
 
-For API changes, compare backend routes, validators, presenters, and OpenAPI with
+For API changes, compare backend routes, DTO schemas, presenters, and OpenAPI with
 the app's adapters and runtime decoders. Check endpoint/base URL composition,
 field casing and types, envelopes, status codes, authentication, token rotation,
 and user/profile loading. Update docs and affected consumers within task scope;

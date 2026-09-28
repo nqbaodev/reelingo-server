@@ -16,7 +16,7 @@ permit one layer to take over another layer's work.
 | `features/<feature>/domain` | Entities, value types, and business rules that can run without frameworks | Import Express, Prisma, Zod, configuration, provider SDKs, repositories, or HTTP concerns |
 | `features/<feature>/application` | Use-case orchestration, business decisions spanning entities/ports, and application outcomes | Parse HTTP, format responses, call Prisma/SDKs directly, construct adapters, or decide logging/transport policy |
 | `features/<feature>/infrastructure` | Repository ports/adapters, Prisma/provider mapping, external clients, stores, workers, and storage owned by the feature | Read Express request state, format HTTP responses, localize client messages, or decide business outcomes that belong to a use case |
-| `features/<feature>/presentation` | Routes, authentication/validation middleware, controllers, Zod request schemas, presenters, and HTTP error mapping | Query Prisma, call provider SDKs directly, construct infrastructure, or contain business/persistence rules |
+| `features/<feature>/presentation` | Routes, authentication/validation middleware, controllers, request/response DTOs, presenters, and HTTP error mapping | Query Prisma, call provider SDKs directly, construct infrastructure, or contain business/persistence rules |
 | `features/<feature>/<feature>.module.ts` | Composition root that constructs concrete dependencies and exposes routers/middleware | Implement request handling, business rules, database queries, or provider behavior |
 
 Each layer groups files into responsibility-based subfolders. These subfolders are
@@ -27,7 +27,7 @@ navigation categories, not additional architectural layers:
 | `domain` | `entities`, `value-objects`, `rules` |
 | `application` | `use-cases`, `events` |
 | `infrastructure` | `repositories`, `mappers`, `clients`, `stores`, `storage`, `events`, `workers` |
-| `presentation` | `controllers`, `presenters`, `routes`, `validators`, `middlewares` |
+| `presentation` | `controllers`, `dtos`, `presenters`, `routes`, `middlewares` |
 
 Create only categories that contain current code, and name any new category after
 the concrete responsibility it groups. Keep each layer's `index.ts` at the layer
@@ -156,7 +156,7 @@ concrete benefit and verify the affected behavior, not the pattern's class names
 - Feature controllers pass presenter output to `core/http/sendSuccess`, which
   returns `{ success: true, message, data }`. Responses are built explicitly;
   Express's `res.json` is not replaced or intercepted. A 204 stays empty.
-- `openapi.ts` composes the public API contract from feature validators;
+- `openapi.ts` composes the public API contract from feature DTO schemas;
   `shared/http/docs.routes.ts` only serves the document and Swagger UI.
 - The `health` feature owns probe routes and the readiness interface/Prisma
   adapter. `health.module.ts` wires the real database; probes do not require
@@ -297,8 +297,8 @@ explicitly changed and documented.
    `infrastructure/mappers/`.
 3. `src/features/<name>/application/use-cases/` — write use cases; depend on the
    repository interface.
-4. `src/features/<name>/presentation/` — add Zod schemas under `validators/`,
-   entity-to-response mappings under `presenters/`, controllers under
+4. `src/features/<name>/presentation/` — add request schemas and transport types
+   under `dtos/`, entity-to-response mappings under `presenters/`, controllers under
    `controllers/`, and Express routers under `routes/` using `createBaseRouter`
    from `core/http`.
 5. `src/features/<name>/<name>.module.ts` — wire the pieces and export

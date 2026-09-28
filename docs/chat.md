@@ -386,7 +386,7 @@ When changing this feature, keep the affected surfaces aligned:
 - Prisma schema and a new migration if the existing migration may have been
   applied anywhere;
 - domain discriminated unions and infrastructure mapper;
-- request validator, presenter, routes, and localized response messages;
+- request DTO schema, presenter, routes, and localized response messages;
 - repository ownership, transaction, and cursor conditions;
 - `src/openapi.ts`, this document, and the README endpoint summary;
 - companion-app request adapters and runtime decoders when that repository is in
