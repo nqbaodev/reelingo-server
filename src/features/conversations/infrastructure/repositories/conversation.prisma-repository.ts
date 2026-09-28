@@ -1,5 +1,6 @@
 import { MessageRole, Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { createCursorPage, type CursorPage } from "@/core/pagination";
+import { isValidDate } from "@/core/utils";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
 import type { Conversation, ConversationSummary } from "../../domain";
 import { toEntity } from "../mappers/conversation.mapper";
@@ -17,10 +18,6 @@ interface ConversationSummaryRow {
   createdAt: Date;
   updatedAt: Date;
   lastMessageAt: Date;
-}
-
-function isValidDate(value: unknown): value is Date {
-  return value instanceof Date && !Number.isNaN(value.getTime());
 }
 
 function toConversationSummary(row: ConversationSummaryRow): ConversationSummary {

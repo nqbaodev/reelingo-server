@@ -15,7 +15,8 @@ export class UploadImageUseCase {
       throw new UnsupportedMediaTypeError(I18n.unsupportedImageType);
     }
 
-    const storageKey = await this.storage.storeImage({
+    const storageKey = await this.storage.storeUploadedImage({
+      userId,
       bytes,
       extension: image.extension,
     });

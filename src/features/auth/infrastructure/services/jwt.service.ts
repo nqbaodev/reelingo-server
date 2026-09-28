@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import jwt, { type Algorithm, type JwtPayload } from "jsonwebtoken";
+import { MAX_POSTGRES_INTEGER } from "@/config";
 import { MINUTE_MS, toSeconds } from "@/core/utils";
-import { MAX_USER_ID } from "@/features/users/domain";
 import {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
@@ -75,7 +75,7 @@ export class JwtService {
     }
 
     const claims = readClaims(payload);
-    if (!/^[1-9]\d*$/.test(claims.sub) || Number(claims.sub) > MAX_USER_ID) {
+    if (!/^[1-9]\d*$/.test(claims.sub) || Number(claims.sub) > MAX_POSTGRES_INTEGER) {
       throw new Error("JWT has invalid user ID");
     }
     if (

@@ -12,7 +12,7 @@ export function createUserRouter(controller: UserController): Router {
       handler: controller.me,
     },
     {
-      method: HttpMethod.PATCH,
+      method: HttpMethod.PUT,
       path: endpoints.users.me,
       middlewares: [validate({ body: updateProfileSchema })],
       handler: controller.updateProfile,

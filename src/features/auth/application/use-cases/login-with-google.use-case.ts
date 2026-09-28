@@ -26,9 +26,8 @@ export class LoginWithGoogleUseCase {
   private createFromGoogle(identity: GoogleIdentity): Promise<User> {
     return this.users.create({
       email: identity.email.trim().toLowerCase(),
-      name: identity.name,
+      displayName: identity.name,
       googleId: identity.googleId,
-      avatarUrl: identity.avatarUrl,
     });
   }
 }

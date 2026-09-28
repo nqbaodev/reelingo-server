@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { AiGenerationStatus as PrismaAiGenerationStatus } from "@/generated/prisma/enums";
 import { MAX_MESSAGE_MEDIA_COUNT } from "@/config";
+import { isValidDate } from "@/core/utils";
 import { MediaType } from "@/features/media/domain";
 import { MessageRole, type Message } from "@/features/messages/domain";
 import { AiGenerationStatus, parseAiGenerationConfig } from "../../domain";
@@ -27,10 +28,6 @@ interface ClaimVersionRow {
 }
 
 class AiGenerationClaimLostError extends Error {}
-
-function isValidDate(value: unknown): value is Date {
-  return value instanceof Date && !Number.isNaN(value.getTime());
-}
 
 function toMediaType(type: string): MediaType {
   switch (type) {

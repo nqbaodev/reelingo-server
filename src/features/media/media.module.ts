@@ -10,7 +10,7 @@ import { createMediaRouter, MediaController } from "./presentation";
 
 export function createMediaModule(prisma: PrismaClient) {
   const media = new MediaPrismaRepository(prisma);
-  const storage = new LocalMediaStorage(config.media.storageRoot);
+  const storage = new LocalMediaStorage(config.storage.root);
   const controller = new MediaController({
     deleteUnusedMedia: new DeleteUnusedMediaUseCase(media, storage),
     getMediaContent: new GetMediaContentUseCase(media, storage),

@@ -5,8 +5,10 @@ import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_MEDIA_DELETE_COUNT,
   MAX_MESSAGE_CONTENT_LENGTH,
+  MAX_POSTGRES_INTEGER,
 } from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
+import { API_DATE_ONLY_FORMAT } from "@/core/utils";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import {
@@ -37,8 +39,14 @@ import {
   mediaParamsSchema,
 } from "@/features/media/presentation/validators/media.validators";
 import { SUPPORTED_IMAGE_MIME_TYPES } from "@/features/media/domain";
-import { MAX_USER_ID } from "@/features/users/domain";
-import { updateProfileSchema } from "@/features/users/presentation/validators/user.validators";
+import {
+  avatarUrlSchema,
+  birthDateSchema,
+  countryCodeSchema,
+  displayNameSchema,
+  phoneNumberSchema,
+  updateProfileSchema,
+} from "@/features/users/presentation/validators/user.validators";
 
 // Composition root for the public API contract. Requests reuse runtime validators.
 function jsonSchema(schema: z.ZodType, io: "input" | "output" = "input") {
@@ -155,10 +163,13 @@ function requestBody(schema: z.ZodType) {
 }
 
 const currentUser = z.object({
-  id: z.number().int().positive().max(MAX_USER_ID),
+  id: z.number().int().positive().max(MAX_POSTGRES_INTEGER),
   email: z.email(),
-  name: z.string(),
-  avatarUrl: z.string().nullable(),
+  displayName: displayNameSchema,
+  avatarUrl: avatarUrlSchema.nullable(),
+  countryCode: countryCodeSchema.nullable(),
+  phoneNumber: phoneNumberSchema.nullable(),
+  birthDate: birthDateSchema.nullable(),
 });
 const conversation = z.object({
   id: z.uuid(),
@@ -343,12 +354,18 @@ export const openApiDocument = {
       },
     },
     [`${endpoints.apiPrefix}${endpoints.users.me}`]: {
-      patch: {
+      get: {
+        tags: ["Users"],
+        operationId: "getCurrentUser",
+        summary: "Get the current user",
+        parameters: languageParameters,
+        responses: { 200: success(currentUser), ...protectedErrors },
+      },
+      put: {
         tags: ["Users"],
         operationId: "updateCurrentUserProfile",
-        summary: "Update the current user's name or avatar",
-        description:
-          "At least one field is required. Omitted fields stay unchanged; avatarUrl: null clears the avatar. Only name and avatarUrl are accepted.",
+        summary: "Update the current user's profile",
+        description: `Replaces all editable profile fields. Every field is required; nullable fields can be cleared with null. countryCode contains 1-3 calling-code digits without '+'. phoneNumber contains 4-15 national-number digits without spaces, country code, or '+'. birthDate uses ${API_DATE_ONLY_FORMAT}. Phone data is user-provided and unverified.`,
         parameters: languageParameters,
         requestBody: requestBody(updateProfileSchema),
         responses: {
@@ -356,13 +373,6 @@ export const openApiDocument = {
           ...errors(400, 404, 413, 415, 422),
           ...protectedErrors,
         },
-      },
-      get: {
-        tags: ["Users"],
-        operationId: "getCurrentUser",
-        summary: "Get the current user",
-        parameters: languageParameters,
-        responses: { 200: success(currentUser), ...protectedErrors },
       },
     },
     [`${endpoints.apiPrefix}${endpoints.conversations.root}`]: {

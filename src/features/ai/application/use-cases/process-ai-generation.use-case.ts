@@ -1,4 +1,5 @@
 import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_MEDIA_COUNT } from "@/config";
+import { normalizeBoundedText } from "@/core/utils";
 import type { MediaStorage } from "@/features/media/infrastructure";
 import type { AiGenerationEvents } from "../events/ai-generation-events";
 import { AiGenerationEventType } from "../events/ai-generation-events";
@@ -9,11 +10,7 @@ import type {
 } from "../../infrastructure";
 
 function normalizeCompletionText(content: string): string {
-  const normalized = content.replaceAll(String.fromCharCode(0), "").trim();
-  const bounded = Array.from(normalized)
-    .slice(0, MAX_MESSAGE_CONTENT_LENGTH)
-    .join("")
-    .trim();
+  const bounded = normalizeBoundedText(content, MAX_MESSAGE_CONTENT_LENGTH);
   if (!bounded) {
     throw new Error("AI generation completion text is empty");
   }
@@ -131,8 +128,8 @@ export class ProcessAiGenerationUseCase {
       const storedMedia = [];
       for (const output of outputs) {
         const storageKey = await this.storage.storeGenerated({
+          userId: generation.userId,
           bytes: output.bytes,
-          type: generation.type,
           mimeType: output.mimeType,
         });
         storedKeys.push(storageKey);

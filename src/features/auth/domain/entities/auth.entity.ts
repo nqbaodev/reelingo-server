@@ -7,7 +7,6 @@ export interface GoogleIdentity {
   googleId: string;
   email: string;
   name: string;
-  avatarUrl: string | null;
 }
 
 export interface AuthTokens {

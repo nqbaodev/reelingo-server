@@ -66,7 +66,7 @@ const envSchema = z.object({
   API_RATE_LIMIT: z.coerce.number().int().positive().default(100),
   API_RATE_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   PUBLIC_BASE_URL: z.url().optional(),
-  MEDIA_STORAGE_ROOT: z.string().trim().min(1).default("storage/media"),
+  STORAGE_ROOT: z.string().trim().min(1).default("storage"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -159,7 +159,7 @@ export const appConfig = {
     },
   },
 
-  media: {
-    storageRoot: validatedEnv.MEDIA_STORAGE_ROOT,
+  storage: {
+    root: validatedEnv.STORAGE_ROOT,
   },
 } as const;

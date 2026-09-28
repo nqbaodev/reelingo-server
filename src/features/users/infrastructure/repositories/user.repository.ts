@@ -8,5 +8,5 @@ export interface UserRepository {
   findById(id: number): Promise<User | null>;
   findByGoogleId(googleId: string): Promise<User | null>;
   create(data: NewUser): Promise<User>;
-  updateProfile(id: number, data: ProfileUpdate): Promise<User>;
+  updateProfile(id: number, data: ProfileUpdate): Promise<User | null>;
 }

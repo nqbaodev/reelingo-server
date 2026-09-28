@@ -1,15 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { MediaType } from "../../domain";
+import { getErrorCode } from "@/core/utils";
 import type {
   MediaStorage,
   StoreGeneratedMediaInput,
-  StoreImageInput,
+  StoreUploadedImageInput,
 } from "./media.storage";
 
-const IMAGE_DIRECTORY = "images";
-const VIDEO_DIRECTORY = "videos";
+const MEDIA_DIRECTORY = "media";
+const AVATAR_DIRECTORY = "avatars";
+const UPLOAD_DIRECTORY = path.posix.join(MEDIA_DIRECTORY, "uploads");
+const GENERATED_DIRECTORY = path.posix.join(MEDIA_DIRECTORY, "generated");
+const LEGACY_MEDIA_DIRECTORIES = ["images", "videos"] as const;
+const STORAGE_NAMESPACES = [MEDIA_DIRECTORY, AVATAR_DIRECTORY] as const;
+const FILE_ALREADY_EXISTS_CODE = "EEXIST";
 
 const GENERATED_MEDIA_EXTENSIONS: Readonly<Record<string, string>> = {
   "image/jpeg": "jpg",
@@ -20,9 +25,7 @@ const GENERATED_MEDIA_EXTENSIONS: Readonly<Record<string, string>> = {
 };
 
 function isAlreadyExistsError(err: unknown): boolean {
-  return (
-    typeof err === "object" && err !== null && "code" in err && err.code === "EEXIST"
-  );
+  return getErrorCode(err) === FILE_ALREADY_EXISTS_CODE;
 }
 
 export class LocalMediaStorage implements MediaStorage {
@@ -32,13 +35,21 @@ export class LocalMediaStorage implements MediaStorage {
     this.absoluteRoot = path.resolve(root);
   }
 
-  async storeImage({ bytes, extension }: StoreImageInput): Promise<string> {
-    return this.store(bytes, IMAGE_DIRECTORY, extension);
+  async storeUploadedImage({
+    userId,
+    bytes,
+    extension,
+  }: StoreUploadedImageInput): Promise<string> {
+    return this.store(
+      bytes,
+      path.posix.join(UPLOAD_DIRECTORY, String(userId)),
+      extension,
+    );
   }
 
   async storeGenerated({
+    userId,
     bytes,
-    type,
     mimeType,
   }: StoreGeneratedMediaInput): Promise<string> {
     const extension = GENERATED_MEDIA_EXTENSIONS[mimeType];
@@ -46,8 +57,11 @@ export class LocalMediaStorage implements MediaStorage {
       throw new Error(`Generated media has unsupported MIME type: ${mimeType}`);
     }
 
-    const directory = type === MediaType.IMAGE ? IMAGE_DIRECTORY : VIDEO_DIRECTORY;
-    return this.store(bytes, directory, extension);
+    return this.store(
+      bytes,
+      path.posix.join(GENERATED_DIRECTORY, String(userId)),
+      extension,
+    );
   }
 
   private async store(
@@ -80,7 +94,23 @@ export class LocalMediaStorage implements MediaStorage {
   }
 
   private resolveStorageKey(storageKey: string): string {
-    const filePath = path.resolve(this.absoluteRoot, ...storageKey.split("/"));
+    const namespacedKey = LEGACY_MEDIA_DIRECTORIES.some(
+      (directory) => storageKey === directory || storageKey.startsWith(`${directory}/`),
+    )
+      ? path.posix.join(MEDIA_DIRECTORY, storageKey)
+      : storageKey;
+    const keyParts = namespacedKey.split("/");
+    if (
+      keyParts.length < 2 ||
+      !STORAGE_NAMESPACES.some((namespace) => namespace === keyParts[0]) ||
+      keyParts.some(
+        (part) => !part || part === "." || part === ".." || part.includes("\\"),
+      )
+    ) {
+      throw new Error("Media storage key has an invalid path");
+    }
+
+    const filePath = path.resolve(this.absoluteRoot, ...keyParts);
     const relativePath = path.relative(this.absoluteRoot, filePath);
 
     if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {

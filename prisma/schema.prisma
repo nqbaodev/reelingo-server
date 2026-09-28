@@ -10,15 +10,27 @@ datasource db {
 model User {
   id            Int            @id @default(autoincrement())
   email         String         @unique
-  name          String
   googleId      String?        @unique @map("google_id")
-  avatarUrl     String?        @map("avatar_url")
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  profile       UserProfile?
   conversations Conversation[]
   media         Media[]
 
   @@map("users")
+}
+
+model UserProfile {
+  userId      Int       @id @map("user_id")
+  displayName String    @map("display_name") @db.VarChar(120)
+  avatarUrl   String?   @map("avatar_url") @db.VarChar(2048)
+  countryCode String?   @map("country_code") @db.VarChar(3)
+  phoneNumber String?   @map("phone_number") @db.VarChar(15)
+  birthDate   DateTime? @map("birth_date") @db.Date
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
 }
 
 model Conversation {

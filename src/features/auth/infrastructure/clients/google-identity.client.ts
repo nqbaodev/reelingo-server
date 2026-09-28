@@ -48,6 +48,10 @@ export class GoogleIdentityClient {
       throw new GoogleIdentityError("Google token is missing required claims");
     }
 
-    return toEntity({ ...payload, email: payload.email });
+    return toEntity({
+      sub: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    });
   }
 }
