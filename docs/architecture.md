@@ -27,7 +27,7 @@ navigation categories, not additional architectural layers:
 | `domain` | `entities`, `value-objects`, `rules` |
 | `application` | `use-cases`, `events` |
 | `infrastructure` | `repositories`, `mappers`, `clients`, `stores`, `storage`, `events`, `workers` |
-| `presentation` | `controllers`, `presenters`, `routes`, `validators`, `middlewares`, `authentication` |
+| `presentation` | `controllers`, `presenters`, `routes`, `validators`, `middlewares` |
 
 Create only categories that contain current code, and name any new category after
 the concrete responsibility it groups. Keep each layer's `index.ts` at the layer
@@ -215,7 +215,7 @@ reuse. Do not swallow errors, return misleading fallbacks, or accept unrelated m
 flags merely to make one helper serve multiple responsibilities. Test meaningful
 edge cases when the behavior is non-trivial.
 
-`presentation/authentication/bearer-token.ts` and `requireAuth` stay in the auth
+`presentation/bearer-token.ts` and `presentation/require-auth.ts` stay in the auth
 presentation layer:
 their current callers belong to auth. The parser reads a single credential
 without throwing HTTP errors; the middleware decides how to reject invalid

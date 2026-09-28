@@ -5,7 +5,6 @@ import { MINUTE_MS, SECOND_MS, toSeconds } from "@/core/utils";
 import {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
-  type RawJwtClaims,
   type TokenClaims,
   type TokenPair,
   type TokenType,
@@ -18,6 +17,16 @@ interface JwtServiceOptions {
   audience: string;
   accessTtlMinutes: number;
   sessionTtlMinutes: number;
+}
+
+interface RawJwtClaims {
+  sub: string;
+  email: string;
+  jti: string;
+  typ: TokenType;
+  sid: string;
+  session_exp: number;
+  exp: number;
 }
 
 export class JwtService {
@@ -46,7 +55,6 @@ export class JwtService {
         userId,
         email,
         tokenType: ACCESS_TOKEN_TYPE,
-        issuedAt,
         expiresAt: accessExpiresAt,
         sessionId,
         sessionExpiresAt,
@@ -55,7 +63,6 @@ export class JwtService {
         userId,
         email,
         tokenType: REFRESH_TOKEN_TYPE,
-        issuedAt,
         expiresAt: sessionExpiresAt,
         sessionId,
         sessionExpiresAt,
@@ -78,11 +85,7 @@ export class JwtService {
     if (!/^[1-9]\d*$/.test(claims.sub) || Number(claims.sub) > MAX_POSTGRES_INTEGER) {
       throw new Error("JWT has invalid user ID");
     }
-    if (
-      !Number.isFinite(claims.session_exp) ||
-      !Number.isFinite(claims.exp) ||
-      claims.session_exp < claims.exp
-    ) {
+    if (claims.session_exp < claims.exp) {
       throw new Error("JWT has invalid session claims");
     }
     if (claims.typ !== expectedType) {
@@ -93,7 +96,6 @@ export class JwtService {
       userId: Number(claims.sub),
       email: claims.email,
       tokenId: claims.jti,
-      tokenType: claims.typ,
       sessionId: claims.sid,
       sessionExpiresAt: new Date(claims.session_exp * SECOND_MS),
       expiresAt: new Date(claims.exp * SECOND_MS),
@@ -104,7 +106,6 @@ export class JwtService {
     userId: number;
     email: string;
     tokenType: TokenType;
-    issuedAt: Date;
     expiresAt: Date;
     sessionId: string;
     sessionExpiresAt: Date;

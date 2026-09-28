@@ -1,7 +1,7 @@
 import { MAX_AVATAR_URL_LENGTH, MAX_DISPLAY_NAME_LENGTH } from "@/config";
 import {
-  API_DATE_ONLY_FORMAT,
   COUNTRY_CODE_PATTERN,
+  DATE_ONLY_FORMAT,
   NATIONAL_PHONE_NUMBER_PATTERN,
   toDateOnlyString,
 } from "@/core/utils";
@@ -26,12 +26,12 @@ export const avatarUrlSchema = z
   .pipe(z.url({ protocol: /^https?$/ }).max(MAX_AVATAR_URL_LENGTH));
 export const birthDateSchema = z
   .iso
-  .date(`Birth date must use ${API_DATE_ONLY_FORMAT}`)
+  .date(`Birth date must use ${DATE_ONLY_FORMAT}`)
   .refine(
     (value) => value <= toDateOnlyString(new Date()),
     "Birth date cannot be in the future",
   )
-  .describe(`Calendar date using ${API_DATE_ONLY_FORMAT}`);
+  .describe(`Calendar date using ${DATE_ONLY_FORMAT}`);
 
 export const updateProfileSchema = z.strictObject({
   displayName: displayNameSchema,

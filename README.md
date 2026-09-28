@@ -250,9 +250,7 @@ Uploaded images are written below `STORAGE_ROOT/media/uploads/{userId}` and AI
 output below `STORAGE_ROOT/media/generated/{userId}`. The database stores the
 generated storage key, not an absolute filesystem path or public URL. The Docker
 image declares `/app/storage` as a volume. Mount a named volume at that path so
-stored files survive container replacement. The sibling
-`avatars/{storageId}.{ext}` namespace is reserved for a future avatar upload flow;
-avatar ownership remains in the database rather than the storage path.
+stored files survive container replacement.
 
 When upgrading from `MEDIA_STORAGE_ROOT`, set `STORAGE_ROOT` to its parent directory.
 For example, replace `/app/storage/media` with `/app/storage` and mount the volume at

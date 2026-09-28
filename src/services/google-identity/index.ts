@@ -1,5 +1,4 @@
 export {
-  GoogleIdTokenError,
   GoogleIdTokenUnavailableError,
   GoogleIdTokenVerifier,
 } from "./google-id-token.verifier";

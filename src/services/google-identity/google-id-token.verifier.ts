@@ -2,7 +2,7 @@ import { OAuth2Client } from "google-auth-library";
 import { isNetworkError } from "@/core/utils";
 import type { VerifiedGoogleIdentity } from "./google-identity.types";
 
-export class GoogleIdTokenError extends Error {
+class GoogleIdTokenError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = new.target.name;

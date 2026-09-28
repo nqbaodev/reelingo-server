@@ -1,4 +1,4 @@
-import type { SupportedImageExtension } from "../../domain";
+import type { SupportedImageExtension } from "@/core/utils";
 
 export interface StoreUploadedImageInput {
   userId: number;

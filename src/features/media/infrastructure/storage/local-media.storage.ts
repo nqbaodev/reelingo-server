@@ -9,11 +9,9 @@ import type {
 } from "./media.storage";
 
 const MEDIA_DIRECTORY = "media";
-const AVATAR_DIRECTORY = "avatars";
 const UPLOAD_DIRECTORY = path.posix.join(MEDIA_DIRECTORY, "uploads");
 const GENERATED_DIRECTORY = path.posix.join(MEDIA_DIRECTORY, "generated");
 const LEGACY_MEDIA_DIRECTORIES = ["images", "videos"] as const;
-const STORAGE_NAMESPACES = [MEDIA_DIRECTORY, AVATAR_DIRECTORY] as const;
 const FILE_ALREADY_EXISTS_CODE = "EEXIST";
 
 const GENERATED_MEDIA_EXTENSIONS: Readonly<Record<string, string>> = {
@@ -102,7 +100,7 @@ export class LocalMediaStorage implements MediaStorage {
     const keyParts = namespacedKey.split("/");
     if (
       keyParts.length < 2 ||
-      !STORAGE_NAMESPACES.some((namespace) => namespace === keyParts[0]) ||
+      keyParts[0] !== MEDIA_DIRECTORY ||
       keyParts.some(
         (part) => !part || part === "." || part === ".." || part.includes("\\"),
       )

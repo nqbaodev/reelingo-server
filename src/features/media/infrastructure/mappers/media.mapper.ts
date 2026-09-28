@@ -2,11 +2,8 @@ import {
   MediaType as PrismaMediaType,
   type Media as PrismaMedia,
 } from "@/generated/prisma/client";
-import {
-  isSupportedImageMimeType,
-  MediaType,
-  type Media,
-} from "../../domain";
+import { isSupportedImageMimeType } from "@/core/utils";
+import { MediaType, type Media } from "../../domain";
 
 function toMediaType(type: PrismaMediaType): MediaType {
   switch (type) {

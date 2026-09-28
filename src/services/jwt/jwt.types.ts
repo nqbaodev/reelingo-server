@@ -17,18 +17,7 @@ export interface TokenClaims {
   userId: number;
   email: string;
   tokenId: string;
-  tokenType: TokenType;
   sessionId: string;
   sessionExpiresAt: Date;
   expiresAt: Date;
-}
-
-export interface RawJwtClaims {
-  sub: string;
-  email: string;
-  jti: string;
-  typ: TokenType;
-  sid: string;
-  session_exp: number;
-  exp: number;
 }

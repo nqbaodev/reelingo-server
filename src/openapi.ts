@@ -8,7 +8,7 @@ import {
   MAX_POSTGRES_INTEGER,
 } from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
-import { API_DATE_ONLY_FORMAT } from "@/core/utils";
+import { DATE_ONLY_FORMAT, SUPPORTED_IMAGE_MIME_TYPES } from "@/core/utils";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import {
@@ -38,7 +38,6 @@ import {
   deleteMediaSchema,
   mediaParamsSchema,
 } from "@/features/media/presentation/validators/media.validators";
-import { SUPPORTED_IMAGE_MIME_TYPES } from "@/features/media/domain";
 import {
   avatarUrlSchema,
   birthDateSchema,
@@ -365,7 +364,7 @@ export const openApiDocument = {
         tags: ["Users"],
         operationId: "updateCurrentUserProfile",
         summary: "Update the current user's profile",
-        description: `Replaces all editable profile fields. Every field is required; nullable fields can be cleared with null. countryCode contains 1-3 calling-code digits without '+'. phoneNumber contains 4-15 national-number digits without spaces, country code, or '+'. birthDate uses ${API_DATE_ONLY_FORMAT}. Phone data is user-provided and unverified.`,
+        description: `Replaces all editable profile fields. Every field is required; nullable fields can be cleared with null. countryCode contains 1-3 calling-code digits without '+'. phoneNumber contains 4-15 national-number digits without spaces, country code, or '+'. birthDate uses ${DATE_ONLY_FORMAT}. Phone data is user-provided and unverified.`,
         parameters: languageParameters,
         requestBody: requestBody(updateProfileSchema),
         responses: {

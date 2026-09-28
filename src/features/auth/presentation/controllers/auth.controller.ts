@@ -14,7 +14,7 @@ import type {
 } from "../../application";
 import { TokenRevocationStoreError } from "../../infrastructure";
 import { toAuthTokensResponse } from "../presenters/auth.presenter";
-import { requireAuth } from "../authentication/require-auth";
+import { requireAuth } from "../require-auth";
 import type { GoogleLoginInput, RefreshTokenInput } from "../validators/auth.validators";
 
 interface AuthControllerDeps {
