@@ -56,9 +56,9 @@ Layer boundaries apply to behavior as well as imports:
 
 When one operation appears to need work from several layers, split the flow at the
 boundary instead of moving all work into one class. For example: presentation
-validates an ID token string, application requests identity verification and
-resolves the account, infrastructure verifies the token with Google and persists
-the user, and presentation shapes the auth-token response.
+validates an ID token string and requests verification from the standalone Google
+identity service, application resolves the account, infrastructure persists the
+user, and presentation shapes the auth-token response.
 
 ## Project-wide locations
 
@@ -84,6 +84,8 @@ and exposes a narrow public barrel. Features consume services but retain their o
 business decisions and HTTP behavior.
 
 - `services/jwt` owns JWT signing, verification, and token claims.
+- `services/google-identity` owns Google ID-token verification and its verified
+  identity type.
 - `shared` remains the home for cross-cutting infrastructure that is not modeled as
   a standalone service, such as the Prisma client, logging, and HTTP middleware.
 - Pure reusable transformations belong in `core/utils`. A second caller inside

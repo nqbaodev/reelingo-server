@@ -1,6 +1,7 @@
 import { config } from "@/config";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { UserPrismaRepository } from "@/features/users/infrastructure";
+import { GoogleIdTokenVerifier } from "@/services/google-identity";
 import { JwtService } from "@/services/jwt";
 import { createAuthRateLimiter } from "@/shared/middlewares";
 import {
@@ -8,10 +9,7 @@ import {
   LogoutUseCase,
   RefreshSessionUseCase,
 } from "./application";
-import {
-  GoogleIdentityClient,
-  TokenRevocationPrismaStore,
-} from "./infrastructure";
+import { TokenRevocationPrismaStore } from "./infrastructure";
 import {
   AuthController,
   createAuthenticate,
@@ -25,7 +23,7 @@ export function createAuthModule(prisma: PrismaClient) {
   const jwt = new JwtService(config.auth.jwt);
 
   const controller = new AuthController({
-    googleIdentity: new GoogleIdentityClient(config.auth.google.clientId),
+    googleIdTokenVerifier: new GoogleIdTokenVerifier(config.auth.google.clientId),
     loginWithGoogle: new LoginWithGoogleUseCase(users, jwt),
     refreshSession: new RefreshSessionUseCase(users, jwt, revocations),
     logout: new LogoutUseCase(revocations),
