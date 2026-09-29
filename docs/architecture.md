@@ -1,7 +1,7 @@
 # Architecture guidelines
 
 Organize code by feature first, then by layer within each feature. The app
-currently composes `health`, `auth`, `users`, `conversations`, `messages`, `media`, and `ai` features on top of
+currently composes `health`, `auth`, `users`, `conversations`, `messages`, `media`, `ai`, and `admin-logs` features on top of
 standalone technical services and shared Express/Prisma infrastructure.
 
 ## Responsibilities and dependencies
@@ -88,6 +88,9 @@ business decisions and HTTP behavior.
   identity type.
 - `shared` remains the home for cross-cutting infrastructure that is not modeled as
   a standalone service, such as the Prisma client, logging, and HTTP middleware.
+- `admin-logs` owns the Basic-authenticated operational HTTP boundary and reads
+  the bounded, process-local log view exposed by `shared/logger`. It does not
+  change client authentication or persist logs in PostgreSQL.
 - Pure reusable transformations belong in `core/utils`. A second caller inside
   the same feature alone is not a reason to move its code out.
 - Do not create a shared wrapper or interface just for a naming convention. Add

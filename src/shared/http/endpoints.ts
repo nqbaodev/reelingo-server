@@ -30,4 +30,10 @@ export const endpoints = {
     ui: "/docs",
     document: "/openapi.json",
   },
+  adminLogger: {
+    root: "/admin",
+    ui: "/logger",
+    document: "/admin/openapi.json",
+    logs: "/admin/logs",
+  },
 } as const;
