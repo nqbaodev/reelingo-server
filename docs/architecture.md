@@ -1,7 +1,7 @@
 # Architecture guidelines
 
 Organize code by feature first, then by layer within each feature. The app
-currently composes `health`, `auth`, `users`, `conversations`, `messages`, `media`, `ai`, and `admin-logs` features on top of
+currently composes `health`, `auth`, `users`, `projects`, `conversations`, `messages`, `media`, `ai`, and `admin-logs` features on top of
 standalone technical services and shared Express/Prisma infrastructure.
 
 ## Responsibilities and dependencies

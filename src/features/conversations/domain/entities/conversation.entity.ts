@@ -1,6 +1,6 @@
 export interface Conversation {
   id: string;
-  userId: number;
+  projectId: string;
   name: string;
   createdAt: Date;
   updatedAt: Date;

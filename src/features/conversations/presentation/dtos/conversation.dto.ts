@@ -21,6 +21,10 @@ export const conversationParamsSchema = z.strictObject({
   conversationId: z.uuid(),
 });
 
+export const projectConversationParamsSchema = z.strictObject({
+  projectId: z.uuid(),
+});
+
 const conversationCursorPayloadSchema = z.strictObject({
   lastMessageAt: z.iso.datetime(),
   conversationId: z.uuid(),
@@ -41,17 +45,17 @@ export const listConversationsQuerySchema = z
       : undefined,
   }));
 
-export type CreateConversationRequestDto = z.infer<
-  typeof createConversationSchema
->;
+export type CreateConversationRequestDto = z.infer<typeof createConversationSchema>;
 export type ConversationNameRequestDto = z.infer<typeof conversationNameSchema>;
 export type ConversationParamsDto = z.infer<typeof conversationParamsSchema>;
-export type ListConversationsQueryDto = z.infer<
-  typeof listConversationsQuerySchema
+export type ProjectConversationParamsDto = z.infer<
+  typeof projectConversationParamsSchema
 >;
+export type ListConversationsQueryDto = z.infer<typeof listConversationsQuerySchema>;
 
 export interface ConversationResponseDto {
   id: string;
+  projectId: string;
   name: string;
   createdAt: string;
   updatedAt: string;

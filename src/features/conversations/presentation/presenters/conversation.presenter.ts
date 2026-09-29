@@ -15,6 +15,7 @@ export function toConversationResponse(
 ): ConversationResponseDto {
   return {
     id: conversation.id,
+    projectId: conversation.projectId,
     name: conversation.name,
     createdAt: conversation.createdAt.toISOString(),
     updatedAt: conversation.updatedAt.toISOString(),

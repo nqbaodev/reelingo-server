@@ -6,6 +6,7 @@ import {
   MAX_MEDIA_DELETE_COUNT,
   MAX_MESSAGE_CONTENT_LENGTH,
   MAX_POSTGRES_INTEGER,
+  MAX_PROJECT_TITLE_LENGTH,
 } from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
 import { DATE_ONLY_FORMAT, SUPPORTED_IMAGE_MIME_TYPES } from "@/core/utils";
@@ -27,6 +28,7 @@ import {
   createConversationSchema,
   conversationNameSchema,
   conversationParamsSchema,
+  projectConversationParamsSchema,
 } from "@/features/conversations/presentation/dtos/conversation.dto";
 import { MessageRole } from "@/features/messages/domain";
 import {
@@ -38,6 +40,10 @@ import {
   deleteMediaSchema,
   mediaParamsSchema,
 } from "@/features/media/presentation/dtos/media.dto";
+import {
+  projectParamsSchema,
+  projectTitleSchema,
+} from "@/features/projects/presentation/dtos/project.dto";
 import {
   avatarUrlSchema,
   birthDateSchema,
@@ -170,8 +176,19 @@ const currentUser = z.object({
   phoneNumber: phoneNumberSchema.nullable(),
   birthDate: birthDateSchema.nullable(),
 });
+const project = z.object({
+  id: z.uuid(),
+  title: z.string().min(1).max(MAX_PROJECT_TITLE_LENGTH),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+const projectList = z.object({
+  items: z.array(project),
+  nextCursor: z.string().nullable(),
+});
 const conversation = z.object({
   id: z.uuid(),
+  projectId: z.uuid(),
   name: z.string().min(1).max(MAX_CONVERSATION_NAME_LENGTH),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
@@ -374,29 +391,118 @@ export const openApiDocument = {
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.conversations.root}`]: {
+    [`${endpoints.apiPrefix}${endpoints.projects.root}`]: {
       get: {
-        tags: ["Conversations"],
-        operationId: "listConversations",
-        summary: "List conversations for infinite scrolling",
+        tags: ["Projects"],
+        operationId: "listProjects",
+        summary: "List owned projects for infinite scrolling",
         parameters: [...languageParameters, ...cursorPaginationParameters],
         responses: {
-          200: success(conversationList),
+          200: success(projectList),
           ...errors(422),
           ...protectedErrors,
         },
       },
       post: {
+        tags: ["Projects"],
+        operationId: "createProject",
+        summary: "Create a project",
+        parameters: languageParameters,
+        requestBody: requestBody(projectTitleSchema),
+        responses: {
+          201: success(project, "Project created"),
+          ...errors(400, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.projects.byId}`.replace(
+      ":projectId",
+      "{projectId}",
+    )]: {
+      get: {
+        tags: ["Projects"],
+        operationId: "getProject",
+        summary: "Get an owned project",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "projectId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(projectParamsSchema.shape.projectId),
+          },
+        ],
+        responses: {
+          200: success(project),
+          ...errors(404, 422),
+          ...protectedErrors,
+        },
+      },
+      patch: {
+        tags: ["Projects"],
+        operationId: "updateProjectTitle",
+        summary: "Rename an owned project",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "projectId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(projectParamsSchema.shape.projectId),
+          },
+        ],
+        requestBody: requestBody(projectTitleSchema),
+        responses: {
+          200: success(project, "Project updated"),
+          ...errors(400, 404, 413, 415, 422),
+          ...protectedErrors,
+        },
+      },
+    },
+    [`${endpoints.apiPrefix}${endpoints.projects.conversations}`.replace(
+      ":projectId",
+      "{projectId}",
+    )]: {
+      get: {
         tags: ["Conversations"],
-        operationId: "createConversation",
+        operationId: "listProjectConversations",
+        summary: "List conversations in an owned project",
+        parameters: [
+          ...languageParameters,
+          ...cursorPaginationParameters,
+          {
+            name: "projectId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(projectConversationParamsSchema.shape.projectId),
+          },
+        ],
+        responses: {
+          200: success(conversationList),
+          ...errors(404, 422),
+          ...protectedErrors,
+        },
+      },
+      post: {
+        tags: ["Conversations"],
+        operationId: "createProjectConversation",
         summary: "Create a conversation from the first message",
         description:
-          "Creates the conversation and its first user text message atomically. The initial name is derived from the first 120 characters of content.",
-        parameters: languageParameters,
+          "Creates a conversation in the owned project together with its first user text message and pending chat run atomically.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "projectId",
+            in: "path",
+            required: true,
+            schema: jsonSchema(projectConversationParamsSchema.shape.projectId),
+          },
+        ],
         requestBody: requestBody(createConversationSchema),
         responses: {
           201: success(conversation, "Conversation created"),
-          ...errors(400, 413, 415, 422),
+          ...errors(400, 404, 413, 415, 422),
           ...protectedErrors,
         },
       },

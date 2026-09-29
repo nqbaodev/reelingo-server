@@ -16,6 +16,7 @@ import { createConversationsModule } from "@/features/conversations/conversation
 import { createHealthModule } from "@/features/health/health.module";
 import { createMediaModule } from "@/features/media/media.module";
 import { createMessagesModule } from "@/features/messages/messages.module";
+import { createProjectsModule } from "@/features/projects/projects.module";
 import { createUsersModule } from "@/features/users/users.module";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/shared/database";
@@ -73,6 +74,7 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
     options.mediaGenerationClient,
   );
   const messagesModule = createMessagesModule(database, aiModule.client, aiModule.events);
+  const projectsModule = createProjectsModule(database);
   const usersModule = createUsersModule(database);
   const adminLoggerCredentials = config.logger.admin.credentials;
   const adminLogsModule = adminLoggerCredentials
@@ -92,6 +94,7 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
     authModule.authenticate,
     authModule.protectedRouter,
     usersModule.router,
+    projectsModule.router,
     conversationsModule.router,
     mediaModule.router,
     messagesModule.router,

@@ -13,7 +13,7 @@ import type {
 
 interface ConversationSummaryRow {
   id: string;
-  userId: number;
+  projectId: string;
   name: string;
   createdAt: Date;
   updatedAt: Date;
@@ -40,39 +40,50 @@ export class ConversationPrismaRepository implements ConversationRepository {
 
   async create({
     userId,
+    projectId,
     name,
     firstMessageContent,
-  }: CreateConversationInput): Promise<Conversation> {
-    const record = await this.prisma.conversation.create({
-      data: {
-        userId,
-        name,
-        messages: {
-          create: {
-            role: MessageRole.user,
-            content: firstMessageContent,
-            triggeredChatRun: {
-              create: {
-                contextSnapshot: {
-                  intentHint: null,
-                  generationSettings: {},
+  }: CreateConversationInput): Promise<Conversation | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const project = await transaction.project.findFirst({
+        where: { id: projectId, userId },
+        select: { id: true },
+      });
+      if (!project) return null;
+
+      const record = await transaction.conversation.create({
+        data: {
+          projectId,
+          name,
+          messages: {
+            create: {
+              role: MessageRole.user,
+              content: firstMessageContent,
+              triggeredChatRun: {
+                create: {
+                  contextSnapshot: {
+                    intentHint: null,
+                    generationSettings: {},
+                  },
                 },
               },
             },
           },
         },
-      },
+      });
+      return toEntity(record);
     });
-    return toEntity(record);
   }
 
-  async listByUser({
+  async listByProject({
     userId,
+    projectId,
     limit,
     cursor,
-  }: ListConversationsInput): Promise<
-    CursorPage<ConversationSummary, ConversationListCursor>
-  > {
+  }: ListConversationsInput): Promise<CursorPage<
+    ConversationSummary,
+    ConversationListCursor
+  > | null> {
     const cursorCondition = cursor
       ? Prisma.sql`
           AND (
@@ -84,11 +95,17 @@ export class ConversationPrismaRepository implements ConversationRepository {
           )
         `
       : Prisma.sql``;
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, userId },
+      select: { id: true },
+    });
+    if (!project) return null;
+
     const rows = await this.prisma.$queryRaw<ConversationSummaryRow[]>(Prisma.sql`
       WITH activity AS (
         SELECT
           conversation."id",
-          conversation."user_id" AS "userId",
+          conversation."project_id" AS "projectId",
           conversation."name",
           conversation."created_at" AS "createdAt",
           conversation."updated_at" AS "updatedAt",
@@ -104,11 +121,11 @@ export class ConversationPrismaRepository implements ConversationRepository {
           ORDER BY message."created_at" DESC, message."id" DESC
           LIMIT 1
         ) AS latest_message ON TRUE
-        WHERE conversation."user_id" = ${userId}
+        WHERE conversation."project_id" = ${projectId}::uuid
       )
       SELECT
         activity."id",
-        activity."userId",
+        activity."projectId",
         activity."name",
         activity."createdAt",
         activity."updatedAt",
@@ -134,7 +151,7 @@ export class ConversationPrismaRepository implements ConversationRepository {
   ): Promise<Conversation | null> {
     try {
       const record = await this.prisma.conversation.update({
-        where: { id, userId },
+        where: { id, project: { userId } },
         data: { name },
       });
       return toEntity(record);

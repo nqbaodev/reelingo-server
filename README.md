@@ -242,7 +242,8 @@ quits.
 ## API
 
 `shared/http/endpoints.ts` defines the shared API prefix (`apiPrefix`, `/api/v1`)
-and paths grouped under `auth`, `users`, `conversations`, `messages`, `ai`, `health`, and `docs`.
+and paths grouped under `auth`, `users`, `projects`, `conversations`, `messages`,
+`media`, `health`, `docs`, and `adminLogger`.
 Routers and OpenAPI reuse these values. API feature paths are relative to
 the prefix; health and documentation paths are mounted at the root.
 
@@ -264,8 +265,12 @@ the prefix; health and documentation paths are mounted at the root.
 | `GET`   | `/api/v1/auth/me`                                                    | Current authenticated user                                     |
 | `PUT`   | `/api/v1/auth/me`                                                    | Replace the current user's editable profile                    |
 | `POST`  | `/api/v1/auth/logout`                                                | Revoke the current session                                     |
-| `POST`  | `/api/v1/conversations`                                              | Create a conversation from its first text message              |
-| `GET`   | `/api/v1/conversations`                                              | List conversations with cursor pagination                      |
+| `POST`  | `/api/v1/projects`                                                   | Create a project                                               |
+| `GET`   | `/api/v1/projects`                                                   | List owned projects with cursor pagination                     |
+| `GET`   | `/api/v1/projects/:projectId`                                        | Get an owned project                                           |
+| `PATCH` | `/api/v1/projects/:projectId`                                        | Rename an owned project                                        |
+| `POST`  | `/api/v1/projects/:projectId/conversations`                          | Create a conversation from its first text message              |
+| `GET`   | `/api/v1/projects/:projectId/conversations`                          | List conversations in an owned project                         |
 | `PATCH` | `/api/v1/conversations/:conversationId`                              | Update an owned conversation's name                            |
 | `POST`  | `/api/v1/conversations/:conversationId/messages`                     | Store a prompt and pending chat run                            |
 | `GET`   | `/api/v1/messages/events`                                            | Subscribe to background generation events over SSE             |

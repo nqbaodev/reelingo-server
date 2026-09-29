@@ -110,7 +110,7 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
         claimed."id",
         claimed."trigger_message_id" AS "triggerMessageId",
         message."conversation_id" AS "conversationId",
-        conversation."user_id" AS "userId",
+        project."user_id" AS "userId",
         message."content" AS "prompt",
         claimed."type"::text AS "type",
         claimed."config_snapshot" AS "configSnapshot",
@@ -120,6 +120,8 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
         ON message."id" = claimed."trigger_message_id"
       JOIN "conversations" AS conversation
         ON conversation."id" = message."conversation_id"
+      JOIN "projects" AS project
+        ON project."id" = conversation."project_id"
     `);
 
     const [row] = rows;
@@ -184,7 +186,9 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
             triggerMessage: {
               select: {
                 conversationId: true,
-                conversation: { select: { userId: true } },
+                conversation: {
+                  select: { project: { select: { userId: true } } },
+                },
                 triggeredChatRun: { select: { id: true, status: true } },
               },
             },
@@ -197,7 +201,7 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
           mediaRecords.push(
             await transaction.media.create({
               data: {
-                userId: generation.triggerMessage.conversation.userId,
+                userId: generation.triggerMessage.conversation.project.userId,
                 type: generation.type,
                 storageKey: output.storageKey,
                 mimeType: output.mimeType,

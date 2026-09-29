@@ -17,6 +17,7 @@ import type {
   ConversationParamsDto,
   CreateConversationRequestDto,
   ListConversationsQueryDto,
+  ProjectConversationParamsDto,
 } from "../dtos/conversation.dto";
 
 interface ConversationControllerDeps {
@@ -32,16 +33,20 @@ export class ConversationController {
     req: Request<ParamsDictionary, unknown, CreateConversationRequestDto>,
     res: Response,
   ) => {
+    const { projectId } = req.params as ProjectConversationParamsDto;
     const conversation = await this.deps.createConversation.execute(
       requireCurrentUserId(req),
+      projectId,
       req.body.content,
     );
     sendSuccess(res, toConversationResponse(conversation), I18n.conversationCreated, 201);
   };
 
   list = async (req: Request, res: Response) => {
+    const { projectId } = req.params as ProjectConversationParamsDto;
     const page = await this.deps.listConversations.execute(
       requireCurrentUserId(req),
+      projectId,
       req.validatedQuery as ListConversationsQueryDto,
     );
     sendSuccess(res, toConversationListResponse(page));
