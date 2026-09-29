@@ -20,6 +20,7 @@ src/
     logger/             # Pino logger
     middlewares/        # Request ID, language, rate limit and error handlers
   features/
+    admin-logs/         # Basic-authenticated operational log viewer
     <feature>/
       domain/            # Pure entities (no Prisma / Express imports)
       application/       # Use cases, depending on the repository interface in infrastructure
@@ -27,6 +28,7 @@ src/
       presentation/       # Express router, controller, request/response DTOs, HTTP presenters
       <feature>.module.ts # Composition root: wire domain <-> infra <-> presentation
   app.ts              # Assemble the Express app, mount feature routers
+  admin-openapi.ts    # Admin log API contract
   openapi.ts          # Public API contract, reusing Zod request DTO schemas
   server.ts           # Entrypoint: start the HTTP server, graceful shutdown
 prisma/
@@ -72,6 +74,9 @@ exposes the public `config` facade that application code imports — never
 | `NODE_ENV`                       | no       | `development`                   | `development` \| `test` \| `production`                      |
 | `PORT`                           | no       | `3000`                          | HTTP port                                                    |
 | `LOG_LEVEL`                      | no       | `info`                          | Pino level                                                   |
+| `ADMIN_LOGGER_USERNAME`          | no       | —                               | Enables `/logger` when configured with its password          |
+| `ADMIN_LOGGER_PASSWORD`          | no       | —                               | Basic Auth password, at least 16 characters                  |
+| `ADMIN_LOGGER_MAX_ENTRIES`       | no       | `1000`                          | Process-local retained entries; range 100–10,000             |
 | `CORS_ORIGIN`                    | no       | `*`                             | Allowed origin                                               |
 | `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`       | Absolute base URL used in media upload responses             |
 | `STORAGE_ROOT`                   | no       | `storage`                       | Root directory for application-managed files                 |
@@ -95,15 +100,15 @@ exposes the public `config` facade that application code imports — never
 
 ### Secrets
 
-Three variables are secrets. They live only in `.env` (gitignored) or the
-deployment's secret store — never in `.env.example`, commits, logs, chat, or
-pull-request text.
+Secrets live only in `.env` (gitignored) or the deployment's secret store —
+never in `.env.example`, commits, logs, chat, or pull-request text.
 
-| Secret             | Where it comes from                                                        | Notes                                                                                                                                                                                                     |
-| ------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JWT_SECRET`       | Generate locally with the command below                                    | Every environment gets its own value. **Rotating it invalidates every issued access and refresh token**, signing all users out at once — intended when the key is suspected leaked, disruptive otherwise. |
-| `GOOGLE_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID | Not actually secret (it ships in frontend code), but treat the accompanying _client secret_ as one — this server never needs it, so do not store it here.                                                 |
-| `GEMINI_API_KEY`   | Google AI Studio → Get API key                                             | Server-only; billed per call.                                                                                                                                                                             |
+| Secret                  | Where it comes from                                                        | Notes                                                                                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`            | Generate locally with the command below                                    | Every environment gets its own value. **Rotating it invalidates every issued access and refresh token**, signing all users out at once — intended when the key is suspected leaked, disruptive otherwise. |
+| `ADMIN_LOGGER_PASSWORD` | Generate a separate random value                                           | Protects operational logs; never reuse a client or database password. Requires HTTPS because Basic Auth does not encrypt credentials.                                                                     |
+| `GOOGLE_CLIENT_ID`      | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID | Not actually secret (it ships in frontend code), but treat the accompanying _client secret_ as one — this server never needs it, so do not store it here.                                                 |
+| `GEMINI_API_KEY`        | Google AI Studio → Get API key                                             | Server-only; billed per call.                                                                                                                                                                             |
 
 Generate a fresh `JWT_SECRET`:
 
@@ -111,11 +116,38 @@ Generate a fresh `JWT_SECRET`:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
+Generate an independent admin logger password with the same command and store it
+as `ADMIN_LOGGER_PASSWORD`; do not rotate `JWT_SECRET` for this purpose.
+
 Confirm `.env` holds a real value without printing it:
 
 ```bash
 node -e "require('dotenv').config(); const s=process.env.JWT_SECRET||''; console.log(s.length, 'chars,', s.startsWith('change-me') ? 'PLACEHOLDER' : 'ok')"
 ```
+
+### Admin log viewer
+
+Set both `ADMIN_LOGGER_USERNAME` and `ADMIN_LOGGER_PASSWORD`, restart the server,
+then open `/logger`. The browser's Basic Auth prompt is independent of the client
+Google login. The same credentials protect `/admin/openapi.json` and
+`GET /admin/logs`; failed authentication is limited to 20 attempts per minute.
+When either credential is absent, these routes remain disabled and the in-memory
+log buffer is not populated.
+
+These values define one static operational account per environment. They are read
+at startup, are not stored in PostgreSQL, and do not create a session, cookie, or
+JWT. Choose the values yourself: the username must contain 1–128 characters and no
+colon (`:`); the password must contain 16–1024 characters. Keep the password in
+`.env` or the deployment secret store, never commit it, and restart the server
+after changing either value.
+
+The endpoint returns newest-first Pino records and accepts `limit`, `level`,
+`requestId`, and `search` query parameters. It exposes only this process's bounded
+in-memory buffer, so entries disappear on restart and are not aggregated across
+multiple server instances; individual entries over 64 KiB are not retained. Use
+HTTPS outside localhost. For durable or
+multi-instance history, send Pino output to a centralized log backend instead of
+increasing this buffer indefinitely.
 
 ## Database (local)
 

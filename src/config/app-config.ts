@@ -2,7 +2,7 @@ import "dotenv/config";
 import { z } from "zod";
 import { SECOND_MS } from "@/core/utils";
 
-const envSchema = z.object({
+const baseEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -21,6 +21,22 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  ADMIN_LOGGER_USERNAME: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .refine((value) => !value.includes(":"), {
+      message: "ADMIN_LOGGER_USERNAME must not contain ':'",
+    })
+    .optional(),
+  ADMIN_LOGGER_PASSWORD: z.string().min(16).max(1024).optional(),
+  ADMIN_LOGGER_MAX_ENTRIES: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(10_000)
+    .default(1_000),
   CORS_ORIGIN: z.string().default("*"),
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
@@ -69,6 +85,19 @@ const envSchema = z.object({
   STORAGE_ROOT: z.string().trim().min(1).default("storage"),
 });
 
+const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  const hasUsername = env.ADMIN_LOGGER_USERNAME !== undefined;
+  const hasPassword = env.ADMIN_LOGGER_PASSWORD !== undefined;
+  if (hasUsername === hasPassword) return;
+
+  ctx.addIssue({
+    code: "custom",
+    message:
+      "ADMIN_LOGGER_USERNAME and ADMIN_LOGGER_PASSWORD must be configured together",
+    path: hasUsername ? ["ADMIN_LOGGER_PASSWORD"] : ["ADMIN_LOGGER_USERNAME"],
+  });
+});
+
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
@@ -109,6 +138,16 @@ export const appConfig = {
 
   logger: {
     level: validatedEnv.LOG_LEVEL,
+    admin: {
+      maxEntries: validatedEnv.ADMIN_LOGGER_MAX_ENTRIES,
+      credentials:
+        validatedEnv.ADMIN_LOGGER_USERNAME && validatedEnv.ADMIN_LOGGER_PASSWORD
+          ? {
+              username: validatedEnv.ADMIN_LOGGER_USERNAME,
+              password: validatedEnv.ADMIN_LOGGER_PASSWORD,
+            }
+          : null,
+    },
   },
 
   database: {

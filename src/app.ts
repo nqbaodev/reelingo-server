@@ -3,6 +3,8 @@ import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
 import { config } from "@/config";
+import { adminOpenApiDocument } from "@/admin-openapi";
+import { createAdminLogsModule } from "@/features/admin-logs/admin-logs.module";
 import { createAiModule } from "@/features/ai/ai.module";
 import type {
   AiGenerationWorker,
@@ -17,7 +19,7 @@ import { createMessagesModule } from "@/features/messages/messages.module";
 import { createUsersModule } from "@/features/users/users.module";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/shared/database";
-import { httpLogger } from "@/shared/logger";
+import { httpLogger, recentLogStore } from "@/shared/logger";
 import {
   createApiRateLimiter,
   errorHandler,
@@ -72,10 +74,15 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
   );
   const messagesModule = createMessagesModule(database, aiModule.client, aiModule.events);
   const usersModule = createUsersModule(database);
+  const adminLoggerCredentials = config.logger.admin.credentials;
+  const adminLogsModule = adminLoggerCredentials
+    ? createAdminLogsModule(recentLogStore, adminLoggerCredentials, adminOpenApiDocument)
+    : null;
 
   // Public routes
   app.use(healthModule.router);
   app.use(createDocsRouter(openApiDocument));
+  if (adminLogsModule) app.use(adminLogsModule.router);
 
   // API routes
   app.use(
