@@ -4,6 +4,7 @@
   "signedIn": "Đăng nhập thành công",
   "sessionRefreshed": "Làm mới phiên đăng nhập thành công",
   "signedOut": "Đăng xuất thành công",
+  "projectCreated": "Tạo dự án thành công",
   "conversationCreated": "Tạo cuộc trò chuyện thành công",
   "messageSent": "Gửi tin nhắn thành công",
   "mediaUploaded": "Tải media lên thành công",
@@ -23,6 +24,7 @@
   "invalidGoogleToken": "Google ID token không hợp lệ",
 
   "userNotFound": "Không tìm thấy người dùng",
+  "projectNotFound": "Không tìm thấy dự án",
   "conversationNotFound": "Không tìm thấy cuộc trò chuyện",
   "messageNotFound": "Không tìm thấy tin nhắn",
   "chatAlreadyProcessing": "Phản hồi AI đang được xử lý",

@@ -6,8 +6,10 @@ executable API contract; update this document when those decisions change.
 
 ## Scope and ownership
 
+- `features/projects` owns private project creation, listing, lookup, title
+  updates. See [Projects](projects.md).
 - `features/conversations` owns conversation creation from the first text message,
-  listing, and name updates.
+  project-scoped listing, and name updates.
 - `features/messages` owns message validation, persistence, listing, ordered media
   attachments, durable chat runs, and persistence of the AI decision.
 - `features/media` owns the shared image/video media type, authenticated image
@@ -15,14 +17,17 @@ executable API contract; update this document when those decisions change.
 - `features/ai` owns chat routing, generation statuses, configuration semantics,
   and the Gemini adapter. Image/video provider execution is not wired yet; a media
   tool call only persists a pending generation request for a future worker.
-- Every conversation and nested message operation is authenticated and scoped to
-  the conversation owner. A missing or non-owned conversation returns the same 404
-  outcome and must not reveal another user's data.
+- Every conversation belongs to one project. Conversation and nested message
+  operations are authenticated and scoped through the project owner. A missing or
+  non-owned project or conversation returns the same 404 outcome and must not
+  reveal another user's data.
 
 ## Conversations
 
 - `Conversation.id` is a database-generated UUID and is the public conversation
   identifier used in routes.
+- `projectId` identifies the required parent project. User ownership is not
+  duplicated on the conversation row.
 - The current name field is `name`, with a maximum length of 120 characters;
   null bytes are rejected before persistence.
 - `createdAt` and `updatedAt` are stored as `TIMESTAMPTZ(3)` and returned as ISO
@@ -46,8 +51,8 @@ executable API contract; update this document when those decisions change.
 Current endpoints:
 
 ```text
-POST  /api/v1/conversations
-GET   /api/v1/conversations
+POST  /api/v1/projects/:projectId/conversations
+GET   /api/v1/projects/:projectId/conversations
 PATCH /api/v1/conversations/:conversationId
 ```
 
@@ -317,18 +322,18 @@ PostgreSQL constraints enforce the valid stored shapes:
   message per generation;
 - generation worker claims must condition their updates on both status and
   `updatedAt` so only one worker owns the current lease;
-- deleting a conversation cascades to its messages.
+- deleting a conversation cascades to its messages;
 - deleting media referenced by a message is restricted.
 
 The database can validate non-empty text but cannot express “content or at least
 one row in another table” as a row-level check. The HTTP/application boundary
 therefore enforces that every message has content or at least one media item.
 
-Creating a conversation uses one atomic nested write for the conversation and its
-first user message. Sending a later message uses one transaction to verify
-conversation and media ownership and insert the user message, ordered media links,
-and pending chat run. Conversation activity is derived from the newest message;
-message writes do not modify the parent conversation timestamp. The response
+Creating a conversation verifies the owned project and uses one transaction for
+the conversation and its first user message. Sending a later message uses one
+transaction to verify conversation and media ownership and insert the user message,
+ordered media links, and pending chat run. Conversation activity is derived from
+the newest message; message writes do not modify the parent conversation timestamp. The response
 endpoint claims that run before calling Gemini outside every database transaction.
 Gemini's streaming adapter emits text deltas without persisting each chunk. A
 short follow-up transaction persists either the assembled normal assistant reply

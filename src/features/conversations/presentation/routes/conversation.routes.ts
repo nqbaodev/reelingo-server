@@ -7,20 +7,31 @@ import {
   conversationNameSchema,
   conversationParamsSchema,
   listConversationsQuerySchema,
+  projectConversationParamsSchema,
 } from "../dtos/conversation.dto";
 
 export function createConversationRouter(controller: ConversationController): Router {
   return createBaseRouter([
     {
       method: HttpMethod.GET,
-      path: endpoints.conversations.root,
-      middlewares: [validate({ query: listConversationsQuerySchema })],
+      path: endpoints.projects.conversations,
+      middlewares: [
+        validate({
+          params: projectConversationParamsSchema,
+          query: listConversationsQuerySchema,
+        }),
+      ],
       handler: controller.list,
     },
     {
       method: HttpMethod.POST,
-      path: endpoints.conversations.root,
-      middlewares: [validate({ body: createConversationSchema })],
+      path: endpoints.projects.conversations,
+      middlewares: [
+        validate({
+          params: projectConversationParamsSchema,
+          body: createConversationSchema,
+        }),
+      ],
       handler: controller.create,
     },
     {

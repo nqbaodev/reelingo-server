@@ -68,7 +68,7 @@ export class MessagePrismaRepository implements MessageRepository {
     try {
       return await this.prisma.$transaction(async (transaction) => {
         const conversation = await transaction.conversation.findFirst({
-          where: { id: message.conversationId, userId },
+          where: { id: message.conversationId, project: { userId } },
           select: { id: true },
         });
         if (!conversation) {
@@ -129,7 +129,7 @@ export class MessagePrismaRepository implements MessageRepository {
           triggerMessageId,
           triggerMessage: {
             conversationId,
-            conversation: { userId },
+            conversation: { project: { userId } },
           },
         },
         include: {
@@ -196,7 +196,7 @@ export class MessagePrismaRepository implements MessageRepository {
         triggerMessageId,
         triggerMessage: {
           conversationId,
-          conversation: { userId },
+          conversation: { project: { userId } },
         },
       },
       select: {
@@ -352,7 +352,7 @@ export class MessagePrismaRepository implements MessageRepository {
     cursor,
   }: ListMessagesInput): Promise<CursorPage<Message, MessageListCursor> | null> {
     const conversation = await this.prisma.conversation.findFirst({
-      where: { id: conversationId, userId },
+      where: { id: conversationId, project: { userId } },
       select: { id: true },
     });
     if (!conversation) {

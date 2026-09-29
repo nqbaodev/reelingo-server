@@ -8,16 +8,29 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  email         String         @unique
-  googleId      String?        @unique @map("google_id")
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  profile       UserProfile?
-  conversations Conversation[]
-  media         Media[]
+  id        Int          @id @default(autoincrement())
+  email     String       @unique
+  googleId  String?      @unique @map("google_id")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  profile   UserProfile?
+  projects  Project[]
+  media     Media[]
 
   @@map("users")
+}
+
+model Project {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        Int            @map("user_id")
+  title         String         @db.VarChar(120)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@index([userId, updatedAt(sort: Desc), id(sort: Desc)])
+  @@map("projects")
 }
 
 model UserProfile {
@@ -35,14 +48,14 @@ model UserProfile {
 
 model Conversation {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    Int       @map("user_id")
+  projectId String    @map("project_id") @db.Uuid
   name      String    @db.VarChar(120)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   messages  Message[]
 
-  @@index([userId, updatedAt(sort: Desc), id(sort: Desc)])
+  @@index([projectId, updatedAt(sort: Desc), id(sort: Desc)])
   @@map("conversations")
 }
 

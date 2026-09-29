@@ -1,9 +1,11 @@
-export const DEFAULT_PAGE_SIZE = 20;
-export const MAX_PAGE_SIZE = 50;
+export const MIN_PAGE_SIZE = 10;
+export const DEFAULT_PAGE_SIZE = 10;
+export const MAX_PAGE_SIZE = 100;
 export const MAX_CURSOR_LENGTH = 1_024;
 export const MAX_POSTGRES_INTEGER = 2_147_483_647;
 export const MAX_DISPLAY_NAME_LENGTH = 120;
 export const MAX_AVATAR_URL_LENGTH = 2_048;
+export const MAX_PROJECT_TITLE_LENGTH = 120;
 export const MAX_CONVERSATION_NAME_LENGTH = 120;
 export const MAX_MESSAGE_CONTENT_LENGTH = 8_000;
 export const MAX_MESSAGE_MEDIA_COUNT = 4;

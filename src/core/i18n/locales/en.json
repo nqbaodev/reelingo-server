@@ -4,6 +4,7 @@
   "signedIn": "Signed in successfully",
   "sessionRefreshed": "Session refreshed successfully",
   "signedOut": "Signed out successfully",
+  "projectCreated": "Project created successfully",
   "conversationCreated": "Conversation created successfully",
   "messageSent": "Message sent successfully",
   "mediaUploaded": "Media uploaded successfully",
@@ -23,6 +24,7 @@
   "invalidGoogleToken": "Invalid Google ID token",
 
   "userNotFound": "User not found",
+  "projectNotFound": "Project not found",
   "conversationNotFound": "Conversation not found",
   "messageNotFound": "Message not found",
   "chatAlreadyProcessing": "AI response is already processing",

@@ -44,15 +44,15 @@ Do not split code into tiny functions that merely rename individual statements.
 Name functions with a precise verb and subject. The name, return type, and side
 effects must describe the same contract:
 
-| Intent | Naming |
-| --- | --- |
-| Nullable lookup | `findUserByGoogleId`; `find*` returns the value or `null` |
-| Required lookup | `getUserById` or `requireUserById`; document/encode the not-found outcome |
-| Creation or mutation | `createUser`, `updateProfile`, `revokeSession` |
-| Boolean query | `isNetworkError`, `hasPermission`, `canRefresh`, `shouldRetry` |
-| Conversion without side effects | `toEntity`, `toUserResponse` |
-| Syntax decoding/validation | `parseBearerToken`, `validateGooglePayload` |
-| Business outcome | `loginWithGoogle`, `refreshSession`, `generateText` |
+| Intent                          | Naming                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| Nullable lookup                 | `findUserByGoogleId`; `find*` returns the value or `null`                 |
+| Required lookup                 | `getUserById` or `requireUserById`; document/encode the not-found outcome |
+| Creation or mutation            | `createUser`, `updateProfile`, `revokeSession`                            |
+| Boolean query                   | `isNetworkError`, `hasPermission`, `canRefresh`, `shouldRetry`            |
+| Conversion without side effects | `toEntity`, `toUserResponse`                                              |
+| Syntax decoding/validation      | `parseBearerToken`, `validateGooglePayload`                               |
+| Business outcome                | `loginWithGoogle`, `refreshSession`, `generateText`                       |
 
 - Do not use combined CRUD/action names such as `createOrUpdate`, `getOrCreate`,
   `validateAndSave`, `fetchAndTransform`, or `verifyAndPersist`. Split the actions
@@ -231,7 +231,8 @@ external example overrides the requested behavior.
 - Classify database failures in infrastructure and map known outcomes at the
   feature boundary. Do not turn every database failure into a conflict or 404.
 - Bound list queries, define stable ordering, and inspect query patterns before
-  adding indexes or caches.
+  adding indexes or caches. Cursor-based load-more endpoints use the shared
+  `limit` boundary: minimum 10, maximum 100, and default 10.
 - For a schema change, update `prisma/schema.prisma` and create the migration before
   application code relies on the new shape. Regenerate Prisma, inspect the migration
   for destructive or unintended operations, and test relevant constraints against

@@ -3,6 +3,7 @@ import {
   DEFAULT_PAGE_SIZE,
   MAX_CURSOR_LENGTH,
   MAX_PAGE_SIZE,
+  MIN_PAGE_SIZE,
 } from "@/config";
 
 const CURSOR_PAYLOAD_ENCODING = "utf8";
@@ -11,7 +12,7 @@ const CURSOR_TOKEN_ENCODING = "base64url";
 export const paginationLimitSchema = z.coerce
   .number()
   .int()
-  .min(1)
+  .min(MIN_PAGE_SIZE)
   .max(MAX_PAGE_SIZE)
   .default(DEFAULT_PAGE_SIZE);
 

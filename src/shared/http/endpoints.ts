@@ -8,8 +8,12 @@ export const endpoints = {
   users: {
     me: "/auth/me",
   },
+  projects: {
+    root: "/projects",
+    byId: "/projects/:projectId",
+    conversations: "/projects/:projectId/conversations",
+  },
   conversations: {
-    root: "/conversations",
     byId: "/conversations/:conversationId",
   },
   messages: {

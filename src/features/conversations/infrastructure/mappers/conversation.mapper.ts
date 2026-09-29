@@ -4,7 +4,7 @@ import type { Conversation } from "../../domain";
 export function toEntity(record: PrismaConversation): Conversation {
   return {
     id: record.id,
-    userId: record.userId,
+    projectId: record.projectId,
     name: record.name,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
