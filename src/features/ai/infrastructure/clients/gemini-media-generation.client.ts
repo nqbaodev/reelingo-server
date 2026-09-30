@@ -12,7 +12,6 @@ import {
   VIDEO_GENERATION_RESOLUTIONS,
 } from "../../domain";
 import type {
-  GenerateCompletionTextInput,
   GeneratedMedia,
   GenerateMediaInput,
   MediaGenerationClient,
@@ -24,7 +23,6 @@ import {
 
 interface GeminiMediaGenerationClientConfig {
   apiKey: string;
-  chatModel: string;
   imageModel: string;
   videoModel: string;
   requestTimeoutMs: number;
@@ -240,40 +238,6 @@ export class GeminiMediaGenerationClient implements MediaGenerationClient {
         : await this.generateVideos(input, signal);
     } catch (err) {
       throw toMediaGenerationError(`Gemini ${input.type} generation is unavailable`, err);
-    }
-  }
-
-  async generateCompletionText({
-    prompt,
-    type,
-    outputCount,
-    signal,
-  }: GenerateCompletionTextInput): Promise<string> {
-    try {
-      const response = await this.client.models.generateContent({
-        model: this.config.chatModel,
-        contents: prompt,
-        config: {
-          abortSignal: signal,
-          systemInstruction: [
-            "You are the conversational assistant for Reelingo.",
-            `The requested ${type} generation has completed successfully with ${outputCount} output(s).`,
-            "Reply with one concise natural-language message in the user's language.",
-            "State that the media is ready. Do not say that it is queued or still processing.",
-          ].join(" "),
-        },
-      });
-      const text = response.text?.trim();
-      if (!text) {
-        throw new Error("Gemini returned an empty generation completion message");
-      }
-
-      return text;
-    } catch (err) {
-      throw toMediaGenerationError(
-        "Gemini generation completion text is unavailable",
-        err,
-      );
     }
   }
 

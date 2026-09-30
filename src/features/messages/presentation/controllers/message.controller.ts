@@ -4,27 +4,22 @@ import { AppError, ServiceUnavailableError } from "@/core/errors";
 import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
 import { ChatUnavailableError } from "@/features/ai/infrastructure";
-import {
-  AiGenerationEventType,
-  type AiGenerationEvent,
-  type AiGenerationEvents,
-} from "@/features/ai/application";
 import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
+import { toConversationResponse } from "@/features/conversations/presentation";
 import { ServerSentEventStream } from "@/shared/http/server-sent-event-stream";
 import type {
   ChatProgressEvent,
   ChatProgressObserver,
-  CreateMessageUseCase,
   GetMessageResponseUseCase,
   ListMessagesUseCase,
-  RespondToMessageUseCase,
+  SendMessageUseCase,
 } from "../../application";
 import { ChatProgressEventType } from "../../application";
 import type {
-  CreateMessageRequestDto,
   ListMessagesQueryDto,
   MessageConversationParamsDto,
   MessageResponseParamsDto,
+  SendMessageRequestDto,
 } from "../dtos/message.dto";
 import {
   toMessageListResponse,
@@ -34,51 +29,28 @@ import {
 } from "../presenters/message.presenter";
 
 interface MessageControllerDeps {
-  createMessage: CreateMessageUseCase;
   getMessageResponse: GetMessageResponseUseCase;
   listMessages: ListMessagesUseCase;
-  respondToMessage: RespondToMessageUseCase;
-  generationEvents: AiGenerationEvents;
+  sendMessage: SendMessageUseCase;
 }
 
 export class MessageController {
   constructor(private readonly deps: MessageControllerDeps) {}
 
-  create = async (
-    req: Request<ParamsDictionary, unknown, CreateMessageRequestDto>,
+  send = async (
+    req: Request<ParamsDictionary, unknown, SendMessageRequestDto>,
     res: Response,
   ) => {
-    const { conversationId } = req.params as MessageConversationParamsDto;
-    const message = await this.deps.createMessage.execute(
-      requireCurrentUserId(req),
-      conversationId,
-      req.body,
-    );
-    sendSuccess(res, toMessageResponse(message), I18n.messageSent, 201);
+    const userId = requireCurrentUserId(req);
+    await this.streamMessageResponse(req, res, userId, req.body);
   };
 
-  respond = async (req: Request, res: Response) => {
-    res.vary("Accept");
-    if (acceptsEventStream(req)) {
-      await this.respondWithEventStream(req, res);
-      return;
-    }
-
-    const { conversationId, messageId } = req.params as MessageResponseParamsDto;
-    try {
-      const turn = await this.deps.respondToMessage.execute(
-        requireCurrentUserId(req),
-        conversationId,
-        messageId,
-      );
-      sendSuccess(res, toMessageTurnResponse(turn));
-    } catch (err) {
-      throw toHttpError(err);
-    }
-  };
-
-  private respondWithEventStream = async (req: Request, res: Response) => {
-    const { conversationId, messageId } = req.params as MessageResponseParamsDto;
+  private async streamMessageResponse(
+    req: Request,
+    res: Response,
+    userId: number,
+    command: SendMessageRequestDto,
+  ): Promise<void> {
     const stream = createEventStream(req, res);
     const observer: ChatProgressObserver = {
       publish: async (event) => {
@@ -95,12 +67,7 @@ export class MessageController {
     };
 
     try {
-      await this.deps.respondToMessage.execute(
-        requireCurrentUserId(req),
-        conversationId,
-        messageId,
-        observer,
-      );
+      await this.deps.sendMessage.execute(userId, command, observer);
       await stream.end();
     } catch (err) {
       if (stream.isClosed) {
@@ -115,7 +82,7 @@ export class MessageController {
       await stream.sendJson(MessageStreamEvent.FAILED, toStreamFailure(err));
       await stream.end();
     }
-  };
+  }
 
   getResponse = async (req: Request, res: Response) => {
     const { conversationId, messageId } = req.params as MessageResponseParamsDto;
@@ -126,29 +93,6 @@ export class MessageController {
     );
     res.setHeader("Cache-Control", "no-store");
     sendSuccess(res, toMessageResponseStateResponse(response));
-  };
-
-  events = async (req: Request, res: Response) => {
-    const stream = createEventStream(req, res);
-    const userId = requireCurrentUserId(req);
-    const unsubscribe = this.deps.generationEvents.subscribe(userId, (event) => {
-      void publishGenerationEvent(stream, event).catch(async (err: unknown) => {
-        req.log.error(
-          { err, eventType: event.type },
-          "Failed to publish AI generation event",
-        );
-        await stream.end();
-      });
-    });
-
-    try {
-      await stream.sendJson(MessageStreamEvent.CONNECTED, {
-        v: STREAM_EVENT_VERSION,
-      });
-      await stream.waitUntilClosed();
-    } finally {
-      unsubscribe();
-    }
   };
 
   list = async (req: Request, res: Response) => {
@@ -170,43 +114,31 @@ function createEventStream(req: Request, res: Response): ServerSentEventStream {
 
 const STREAM_EVENT_VERSION = 1;
 const MessageStreamEvent = {
-  CONNECTED: "stream.connected",
+  MESSAGE_CREATED: "message.created",
   STARTED: "chat.started",
   TEXT_DELTA: "assistant.delta",
   GENERATION_QUEUED: "generation.queued",
   COMPLETED: "chat.completed",
   FAILED: "chat.failed",
-  GENERATION_COMPLETED: "generation.completed",
-  GENERATION_FAILED: "generation.failed",
 } as const;
-
-async function publishGenerationEvent(
-  stream: ServerSentEventStream,
-  event: AiGenerationEvent,
-): Promise<void> {
-  switch (event.type) {
-    case AiGenerationEventType.COMPLETED:
-      await stream.sendJson(MessageStreamEvent.GENERATION_COMPLETED, {
-        v: STREAM_EVENT_VERSION,
-        generationId: event.generationId,
-        message: toMessageResponse(event.message),
-      });
-      return;
-    case AiGenerationEventType.FAILED:
-      await stream.sendJson(MessageStreamEvent.GENERATION_FAILED, {
-        v: STREAM_EVENT_VERSION,
-        generationId: event.generationId,
-        conversationId: event.conversationId,
-        triggerMessageId: event.triggerMessageId,
-      });
-  }
-}
 
 async function publishProgressEvent(
   stream: ServerSentEventStream,
   event: ChatProgressEvent,
 ): Promise<void> {
   switch (event.type) {
+    case ChatProgressEventType.MESSAGE_CREATED:
+      await stream.sendJson(MessageStreamEvent.MESSAGE_CREATED, {
+        v: STREAM_EVENT_VERSION,
+        conversationId: event.message.conversationId,
+        messageId: event.message.id,
+        runId: event.runId,
+        message: toMessageResponse(event.message),
+        createdConversation: event.createdConversation
+          ? toConversationResponse(event.createdConversation)
+          : null,
+      });
+      return;
     case ChatProgressEventType.STARTED:
       await stream.sendJson(MessageStreamEvent.STARTED, {
         v: STREAM_EVENT_VERSION,
@@ -228,24 +160,13 @@ async function publishProgressEvent(
     case ChatProgressEventType.COMPLETED:
       await stream.sendJson(MessageStreamEvent.COMPLETED, {
         v: STREAM_EVENT_VERSION,
+        conversationId: event.turn.userMessage.conversationId,
+        messageId: event.turn.userMessage.id,
+        assistantMessageId: event.turn.assistantMessage?.id ?? null,
+        runId: event.runId,
         ...toMessageTurnResponse(event.turn),
       });
   }
-}
-
-function acceptsEventStream(req: Request): boolean {
-  const accept = req.get("accept");
-  if (!accept) return false;
-
-  return accept.split(",").some((range) => {
-    const [mediaType, ...parameters] = range
-      .split(";")
-      .map((part) => part.trim().toLowerCase());
-    if (mediaType !== "text/event-stream") return false;
-
-    const quality = parameters.find((parameter) => parameter.startsWith("q="));
-    return quality === undefined || Number(quality.slice(2)) !== 0;
-  });
 }
 
 function toHttpError(err: unknown): unknown {

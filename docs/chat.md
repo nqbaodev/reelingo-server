@@ -9,16 +9,16 @@ change.
 
 - `features/projects` owns private project creation, listing, lookup, title
   updates. See [Projects](projects.md).
-- `features/conversations` owns conversation creation from the first text message,
-  project-scoped listing, and name updates.
-- `features/messages` owns message validation, persistence, listing, ordered asset
+- `features/conversations` owns project-scoped listing and name updates.
+- `features/messages` owns the send flow, including conversation creation from the
+  first text message, message validation, persistence, listing, ordered asset
   attachments, durable chat runs, and persistence of the AI decision.
 - `features/assets` owns the shared image/video asset kind, authenticated image
   upload, local file storage, asset persistence, owned asset listing, and content
   retrieval.
 - `features/ai` owns chat routing, generation statuses, configuration semantics,
-  and the Gemini adapter. A media tool call persists a generation request; when
-  enabled, the background worker stores its output through the assets feature.
+  the Gemini adapters, and the background image/video generation worker, which
+  stores its output through the assets feature.
 - Every conversation belongs to one project. Conversation and nested message
   operations are authenticated and scoped through the project owner. A missing or
   non-owned project or conversation returns the same 404 outcome and must not
@@ -41,10 +41,9 @@ change.
 - Conversation lists order by `lastMessageAt DESC, id DESC`. The opaque cursor
   carries both values so the UUID remains a stable tie-breaker when timestamps
   match.
-- The create endpoint accepts `{ "content": "..." }`. It creates the conversation,
-  first `user` message, and its pending chat run atomically. Because the response
-  currently returns only the conversation, the client loads messages to obtain the
-  first message ID before calling its response endpoint.
+- The conversation stream endpoint accepts `projectId` for the first prompt. It creates the
+  conversation, first `user` message, and pending chat run atomically, then starts
+  AI processing in the same SSE request.
 - The initial name is derived synchronously from the first 120 Unicode characters
   of the trimmed message content. Users may rename it through the update endpoint.
 - Creating a conversation from an asset-only first message is deferred until its
@@ -53,23 +52,21 @@ change.
 Current endpoints:
 
 ```text
-POST  /api/v1/projects/:projectId/conversations
+POST  /api/v1/conversations
 GET   /api/v1/projects/:projectId/conversations
 PATCH /api/v1/conversations/:conversationId
 ```
 
 Create from the first text message:
 
-```json
-{
-  "content": "Hello AI"
-}
+```text
+POST /api/v1/conversations
 ```
 
 ## Messages
 
 - `Message.id` is a database-generated UUID.
-- `role` is either `user` or `assistant`. The public send-message endpoint always
+- `role` is either `user` or `assistant`. The public conversation stream endpoint always
   assigns `user`; clients cannot choose or spoof the role.
 - A message contains `content`, up to four uploaded `assetIds`, or both. At least
   one must be present. Duplicate IDs are rejected.
@@ -77,9 +74,8 @@ Create from the first text message:
   is missing or non-owned, the request returns 404 without revealing which record
   failed ownership validation.
 - The client does not send a chat/image/video mode. Sending a message stores the
-  user message and a pending `ChatRun` atomically, then returns without waiting for
-  Gemini. The client displays a typing state and calls the response endpoint with
-  the persisted message ID. Gemini receives only that prompt and may return normal
+  user message and a pending `ChatRun` atomically, then starts Gemini in the same
+  SSE request. Gemini receives only that prompt and may return normal
   text, call `generate_image`, or call `generate_video`. Tool selection uses Gemini
   function calling in automatic mode, not server-side keyword matching. Previous
   messages are not included in AI context yet.
@@ -113,14 +109,11 @@ Create from the first text message:
   row locking with `SKIP LOCKED`. Claim renewal and failure updates require the
   current `updatedAt` version, so a worker that lost its lease cannot change the
   newer claim.
-- The response endpoint is idempotent after completion and returns the existing
-  user/assistant turn. A concurrent request while a run is processing returns 409.
-  Failed runs may be retried. A processing claim older than the Gemini timeout plus
-  a safety buffer may be reclaimed after a server interruption.
-- The generation worker creates media and requests a concise completion text in
-  parallel. Completion text is best-effort and may be null, so a secondary text
-  request cannot discard successfully generated media. One transaction creates a
-  single `assistant` message and its ordered `MessageAsset` rows, completes the
+- The response endpoint is read-only. It returns durable chat-run, generation, and
+  assistant-message state but never claims, starts, resumes, or retries AI work.
+- The generation worker creates media without making a second text-generation
+  request after provider output is ready. One transaction creates a single
+  `assistant` message and its ordered `MessageAsset` rows, completes the
   generation, and assigns the message to both generation and chat run
   `resultMessageId` fields.
 - Image generation sends at most two provider requests concurrently. A multi-image
@@ -143,8 +136,7 @@ Create from the first text message:
 Current endpoints:
 
 ```text
-POST /api/v1/conversations/:conversationId/messages
-POST /api/v1/conversations/:conversationId/messages/:messageId/response
+POST /api/v1/conversations
 GET  /api/v1/conversations/:conversationId/messages/:messageId/response
 GET  /api/v1/conversations/:conversationId/messages
 ```
@@ -153,6 +145,7 @@ Text-only request:
 
 ```json
 {
+  "projectId": "68c366d4-d1c2-4095-b285-703d98782df4",
   "content": "Hello 👋"
 }
 ```
@@ -161,6 +154,7 @@ Text with an uploaded asset:
 
 ```json
 {
+  "conversationId": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
   "content": "What is in this image?",
   "assetIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
@@ -170,18 +164,20 @@ Image-only message:
 
 ```json
 {
+  "conversationId": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
   "assetIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
 Upload the image first with `POST /api/v1/assets`, then send the returned `id` as
-an item in `assetIds`. The message endpoint never accepts raw file bytes, storage
+an item in `assetIds`. The conversation stream endpoint never accepts raw file bytes, storage
 paths, URLs, MIME types, or file sizes.
 
 Prompt requesting image generation:
 
 ```json
 {
+  "conversationId": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
   "content": "Create a cinematic mountain landscape",
   "aiContext": {
     "intentHint": "image",
@@ -202,41 +198,21 @@ generation because the request itself is explicit. Conversely, sending an image
 hint with ordinary text such as “hello” must still produce an ordinary chat
 response.
 
-The send endpoint returns immediately with the persisted user message:
-
-```json
-{
-  "role": "user",
-  "chatRun": {
-    "id": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
-    "status": "pending",
-    "resultMessageId": null
-  }
-}
-```
-
-The client then calls the response endpoint and shows the typing indicator while
-that request is pending. Without an explicit streaming accept header, its
-successful JSON response contains both sides of a normal text turn:
-
-```json
-{
-  "userMessage": { "role": "user" },
-  "assistantMessage": { "role": "assistant" }
-}
-```
-
-For media generation, the routing response has `assistantMessage: null`; the
-`generation.queued` event and `userMessage.generation` identify the durable job.
-
-For realtime output, the client sends the same command with
-`Accept: text/event-stream` and its normal Bearer authorization header. The
+The conversation endpoint requires `Accept: text/event-stream` and normal Bearer
+authorization. Exactly one target is required: `projectId` creates a conversation
+from the first prompt, while `conversationId` appends to an existing conversation.
+A non-streaming request is rejected with 406 before persistence or AI starts. The
 server responds with versioned SSE data using these ordered events:
 
+- `message.created` after the transaction commits; it includes top-level
+  `conversationId`, `messageId`, and `runId`, the persisted user message, and the
+  newly created conversation, or `null` for an existing one;
 - `chat.started` after the pending run is claimed;
 - zero or more `assistant.delta` events for ordinary text output;
 - `generation.queued` after a media-generation request is committed;
-- `chat.completed` after the text reply or generation request is committed;
+- `chat.completed` after the text reply or generation request is committed; it
+  repeats `conversationId`, `messageId`, and `runId`, and includes
+  `assistantMessageId` when an assistant message is already available;
 - `chat.failed` when processing fails after streaming has started.
 
 Heartbeat frames are SSE comments and carry no business state. Text deltas are
@@ -245,10 +221,15 @@ state and may have a null assistant message for generation.
 The server does not persist or replay individual SSE events, so clients must not
 treat SSE delivery as durable state. Browser clients use streaming `fetch` rather
 than native `EventSource` because this protected endpoint requires an
-`Authorization` header.
+`Authorization` header. `POST /api/v1/conversations` is both the only SSE endpoint
+and the only HTTP endpoint that starts AI chat. Its stream belongs to the current
+turn and closes after `chat.completed`; it does not remain open for background
+image or video generation.
 
 Polling uses `GET` on the same response path. It is a read-only recovery endpoint
-and returns only the durable run state plus the result when available:
+and returns only the durable run state plus the result when available. Its
+`messageId` path parameter is the user-message ID from `message.created`, not the
+`assistantMessageId` emitted at completion:
 
 ```json
 {
@@ -264,23 +245,16 @@ and returns only the durable run state plus the result when available:
 
 For ordinary chat, a completed run has its persisted `assistantMessage`. For media,
 the response also exposes `generation`; the run can already be completed while
-`assistantMessage` remains null until that generation is completed. Polling never
-claims, starts, or retries work. Clients apply backoff with jitter and stop when
-the generation is `completed` or `failed`, or when the normal chat result is
-available.
-
-The client keeps one authenticated `GET /api/v1/messages/events` streaming-fetch
-connection for background results. It begins with `stream.connected`, then emits
-`generation.completed` with the canonical assistant message or
-`generation.failed` with identifying IDs. The in-memory event transport is
-best-effort, process-local, and not replayed. After disconnect, reload, process
-restart, or load-balancer reassignment, the client recovers from polling and the
-persisted message list rather than assuming an event was delivered.
+`assistantMessage` remains null until that generation is completed. The client
+polls this durable state after `generation.queued`. Polling never claims, starts,
+or retries work. Clients apply backoff with jitter and stop when the generation is
+`completed` or `failed`, or when the normal chat result is available.
 
 Reloading the page does not lose the user prompt or processing state: both are in
-PostgreSQL. The client reloads messages, calls `POST` for a pending or failed chat
-run, and polls `GET` while chat routing or media generation is still processing.
-Only temporary local typing and queue animations are lost on reload.
+PostgreSQL. The client reloads the message list and polls `GET` while chat routing
+or media generation is still processing. A failed run remains failed; retrying AI
+requires sending a new message through `POST /api/v1/conversations`. Only
+temporary local typing and queue animations are lost on reload.
 
 ## Assets
 
@@ -334,12 +308,15 @@ The database can validate non-empty text but cannot express “content or at lea
 one row in another table” as a row-level check. The HTTP/application boundary
 therefore enforces that every message has content or at least one asset.
 
-Creating a conversation verifies the owned project and uses one transaction for
-the conversation and its first user message. Sending a later message uses one
-transaction to verify conversation and asset ownership and insert the user message,
-ordered asset links, and pending chat run. Conversation activity is derived from
-the newest message; message writes do not modify the parent conversation timestamp. The response
-endpoint claims that run before calling Gemini outside every database transaction.
+Sending a first message verifies the owned project and uses one transaction for
+the conversation, first user message, ordered asset links, and pending chat run.
+Sending a later message uses one transaction to verify conversation and asset
+ownership and insert the user message, ordered asset links, and pending chat run.
+Conversation activity is derived from
+the newest message; message writes do not modify the parent conversation timestamp.
+After the send transaction commits, the server claims that run and calls Gemini
+outside every database transaction. The read-only response endpoint does not use
+this claim path and cannot start AI work.
 Gemini's streaming adapter emits text deltas without persisting each chunk. A
 short follow-up transaction persists either the assembled normal assistant reply
 or the pending generation snapshot, then marks the chat run completed. The
@@ -347,9 +324,9 @@ terminal request SSE event is sent only after this transaction commits.
 
 When enabled, one background worker polls for jobs, atomically claims a pending or
 stale generation, and renews its lease while provider work runs outside a database
-transaction. It creates image/video outputs first and then generates the final
-assistant text. Files are stored before one short completion transaction inserts
-the `Asset` and `MessageAsset` rows, creates the assistant message, and conditionally
+transaction. It creates image/video outputs without a follow-up text request. Files
+are stored before one short completion transaction inserts the `Asset` and
+`MessageAsset` rows, creates the assistant message, and conditionally
 completes the still-owned generation. Failed or lost claims clean up stored files
 when possible. Worker shutdown aborts in-flight local work; its processing row is
 left for stale-lease recovery.
@@ -359,9 +336,10 @@ provider guarantee. A future provider adapter must use the generation ID as an
 idempotency key when supported, because a process can stop after an external
 provider accepts work but before the local completion transaction commits.
 
-If Gemini is unavailable, the response endpoint returns 503 and marks the chat run
-failed. The user message remains stored, and the client may retry the same response
-endpoint without creating another prompt.
+If Gemini becomes unavailable after SSE delivery starts, the stream emits
+`chat.failed` and the chat run is marked failed. The user message remains stored.
+The response endpoint reports that durable failure but does not retry it; a new AI
+attempt requires a new message through `POST /api/v1/conversations`.
 
 ## Cursor pagination
 

@@ -14,16 +14,8 @@ export interface GeneratedMedia {
   mimeType: string;
 }
 
-export interface GenerateCompletionTextInput {
-  prompt: string;
-  type: AssetKind;
-  outputCount: number;
-  signal: AbortSignal;
-}
-
 export interface MediaGenerationClient {
   generate(input: GenerateMediaInput): Promise<GeneratedMedia[]>;
-  generateCompletionText(input: GenerateCompletionTextInput): Promise<string>;
 }
 
 export const MediaGenerationFailureType = {

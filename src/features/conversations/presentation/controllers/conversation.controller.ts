@@ -4,7 +4,6 @@ import { sendSuccess } from "@/core/http";
 import { I18n } from "@/core/i18n";
 import { requireCurrentUserId } from "@/features/auth/presentation/require-auth";
 import type {
-  CreateConversationUseCase,
   ListConversationsUseCase,
   UpdateConversationNameUseCase,
 } from "../../application";
@@ -15,32 +14,17 @@ import {
 import type {
   ConversationNameRequestDto,
   ConversationParamsDto,
-  CreateConversationRequestDto,
   ListConversationsQueryDto,
   ProjectConversationParamsDto,
 } from "../dtos/conversation.dto";
 
 interface ConversationControllerDeps {
-  createConversation: CreateConversationUseCase;
   listConversations: ListConversationsUseCase;
   updateConversationName: UpdateConversationNameUseCase;
 }
 
 export class ConversationController {
   constructor(private readonly deps: ConversationControllerDeps) {}
-
-  create = async (
-    req: Request<ParamsDictionary, unknown, CreateConversationRequestDto>,
-    res: Response,
-  ) => {
-    const { projectId } = req.params as ProjectConversationParamsDto;
-    const conversation = await this.deps.createConversation.execute(
-      requireCurrentUserId(req),
-      projectId,
-      req.body.content,
-    );
-    sendSuccess(res, toConversationResponse(conversation), I18n.conversationCreated, 201);
-  };
 
   list = async (req: Request, res: Response) => {
     const { projectId } = req.params as ProjectConversationParamsDto;

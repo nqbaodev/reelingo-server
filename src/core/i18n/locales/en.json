@@ -5,8 +5,6 @@
   "sessionRefreshed": "Session refreshed successfully",
   "signedOut": "Signed out successfully",
   "projectCreated": "Project created successfully",
-  "conversationCreated": "Conversation created successfully",
-  "messageSent": "Message sent successfully",
   "assetUploaded": "Asset uploaded successfully",
   "assetsDeleted": "Assets deleted successfully",
 
@@ -17,6 +15,7 @@
   "payloadTooLarge": "Request body is too large",
   "unsupportedEncoding": "Unsupported request encoding or character set",
   "invalidRequest": "Invalid request",
+  "eventStreamRequired": "Accept header must include text/event-stream",
   "tooManyRequests": "Too many requests. Please try again later",
 
   "missingToken": "Missing bearer token",

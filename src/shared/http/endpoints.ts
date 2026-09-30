@@ -14,10 +14,10 @@ export const endpoints = {
     conversations: "/projects/:projectId/conversations",
   },
   conversations: {
+    root: "/conversations",
     byId: "/conversations/:conversationId",
   },
   messages: {
-    events: "/messages/events",
     byConversation: "/conversations/:conversationId/messages",
     response: "/conversations/:conversationId/messages/:messageId/response",
   },

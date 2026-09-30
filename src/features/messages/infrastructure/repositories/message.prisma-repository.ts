@@ -6,6 +6,7 @@ import {
   type ChatContext,
 } from "@/features/ai/domain";
 import { AssetKind } from "@/features/assets/domain";
+import type { Conversation } from "@/features/conversations/domain";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
 import { MessageRole, type Message } from "../../domain";
@@ -18,6 +19,8 @@ import type {
   CompleteChatReplyInput,
   CreateMessageForConversationInput,
   CreateMessageForConversationResult,
+  CreateMessageWithConversationInput,
+  CreateMessageWithConversationResult,
   GetMessageResponseInput,
   ListMessagesInput,
   MessageListCursor,
@@ -57,8 +60,91 @@ function toChatContextSnapshot(context: ChatContext): Prisma.InputJsonObject {
   };
 }
 
+async function ownsAllAssets(
+  transaction: Prisma.TransactionClient,
+  userId: number,
+  assetIds: string[],
+): Promise<boolean> {
+  if (assetIds.length === 0) return true;
+
+  const ownedAssetCount = await transaction.asset.count({
+    where: { id: { in: assetIds }, userId },
+  });
+  return ownedAssetCount === assetIds.length;
+}
+
+function createMessageRecord(
+  transaction: Prisma.TransactionClient,
+  message: CreateMessageForConversationInput["message"],
+  chatContext: ChatContext,
+) {
+  return transaction.message.create({
+    data: {
+      conversationId: message.conversationId,
+      role: message.role,
+      content: message.content,
+      assetLinks: {
+        create: message.assetIds.map((assetId, position) => ({
+          assetId,
+          position,
+        })),
+      },
+      triggeredChatRun: {
+        create: {
+          contextSnapshot: toChatContextSnapshot(chatContext),
+        },
+      },
+    },
+    include: messageRelations,
+  });
+}
+
 export class MessagePrismaRepository implements MessageRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async createWithConversation({
+    userId,
+    projectId,
+    conversationName,
+    message,
+    chatContext,
+  }: CreateMessageWithConversationInput): Promise<CreateMessageWithConversationResult> {
+    return this.prisma.$transaction(async (transaction) => {
+      const project = await transaction.project.findFirst({
+        where: { id: projectId, userId },
+        select: { id: true },
+      });
+      if (!project) {
+        return { type: CreateMessageResultType.PROJECT_NOT_FOUND };
+      }
+
+      if (!(await ownsAllAssets(transaction, userId, message.assetIds))) {
+        return { type: CreateMessageResultType.ASSET_NOT_FOUND };
+      }
+
+      const conversationRecord = await transaction.conversation.create({
+        data: { projectId, name: conversationName },
+      });
+      const messageRecord = await createMessageRecord(
+        transaction,
+        { ...message, conversationId: conversationRecord.id },
+        chatContext,
+      );
+      const conversation: Conversation = {
+        id: conversationRecord.id,
+        projectId: conversationRecord.projectId,
+        name: conversationRecord.name,
+        createdAt: conversationRecord.createdAt,
+        updatedAt: conversationRecord.updatedAt,
+      };
+
+      return {
+        type: CreateMessageResultType.CREATED,
+        conversation,
+        message: toEntity(messageRecord),
+      };
+    });
+  }
 
   async createForConversation({
     userId,
@@ -75,34 +161,11 @@ export class MessagePrismaRepository implements MessageRepository {
           return { type: CreateMessageResultType.CONVERSATION_NOT_FOUND };
         }
 
-        if (message.assetIds.length > 0) {
-          const ownedAssetCount = await transaction.asset.count({
-            where: { id: { in: message.assetIds }, userId },
-          });
-          if (ownedAssetCount !== message.assetIds.length) {
-            return { type: CreateMessageResultType.ASSET_NOT_FOUND };
-          }
+        if (!(await ownsAllAssets(transaction, userId, message.assetIds))) {
+          return { type: CreateMessageResultType.ASSET_NOT_FOUND };
         }
 
-        const record = await transaction.message.create({
-          data: {
-            conversationId: message.conversationId,
-            role: message.role,
-            content: message.content,
-            assetLinks: {
-              create: message.assetIds.map((assetId, position) => ({
-                assetId,
-                position,
-              })),
-            },
-            triggeredChatRun: {
-              create: {
-                contextSnapshot: toChatContextSnapshot(chatContext),
-              },
-            },
-          },
-          include: messageRelations,
-        });
+        const record = await createMessageRecord(transaction, message, chatContext);
 
         return {
           type: CreateMessageResultType.CREATED,

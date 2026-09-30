@@ -1,11 +1,10 @@
-import { MessageRole, Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { createCursorPage, type CursorPage } from "@/core/pagination";
 import { isValidDate } from "@/core/utils";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
 import type { Conversation, ConversationSummary } from "../../domain";
 import { toEntity } from "../mappers/conversation.mapper";
 import type {
-  CreateConversationInput,
   ConversationListCursor,
   ConversationRepository,
   ListConversationsInput,
@@ -37,43 +36,6 @@ function toConversationSummary(row: ConversationSummaryRow): ConversationSummary
 
 export class ConversationPrismaRepository implements ConversationRepository {
   constructor(private readonly prisma: PrismaClient) {}
-
-  async create({
-    userId,
-    projectId,
-    name,
-    firstMessageContent,
-  }: CreateConversationInput): Promise<Conversation | null> {
-    return this.prisma.$transaction(async (transaction) => {
-      const project = await transaction.project.findFirst({
-        where: { id: projectId, userId },
-        select: { id: true },
-      });
-      if (!project) return null;
-
-      const record = await transaction.conversation.create({
-        data: {
-          projectId,
-          name,
-          messages: {
-            create: {
-              role: MessageRole.user,
-              content: firstMessageContent,
-              triggeredChatRun: {
-                create: {
-                  contextSnapshot: {
-                    intentHint: null,
-                    generationSettings: {},
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-      return toEntity(record);
-    });
-  }
 
   async listByProject({
     userId,
