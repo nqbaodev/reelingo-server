@@ -1,22 +1,10 @@
-import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_ASSET_COUNT } from "@/config";
-import { normalizeBoundedText } from "@/core/utils";
+import { MAX_MESSAGE_ASSET_COUNT } from "@/config";
 import type { AssetStorage } from "@/features/assets/infrastructure";
-import type { AiGenerationEvents } from "../events/ai-generation-events";
-import { AiGenerationEventType } from "../events/ai-generation-events";
 import type {
   AiGenerationRepository,
   ClaimedAiGeneration,
   MediaGenerationClient,
 } from "../../infrastructure";
-
-function normalizeCompletionText(content: string): string {
-  const bounded = normalizeBoundedText(content, MAX_MESSAGE_CONTENT_LENGTH);
-  if (!bounded) {
-    throw new Error("AI generation completion text is empty");
-  }
-
-  return bounded;
-}
 
 class AiGenerationClaimLease {
   private claimVersion: Date;
@@ -73,7 +61,6 @@ export class ProcessAiGenerationUseCase {
     private readonly generations: AiGenerationRepository,
     private readonly generator: MediaGenerationClient,
     private readonly storage: AssetStorage,
-    private readonly events: AiGenerationEvents,
     private readonly leaseMs: number,
   ) {}
 
@@ -104,24 +91,13 @@ export class ProcessAiGenerationUseCase {
         throw new Error("AI generation requires a text prompt");
       }
 
-      const [outputs, completionText] = await Promise.all([
-        this.generator.generate({
-          generationId: generation.id,
-          prompt: generation.prompt,
-          type: generation.type,
-          config: generation.config,
-          signal,
-        }),
-        this.generator
-          .generateCompletionText({
-            prompt: generation.prompt,
-            type: generation.type,
-            outputCount: generation.config.outputCount,
-            signal,
-          })
-          .then(normalizeCompletionText)
-          .catch(() => null),
-      ]);
+      const outputs = await this.generator.generate({
+        generationId: generation.id,
+        prompt: generation.prompt,
+        type: generation.type,
+        config: generation.config,
+        signal,
+      });
       if (outputs.length < 1 || outputs.length > MAX_MESSAGE_ASSET_COUNT) {
         throw new Error("AI media provider returned an invalid output count");
       }
@@ -151,7 +127,7 @@ export class ProcessAiGenerationUseCase {
       const message = await this.generations.completeClaim({
         id: generation.id,
         claimVersion,
-        content: completionText,
+        content: null,
         media: storedMedia,
       });
       if (!message) {
@@ -164,28 +140,12 @@ export class ProcessAiGenerationUseCase {
         }
         return;
       }
-
-      this.events.publish({
-        type: AiGenerationEventType.COMPLETED,
-        userId: generation.userId,
-        generationId: generation.id,
-        message,
-      });
     } catch (err) {
       const claimVersion = await lease.stop();
       const secondaryFailures = await this.deleteStoredMedia(storedKeys);
       if (!signal.aborted && claimVersion) {
         try {
-          const failed = await this.generations.failClaim(generation.id, claimVersion);
-          if (failed) {
-            this.events.publish({
-              type: AiGenerationEventType.FAILED,
-              userId: generation.userId,
-              generationId: generation.id,
-              conversationId: generation.conversationId,
-              triggerMessageId: generation.triggerMessageId,
-            });
-          }
+          await this.generations.failClaim(generation.id, claimVersion);
         } catch (failureError) {
           secondaryFailures.push(failureError);
         }

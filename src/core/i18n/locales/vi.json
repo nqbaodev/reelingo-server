@@ -5,8 +5,6 @@
   "sessionRefreshed": "Làm mới phiên đăng nhập thành công",
   "signedOut": "Đăng xuất thành công",
   "projectCreated": "Tạo dự án thành công",
-  "conversationCreated": "Tạo cuộc trò chuyện thành công",
-  "messageSent": "Gửi tin nhắn thành công",
   "assetUploaded": "Tải tài nguyên lên thành công",
   "assetsDeleted": "Xóa tài nguyên thành công",
 
@@ -17,6 +15,7 @@
   "payloadTooLarge": "Nội dung yêu cầu quá lớn",
   "unsupportedEncoding": "Định dạng mã hoá hoặc bảng mã không được hỗ trợ",
   "invalidRequest": "Yêu cầu không hợp lệ",
+  "eventStreamRequired": "Header Accept phải bao gồm text/event-stream",
   "tooManyRequests": "Quá nhiều yêu cầu. Vui lòng thử lại sau",
 
   "missingToken": "Thiếu bearer token",

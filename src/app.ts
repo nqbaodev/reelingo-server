@@ -73,7 +73,7 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
     options.chatClient,
     options.mediaGenerationClient,
   );
-  const messagesModule = createMessagesModule(database, aiModule.client, aiModule.events);
+  const messagesModule = createMessagesModule(database, aiModule.client);
   const projectsModule = createProjectsModule(database);
   const usersModule = createUsersModule(database);
   const adminLoggerCredentials = config.logger.admin.credentials;

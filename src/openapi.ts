@@ -26,16 +26,15 @@ import {
   refreshTokenSchema,
 } from "@/features/auth/presentation/dtos/auth.dto";
 import {
-  createConversationSchema,
   conversationNameSchema,
   conversationParamsSchema,
   projectConversationParamsSchema,
 } from "@/features/conversations/presentation/dtos/conversation.dto";
 import { MessageRole } from "@/features/messages/domain";
 import {
-  createMessageSchema,
   messageConversationParamsSchema,
   messageResponseParamsSchema,
+  sendMessageSchema,
 } from "@/features/messages/presentation/dtos/message.dto";
 import {
   assetKindSchema,
@@ -133,6 +132,7 @@ function errors(...statuses: number[]) {
     400: "Malformed request",
     401: "Authentication required or invalid token",
     404: "Resource not found",
+    406: "Requested response representation is not available",
     409: "Conflict",
     413: "Request body too large",
     415: "Unsupported media type or encoding",
@@ -255,19 +255,10 @@ const messageList = z.object({
   items: z.array(message),
   nextCursor: z.string().nullable(),
 });
-const messageTurn = z.object({
-  userMessage: message,
-  assistantMessage: message.nullable(),
-});
 const messageResponseState = z.object({
   chatRun: messageChatRun,
   generation: messageGeneration.nullable(),
   assistantMessage: message.nullable(),
-});
-const messageTurnSuccess = z.object({
-  success: z.literal(true),
-  message: z.string(),
-  data: messageTurn,
 });
 const asset = z.object({
   id: z.uuid(),
@@ -490,28 +481,6 @@ export const openApiDocument = {
           ...protectedErrors,
         },
       },
-      post: {
-        tags: ["Conversations"],
-        operationId: "createProjectConversation",
-        summary: "Create a conversation from the first message",
-        description:
-          "Creates a conversation in the owned project together with its first user text message and pending chat run atomically.",
-        parameters: [
-          ...languageParameters,
-          {
-            name: "projectId",
-            in: "path",
-            required: true,
-            schema: jsonSchema(projectConversationParamsSchema.shape.projectId),
-          },
-        ],
-        requestBody: requestBody(createConversationSchema),
-        responses: {
-          201: success(conversation, "Conversation created"),
-          ...errors(400, 404, 413, 415, 422),
-          ...protectedErrors,
-        },
-      },
     },
     [`${endpoints.apiPrefix}${endpoints.conversations.byId}`.replace(
       ":conversationId",
@@ -538,26 +507,37 @@ export const openApiDocument = {
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.messages.events}`]: {
-      get: {
-        tags: ["Messages"],
-        operationId: "subscribeMessageEvents",
-        summary: "Subscribe to background message events",
+    [`${endpoints.apiPrefix}${endpoints.conversations.root}`]: {
+      post: {
+        tags: ["Conversations"],
+        operationId: "streamConversation",
+        summary: "Create or continue a conversation and stream its AI response",
         description:
-          "Opens an authenticated SSE stream for background AI generation completion and failure events. Events are not replayed; reload recovery uses the persisted message list and response status endpoints.",
-        parameters: languageParameters,
+          "This is the only HTTP endpoint that starts AI chat. Requires Accept: text/event-stream. Provide projectId to atomically create a conversation, its first user message, and pending chat run, or provide conversationId to append a message to an owned conversation. Exactly one target is required. After persistence, the request starts Gemini and streams message.created followed by the current AI text or routing progress. message.created exposes conversationId, messageId, and runId for read-only history and response-status requests; chat.completed also exposes assistantMessageId when one exists. The stream ends at chat.completed and does not wait for background image or video generation. A first message requires text content so its conversation name can be derived.",
+        parameters: [
+          ...languageParameters,
+          {
+            name: "Accept",
+            in: "header",
+            required: true,
+            description: "Must include text/event-stream.",
+            schema: { type: "string", const: "text/event-stream" },
+          },
+        ],
+        requestBody: requestBody(sendMessageSchema),
         responses: {
           200: {
-            description: "Background message event stream",
+            description: "Conversation message and AI response event stream",
             headers: responseHeaders,
             content: {
               "text/event-stream": {
                 schema: { type: "string" },
                 example:
-                  'event: stream.connected\ndata: {"v":1}\n\nevent: generation.completed\ndata: {"v":1,"generationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","message":{}}\n\n',
+                  'event: message.created\ndata: {"v":1,"conversationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","messageId":"85eb57ee-3525-4f77-8758-5a409bf765e5","runId":"49bb81cd-cd9f-455f-a9f8-3875969613a8","message":{},"createdConversation":{}}\n\nevent: chat.started\ndata: {"v":1,"runId":"49bb81cd-cd9f-455f-a9f8-3875969613a8"}\n\nevent: assistant.delta\ndata: {"v":1,"delta":"Hello"}\n\nevent: chat.completed\ndata: {"v":1,"conversationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","messageId":"85eb57ee-3525-4f77-8758-5a409bf765e5","assistantMessageId":"834c554f-f6da-40b1-bad5-d01398d9337c","runId":"49bb81cd-cd9f-455f-a9f8-3875969613a8","userMessage":{},"assistantMessage":{}}\n\n',
               },
             },
           },
+          ...errors(400, 404, 406, 413, 415, 422),
           ...protectedErrors,
         },
       },
@@ -570,7 +550,8 @@ export const openApiDocument = {
         tags: ["Messages"],
         operationId: "listMessages",
         summary: "List messages for infinite scrolling",
-        description: "Messages are ordered from newest to oldest.",
+        description:
+          "Returns both user and assistant messages, ordered from newest to oldest. Generated image or video results are assistant messages whose assetIds can be fetched through the asset content endpoint.",
         parameters: [
           ...languageParameters,
           ...cursorPaginationParameters,
@@ -587,28 +568,6 @@ export const openApiDocument = {
           ...protectedErrors,
         },
       },
-      post: {
-        tags: ["Messages"],
-        operationId: "sendMessage",
-        summary: "Send a message to the AI conversation",
-        description:
-          "Persists the user message and a pending chat run, then returns immediately. Optional aiContext carries a session preference and generation settings; it is not an explicit mode. Call the message response endpoint to run Gemini.",
-        parameters: [
-          ...languageParameters,
-          {
-            name: "conversationId",
-            in: "path",
-            required: true,
-            schema: jsonSchema(messageConversationParamsSchema.shape.conversationId),
-          },
-        ],
-        requestBody: requestBody(createMessageSchema),
-        responses: {
-          201: success(message, "Message accepted for AI processing"),
-          ...errors(400, 404, 413, 415, 422),
-          ...protectedErrors,
-        },
-      },
     },
     [`${endpoints.apiPrefix}${endpoints.messages.response}`
       .replace(":conversationId", "{conversationId}")
@@ -616,9 +575,9 @@ export const openApiDocument = {
       get: {
         tags: ["Messages"],
         operationId: "getMessageResponse",
-        summary: "Read the assistant response status for a message",
+        summary: "Read the assistant response status for a user message",
         description:
-          "Polling endpoint for a persisted chat run. A queued media generation keeps assistantMessage null until its worker creates the final message. This request never starts or retries AI processing.",
+          "Polling endpoint for a persisted chat run. Use the user-message ID emitted as messageId by the message.created SSE event, not assistantMessageId. A queued media generation keeps assistantMessage null until its worker creates the final message. This request never starts or retries AI processing.",
         parameters: [
           ...languageParameters,
           {
@@ -631,60 +590,13 @@ export const openApiDocument = {
             name: "messageId",
             in: "path",
             required: true,
+            description: "Triggering user-message ID emitted by message.created.",
             schema: jsonSchema(messageResponseParamsSchema.shape.messageId),
           },
         ],
         responses: {
           200: success(messageResponseState, "Assistant response status"),
           ...errors(404, 422),
-          ...protectedErrors,
-        },
-      },
-      post: {
-        tags: ["Messages"],
-        operationId: "respondToMessage",
-        summary: "Generate the assistant response for a message",
-        description:
-          "Claims the pending chat run, calls Gemini, and persists either an assistant reply or a media-generation request. A generation response has assistantMessage null until the background worker finishes. Send Accept: text/event-stream to receive chat.started, assistant.delta, generation.queued, chat.completed, or chat.failed events. Without that explicit media type, the response remains JSON. Repeating a completed request returns the existing state.",
-        parameters: [
-          ...languageParameters,
-          {
-            name: "Accept",
-            in: "header",
-            required: false,
-            description:
-              "Use text/event-stream for a streamed response. Defaults to application/json.",
-            schema: { type: "string" },
-          },
-          {
-            name: "conversationId",
-            in: "path",
-            required: true,
-            schema: jsonSchema(messageResponseParamsSchema.shape.conversationId),
-          },
-          {
-            name: "messageId",
-            in: "path",
-            required: true,
-            schema: jsonSchema(messageResponseParamsSchema.shape.messageId),
-          },
-        ],
-        responses: {
-          200: {
-            description: "Assistant response persisted or streamed",
-            headers: responseHeaders,
-            content: {
-              "application/json": {
-                schema: jsonSchema(messageTurnSuccess, "output"),
-              },
-              "text/event-stream": {
-                schema: { type: "string" },
-                example:
-                  'event: chat.started\ndata: {"v":1,"runId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8"}\n\nevent: assistant.delta\ndata: {"v":1,"delta":"Hello"}\n\nevent: chat.completed\ndata: {"v":1,"userMessage":{},"assistantMessage":{}}\n\n',
-              },
-            },
-          },
-          ...errors(404, 409, 422),
           ...protectedErrors,
         },
       },

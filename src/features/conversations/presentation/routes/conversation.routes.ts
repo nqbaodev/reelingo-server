@@ -3,7 +3,6 @@ import { HttpMethod, createBaseRouter, validate } from "@/core/http";
 import { endpoints } from "@/shared/http/endpoints";
 import type { ConversationController } from "../controllers/conversation.controller";
 import {
-  createConversationSchema,
   conversationNameSchema,
   conversationParamsSchema,
   listConversationsQuerySchema,
@@ -22,17 +21,6 @@ export function createConversationRouter(controller: ConversationController): Ro
         }),
       ],
       handler: controller.list,
-    },
-    {
-      method: HttpMethod.POST,
-      path: endpoints.projects.conversations,
-      middlewares: [
-        validate({
-          params: projectConversationParamsSchema,
-          body: createConversationSchema,
-        }),
-      ],
-      handler: controller.create,
     },
     {
       method: HttpMethod.PATCH,

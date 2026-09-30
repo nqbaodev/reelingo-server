@@ -269,13 +269,10 @@ the prefix; health and documentation paths are mounted at the root.
 | `GET`   | `/api/v1/projects`                                                   | List owned projects with cursor pagination                  |
 | `GET`   | `/api/v1/projects/:projectId`                                        | Get an owned project                                        |
 | `PATCH` | `/api/v1/projects/:projectId`                                        | Rename an owned project                                     |
-| `POST`  | `/api/v1/projects/:projectId/conversations`                          | Create a conversation from its first text message           |
 | `GET`   | `/api/v1/projects/:projectId/conversations`                          | List conversations in an owned project                      |
 | `PATCH` | `/api/v1/conversations/:conversationId`                              | Update an owned conversation's name                         |
-| `POST`  | `/api/v1/conversations/:conversationId/messages`                     | Store a prompt and pending chat run                         |
-| `GET`   | `/api/v1/messages/events`                                            | Subscribe to background generation events over SSE          |
+| `POST`  | `/api/v1/conversations`                                              | Create or continue a conversation and stream AI over SSE    |
 | `GET`   | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Poll the assistant response status                          |
-| `POST`  | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Generate and persist the assistant response; supports SSE   |
 | `GET`   | `/api/v1/conversations/:conversationId/messages`                     | List messages with cursor pagination                        |
 | `POST`  | `/api/v1/assets`                                                     | Upload one JPEG, PNG, or WebP image up to 2 MiB             |
 | `GET`   | `/api/v1/assets`                                                     | List owned assets with cursor pagination and kind filtering |
@@ -340,41 +337,43 @@ The key is server-only and must not be exposed to clients.
 maximum 300,000 ms). Requests use one attempt so SDK retries do not extend
 the configured wait. Timeout failures return `503 SERVICE_UNAVAILABLE`.
 
-Authenticated clients send prompts through the conversation message endpoint:
+Authenticated clients send prompts through the single live SSE endpoint:
 
 ```http
-POST /api/v1/conversations/:conversationId/messages
+POST /api/v1/conversations
 Authorization: Bearer <accessToken>
+Accept: text/event-stream
 Content-Type: application/json
 
-{ "content": "Explain the word resilient in Vietnamese." }
+{
+  "conversationId": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
+  "content": "Explain the word resilient in Vietnamese."
+}
 ```
 
-This request stores the user message and a pending chat run, then returns immediately.
-The client shows a typing indicator and calls
-`POST /api/v1/conversations/:conversationId/messages/:messageId/response`.
-The default response remains JSON. To receive realtime text and status events, call
-the same endpoint with `Accept: text/event-stream` using streaming `fetch` and the
-normal Bearer authorization header. Gemini then either streams normal chat text or
-selects the image/video generation tool.
+The body uses `projectId` instead of `conversationId` for a first message so the
+server can create its conversation atomically. The request persists the user
+message, starts Gemini, and streams text or generation-routing progress through the
+same response using streaming `fetch`. The stream ends after the current chat turn
+is persisted; image and video jobs continue in the background. This is the only
+HTTP endpoint that starts AI chat.
 Chat text is persisted as an assistant message. A media tool call creates a pending
 generation without persisting a temporary queue-confirmation message. When
-`AI_GENERATION_WORKER_ENABLED=true`, the worker generates the media, asks Gemini for
-a concise completion text, and atomically persists both in one assistant message.
+`AI_GENERATION_WORKER_ENABLED=true`, the worker generates the media and atomically
+persists the successful outputs in one assistant message without a second text call.
 Gemini connectivity, quota, and invalid-response failures during request chat
-return `503 SERVICE_UNAVAILABLE`; background generation failures are persisted on
-the generation and emitted through the message event stream when connected.
+return `503 SERVICE_UNAVAILABLE`; background generation outcomes are persisted and
+read through the response-status endpoint.
 
-The client may also keep `GET /api/v1/messages/events` open with streaming `fetch`.
-The stream emits `generation.completed` with the final assistant message or
-`generation.failed`; these events are best-effort and are not replayed.
-
-If the JSON or SSE processing request is disconnected or the page reloads, the
-client polls
+If the SSE request is disconnected or the page reloads, the worker continues and
+the client polls
 `GET /api/v1/conversations/:conversationId/messages/:messageId/response`. The
 response includes durable chat-run and generation status and returns
 `assistantMessage` as `null` until processing completes. Polling reads state only;
-it never starts or retries Gemini processing.
+it never starts or retries Gemini processing. The initial `message.created` event
+provides `conversationId`, `messageId`, and `runId`; use the conversation and
+message IDs to list history or poll this response endpoint. `chat.completed` also
+provides `assistantMessageId` when an assistant message has already been persisted.
 
 ## Request tracing
 

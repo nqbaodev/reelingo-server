@@ -8,9 +8,13 @@ import {
 } from "@/features/ai/presentation/dtos/ai-generation.dto";
 import type { MessageChatRun } from "@/features/ai/domain";
 import { AssetKind } from "@/features/assets/domain";
+import {
+  MessageTargetType,
+  type CreateMessageCommand,
+} from "../../application/use-cases/create-message.use-case";
 import type { CreateMessagePayload, Message, MessageGeneration } from "../../domain";
 
-export const messageContentSchema = z
+const messageContentSchema = z
   .string()
   .trim()
   .min(1)
@@ -27,32 +31,71 @@ const aiContextSchema = z.strictObject({
   generationSettings: aiGenerationSettingsSchema.optional(),
 });
 
-const rawCreateMessageSchema = z
-  .strictObject({
-    content: messageContentSchema.optional(),
-    assetIds: z
-      .array(z.uuid())
-      .max(MAX_MESSAGE_ASSET_COUNT)
-      .refine((ids) => new Set(ids).size === ids.length)
-      .optional(),
-    aiContext: aiContextSchema.optional(),
-  })
-  .refine(
-    (input) =>
-      input.content !== undefined ||
-      (input.assetIds !== undefined && input.assetIds.length > 0),
-  );
+const messageInputShape = {
+  content: messageContentSchema.optional(),
+  assetIds: z
+    .array(z.uuid())
+    .max(MAX_MESSAGE_ASSET_COUNT)
+    .refine((ids) => new Set(ids).size === ids.length)
+    .optional(),
+  aiContext: aiContextSchema.optional(),
+};
 
-export const createMessageSchema = rawCreateMessageSchema.transform(
-  (input): CreateMessagePayload => ({
+function hasMessagePayload(input: { content?: string; assetIds?: string[] }): boolean {
+  return (
+    input.content !== undefined ||
+    (input.assetIds !== undefined && input.assetIds.length > 0)
+  );
+}
+
+function toCreateMessagePayload(input: {
+  content?: string;
+  assetIds?: string[];
+  aiContext?: z.infer<typeof aiContextSchema>;
+}): CreateMessagePayload {
+  return {
     content: input.content ?? null,
     assetIds: input.assetIds ?? [],
     aiContext: {
       intentHint: input.aiContext?.intentHint ?? null,
       generationSettings: input.aiContext?.generationSettings ?? {},
     },
-  }),
-);
+  };
+}
+
+const newConversationMessageSchema = z.strictObject({
+  projectId: z.uuid(),
+  ...messageInputShape,
+  content: messageContentSchema,
+});
+
+const existingConversationMessageSchema = z
+  .strictObject({
+    conversationId: z.uuid(),
+    ...messageInputShape,
+  })
+  .refine(hasMessagePayload);
+
+export const sendMessageSchema = z
+  .union([newConversationMessageSchema, existingConversationMessageSchema])
+  .transform((input): CreateMessageCommand => {
+    if ("projectId" in input) {
+      return {
+        type: MessageTargetType.NEW_CONVERSATION,
+        projectId: input.projectId,
+        message: {
+          ...toCreateMessagePayload(input),
+          content: input.content,
+        },
+      };
+    }
+
+    return {
+      type: MessageTargetType.EXISTING_CONVERSATION,
+      conversationId: input.conversationId,
+      message: toCreateMessagePayload(input),
+    };
+  });
 
 export const messageConversationParamsSchema = z.strictObject({
   conversationId: z.uuid(),
@@ -83,7 +126,7 @@ export const listMessagesQuerySchema = z
       : undefined,
   }));
 
-export type CreateMessageRequestDto = z.infer<typeof createMessageSchema>;
+export type SendMessageRequestDto = z.infer<typeof sendMessageSchema>;
 export type MessageConversationParamsDto = z.infer<
   typeof messageConversationParamsSchema
 >;

@@ -1,7 +1,9 @@
-import type { MessageGeneration } from "../../domain";
+import type { Message, MessageGeneration } from "../../domain";
 import type { ChatTurn } from "../../infrastructure";
+import type { Conversation } from "@/features/conversations/domain";
 
 export const ChatProgressEventType = {
+  MESSAGE_CREATED: "messageCreated",
   STARTED: "started",
   TEXT_DELTA: "textDelta",
   GENERATION_QUEUED: "generationQueued",
@@ -9,6 +11,12 @@ export const ChatProgressEventType = {
 } as const;
 
 export type ChatProgressEvent =
+  | {
+      type: typeof ChatProgressEventType.MESSAGE_CREATED;
+      message: Message;
+      createdConversation: Conversation | null;
+      runId: string;
+    }
   | {
       type: typeof ChatProgressEventType.STARTED;
       runId: string;
@@ -24,6 +32,7 @@ export type ChatProgressEvent =
   | {
       type: typeof ChatProgressEventType.COMPLETED;
       turn: ChatTurn;
+      runId: string;
     };
 
 export interface ChatProgressObserver {

@@ -3,30 +3,20 @@ import { HttpMethod, createBaseRouter, validate } from "@/core/http";
 import { endpoints } from "@/shared/http/endpoints";
 import type { MessageController } from "../controllers/message.controller";
 import {
-  createMessageSchema,
   listMessagesQuerySchema,
   messageConversationParamsSchema,
   messageResponseParamsSchema,
+  sendMessageSchema,
 } from "../dtos/message.dto";
+import { requireEventStream } from "../middlewares/event-stream-acceptance.middleware";
 
 export function createMessageRouter(controller: MessageController): Router {
   return createBaseRouter([
     {
       method: HttpMethod.GET,
-      path: endpoints.messages.events,
-      handler: controller.events,
-    },
-    {
-      method: HttpMethod.GET,
       path: endpoints.messages.response,
       middlewares: [validate({ params: messageResponseParamsSchema })],
       handler: controller.getResponse,
-    },
-    {
-      method: HttpMethod.POST,
-      path: endpoints.messages.response,
-      middlewares: [validate({ params: messageResponseParamsSchema })],
-      handler: controller.respond,
     },
     {
       method: HttpMethod.GET,
@@ -41,14 +31,14 @@ export function createMessageRouter(controller: MessageController): Router {
     },
     {
       method: HttpMethod.POST,
-      path: endpoints.messages.byConversation,
+      path: endpoints.conversations.root,
       middlewares: [
+        requireEventStream,
         validate({
-          params: messageConversationParamsSchema,
-          body: createMessageSchema,
+          body: sendMessageSchema,
         }),
       ],
-      handler: controller.create,
+      handler: controller.send,
     },
   ]);
 }

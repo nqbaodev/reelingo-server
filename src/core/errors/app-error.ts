@@ -67,6 +67,11 @@ export class PayloadTooLargeError extends AppError {
   readonly code = "PAYLOAD_TOO_LARGE";
 }
 
+export class NotAcceptableError extends AppError {
+  readonly statusCode = 406;
+  readonly code = "NOT_ACCEPTABLE";
+}
+
 export class UnsupportedMediaTypeError extends AppError {
   readonly statusCode = 415;
   readonly code = "UNSUPPORTED_MEDIA_TYPE";

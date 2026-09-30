@@ -23,7 +23,21 @@ function normalizeAssistantContent(content: string): string {
   return bounded;
 }
 
-export class RespondToMessageUseCase {
+function requireTurnChatRunId(turn: ChatTurn): string {
+  const runId = turn.userMessage.chatRun?.id;
+  if (!runId) {
+    throw new Error("Chat turn user message has no chat run");
+  }
+  return runId;
+}
+
+export interface GenerateAssistantResponseInput {
+  userId: number;
+  conversationId: string;
+  triggerMessageId: string;
+}
+
+export class GenerateAssistantResponseUseCase {
   constructor(
     private readonly messages: MessageRepository,
     private readonly chat: ChatClient,
@@ -31,15 +45,11 @@ export class RespondToMessageUseCase {
   ) {}
 
   async execute(
-    userId: number,
-    conversationId: string,
-    triggerMessageId: string,
-    observer?: ChatProgressObserver,
+    input: GenerateAssistantResponseInput,
+    observer: ChatProgressObserver,
   ): Promise<ChatTurn> {
     const claim = await this.messages.claimChat({
-      userId,
-      conversationId,
-      triggerMessageId,
+      ...input,
       staleBefore: new Date(Date.now() - this.leaseMs),
     });
 
@@ -49,16 +59,17 @@ export class RespondToMessageUseCase {
       case ClaimChatResultType.BUSY:
         throw new ConflictError(I18n.chatAlreadyProcessing);
       case ClaimChatResultType.COMPLETED: {
-        await observer?.publish({
+        await observer.publish({
           type: ChatProgressEventType.COMPLETED,
           turn: claim.turn,
+          runId: requireTurnChatRunId(claim.turn),
         });
         return claim.turn;
       }
     }
 
     try {
-      await observer?.publish({
+      await observer.publish({
         type: ChatProgressEventType.STARTED,
         runId: claim.runId,
       });
@@ -70,7 +81,7 @@ export class RespondToMessageUseCase {
           intentHint: claim.context.intentHint,
         },
         async (delta) => {
-          await observer?.publish({
+          await observer.publish({
             type: ChatProgressEventType.TEXT_DELTA,
             delta,
           });
@@ -101,14 +112,15 @@ export class RespondToMessageUseCase {
         if (!generation) {
           throw new Error("Completed generation chat has no generation");
         }
-        await observer?.publish({
+        await observer.publish({
           type: ChatProgressEventType.GENERATION_QUEUED,
           generation,
         });
       }
-      await observer?.publish({
+      await observer.publish({
         type: ChatProgressEventType.COMPLETED,
         turn,
+        runId: claim.runId,
       });
       return turn;
     } catch (err) {

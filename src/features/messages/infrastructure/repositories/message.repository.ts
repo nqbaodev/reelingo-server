@@ -5,6 +5,7 @@ import type {
   MessageChatRun,
 } from "@/features/ai/domain";
 import type { AssetKind } from "@/features/assets/domain";
+import type { Conversation } from "@/features/conversations/domain";
 import type { Message, MessageGeneration, NewMessage } from "../../domain";
 
 export interface MessageListCursor {
@@ -18,8 +19,17 @@ export interface CreateMessageForConversationInput {
   chatContext: ChatContext;
 }
 
+export interface CreateMessageWithConversationInput {
+  userId: number;
+  projectId: string;
+  conversationName: string;
+  message: Omit<NewMessage, "conversationId">;
+  chatContext: ChatContext;
+}
+
 export const CreateMessageResultType = {
   CREATED: "created",
+  PROJECT_NOT_FOUND: "projectNotFound",
   CONVERSATION_NOT_FOUND: "conversationNotFound",
   ASSET_NOT_FOUND: "assetNotFound",
 } as const;
@@ -30,6 +40,15 @@ export type CreateMessageForConversationResult =
       message: Message;
     }
   | { type: typeof CreateMessageResultType.CONVERSATION_NOT_FOUND }
+  | { type: typeof CreateMessageResultType.ASSET_NOT_FOUND };
+
+export type CreateMessageWithConversationResult =
+  | {
+      type: typeof CreateMessageResultType.CREATED;
+      conversation: Conversation;
+      message: Message;
+    }
+  | { type: typeof CreateMessageResultType.PROJECT_NOT_FOUND }
   | { type: typeof CreateMessageResultType.ASSET_NOT_FOUND };
 
 export interface ListMessagesInput {
@@ -99,6 +118,9 @@ export interface CompleteChatGenerationInput {
 }
 
 export interface MessageRepository {
+  createWithConversation(
+    input: CreateMessageWithConversationInput,
+  ): Promise<CreateMessageWithConversationResult>;
   createForConversation(
     input: CreateMessageForConversationInput,
   ): Promise<CreateMessageForConversationResult>;
