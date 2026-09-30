@@ -1,10 +1,10 @@
 import type { AiGenerationConfig } from "../../domain";
-import type { MediaType } from "@/features/media/domain";
+import type { AssetKind } from "@/features/assets/domain";
 
 export interface GenerateMediaInput {
   generationId: string;
   prompt: string;
-  type: MediaType;
+  type: AssetKind;
   config: AiGenerationConfig;
   signal: AbortSignal;
 }
@@ -16,7 +16,7 @@ export interface GeneratedMedia {
 
 export interface GenerateCompletionTextInput {
   prompt: string;
-  type: MediaType;
+  type: AssetKind;
   outputCount: number;
   signal: AbortSignal;
 }

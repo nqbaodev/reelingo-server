@@ -78,7 +78,7 @@ exposes the public `config` facade that application code imports — never
 | `ADMIN_LOGGER_PASSWORD`          | no       | —                               | Basic Auth password, at least 16 characters                  |
 | `ADMIN_LOGGER_MAX_ENTRIES`       | no       | `1000`                          | Process-local retained entries; range 100–10,000             |
 | `CORS_ORIGIN`                    | no       | `*`                             | Allowed origin                                               |
-| `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`       | Absolute base URL used in media upload responses             |
+| `PUBLIC_BASE_URL`                | no       | `http://localhost:<PORT>`       | Absolute base URL used in asset upload responses             |
 | `STORAGE_ROOT`                   | no       | `storage`                       | Root directory for application-managed files                 |
 | `GEMINI_MODEL`                   | no       | `gemini-2.5-flash`              | Model id, changeable without a deploy                        |
 | `GEMINI_TIMEOUT_MS`              | no       | `30000`                         | Gemini request timeout; max 300,000 ms                       |
@@ -243,7 +243,7 @@ quits.
 
 `shared/http/endpoints.ts` defines the shared API prefix (`apiPrefix`, `/api/v1`)
 and paths grouped under `auth`, `users`, `projects`, `conversations`, `messages`,
-`media`, `health`, `docs`, and `adminLogger`.
+`assets`, `health`, `docs`, and `adminLogger`.
 Routers and OpenAPI reuse these values. API feature paths are relative to
 the prefix; health and documentation paths are mounted at the root.
 
@@ -260,31 +260,32 @@ the prefix; health and documentation paths are mounted at the root.
 
 ### Requires `Authorization: Bearer <accessToken>`
 
-| Method  | Path                                                                 | Description                                                    |
-| ------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `GET`   | `/api/v1/auth/me`                                                    | Current authenticated user                                     |
-| `PUT`   | `/api/v1/auth/me`                                                    | Replace the current user's editable profile                    |
-| `POST`  | `/api/v1/auth/logout`                                                | Revoke the current session                                     |
-| `POST`  | `/api/v1/projects`                                                   | Create a project                                               |
-| `GET`   | `/api/v1/projects`                                                   | List owned projects with cursor pagination                     |
-| `GET`   | `/api/v1/projects/:projectId`                                        | Get an owned project                                           |
-| `PATCH` | `/api/v1/projects/:projectId`                                        | Rename an owned project                                        |
-| `POST`  | `/api/v1/projects/:projectId/conversations`                          | Create a conversation from its first text message              |
-| `GET`   | `/api/v1/projects/:projectId/conversations`                          | List conversations in an owned project                         |
-| `PATCH` | `/api/v1/conversations/:conversationId`                              | Update an owned conversation's name                            |
-| `POST`  | `/api/v1/conversations/:conversationId/messages`                     | Store a prompt and pending chat run                            |
-| `GET`   | `/api/v1/messages/events`                                            | Subscribe to background generation events over SSE             |
-| `GET`   | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Poll the assistant response status                             |
-| `POST`  | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Generate and persist the assistant response; supports SSE      |
-| `GET`   | `/api/v1/conversations/:conversationId/messages`                     | List messages with cursor pagination                           |
-| `POST`  | `/api/v1/media`                                                      | Upload one JPEG, PNG, or WebP image up to 2 MiB                |
-| `POST`  | `/api/v1/media/delete`                                               | Delete owned uploaded images that are not attached to messages |
-| `GET`   | `/api/v1/media/:mediaId`                                             | Read owned uploaded or generated media                         |
+| Method  | Path                                                                 | Description                                                 |
+| ------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `GET`   | `/api/v1/auth/me`                                                    | Current authenticated user                                  |
+| `PUT`   | `/api/v1/auth/me`                                                    | Replace the current user's editable profile                 |
+| `POST`  | `/api/v1/auth/logout`                                                | Revoke the current session                                  |
+| `POST`  | `/api/v1/projects`                                                   | Create a project                                            |
+| `GET`   | `/api/v1/projects`                                                   | List owned projects with cursor pagination                  |
+| `GET`   | `/api/v1/projects/:projectId`                                        | Get an owned project                                        |
+| `PATCH` | `/api/v1/projects/:projectId`                                        | Rename an owned project                                     |
+| `POST`  | `/api/v1/projects/:projectId/conversations`                          | Create a conversation from its first text message           |
+| `GET`   | `/api/v1/projects/:projectId/conversations`                          | List conversations in an owned project                      |
+| `PATCH` | `/api/v1/conversations/:conversationId`                              | Update an owned conversation's name                         |
+| `POST`  | `/api/v1/conversations/:conversationId/messages`                     | Store a prompt and pending chat run                         |
+| `GET`   | `/api/v1/messages/events`                                            | Subscribe to background generation events over SSE          |
+| `GET`   | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Poll the assistant response status                          |
+| `POST`  | `/api/v1/conversations/:conversationId/messages/:messageId/response` | Generate and persist the assistant response; supports SSE   |
+| `GET`   | `/api/v1/conversations/:conversationId/messages`                     | List messages with cursor pagination                        |
+| `POST`  | `/api/v1/assets`                                                     | Upload one JPEG, PNG, or WebP image up to 2 MiB             |
+| `GET`   | `/api/v1/assets`                                                     | List owned assets with cursor pagination and kind filtering |
+| `POST`  | `/api/v1/assets/delete`                                              | Delete owned assets that are not attached to messages       |
+| `GET`   | `/api/v1/assets/:assetId`                                            | Read owned uploaded or generated asset content              |
 
-### Local media storage
+### Local asset storage
 
-Uploaded images are written below `STORAGE_ROOT/media/uploads/{userId}` and AI
-output below `STORAGE_ROOT/media/generated/{userId}`. The database stores the
+Uploaded images are written below `STORAGE_ROOT/assets/uploads/{userId}` and AI
+output below `STORAGE_ROOT/assets/generated/{userId}`. The database stores the
 generated storage key, not an absolute filesystem path or public URL. The Docker
 image declares `/app/storage` as a volume. Mount a named volume at that path so
 stored files survive container replacement.
@@ -294,9 +295,14 @@ For example, replace `/app/storage/media` with `/app/storage` and mount the volu
 that new root. Existing `images/...` and `videos/...` database keys continue to
 resolve below the legacy `media/` directory.
 
-The upload and media endpoints require a Bearer token. The returned media URL
+Existing `media/...` keys also remain readable after the feature migration.
+
+The upload and asset endpoints require a Bearer token. The returned asset URL
 therefore identifies the image endpoint; clients must include their access token
 when fetching it.
+
+**Client migration:** replace `/api/v1/media` routes with `/api/v1/assets`, message
+`mediaIds` with `assetIds`, and asset response `type` with `kind`.
 
 ## Authentication
 

@@ -14,7 +14,7 @@ import type {
 import { createAuthModule } from "@/features/auth/auth.module";
 import { createConversationsModule } from "@/features/conversations/conversations.module";
 import { createHealthModule } from "@/features/health/health.module";
-import { createMediaModule } from "@/features/media/media.module";
+import { createAssetsModule } from "@/features/assets/assets.module";
 import { createMessagesModule } from "@/features/messages/messages.module";
 import { createProjectsModule } from "@/features/projects/projects.module";
 import { createUsersModule } from "@/features/users/users.module";
@@ -66,10 +66,10 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
   const authModule = createAuthModule(database);
   const healthModule = createHealthModule(database);
   const conversationsModule = createConversationsModule(database);
-  const mediaModule = createMediaModule(database);
+  const assetsModule = createAssetsModule(database);
   const aiModule = createAiModule(
     database,
-    mediaModule.storage,
+    assetsModule.storage,
     options.chatClient,
     options.mediaGenerationClient,
   );
@@ -96,7 +96,7 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
     usersModule.router,
     projectsModule.router,
     conversationsModule.router,
-    mediaModule.router,
+    assetsModule.router,
     messagesModule.router,
   );
 

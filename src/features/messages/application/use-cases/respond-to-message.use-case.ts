@@ -9,7 +9,10 @@ import {
   type ChatTurn,
   type MessageRepository,
 } from "../../infrastructure";
-import { ChatProgressEventType, type ChatProgressObserver } from "../events/chat-progress";
+import {
+  ChatProgressEventType,
+  type ChatProgressObserver,
+} from "../events/chat-progress";
 
 function normalizeAssistantContent(content: string): string {
   const bounded = normalizeBoundedText(content, MAX_MESSAGE_CONTENT_LENGTH);
@@ -63,7 +66,7 @@ export class RespondToMessageUseCase {
         {
           content:
             claim.triggerMessage.content ??
-            `[User attached ${claim.triggerMessage.mediaIds.length} media item(s) without text]`,
+            `[User attached ${claim.triggerMessage.assetIds.length} asset(s) without text]`,
           intentHint: claim.context.intentHint,
         },
         async (delta) => {

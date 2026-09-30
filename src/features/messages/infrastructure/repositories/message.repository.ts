@@ -4,7 +4,7 @@ import type {
   ChatContext,
   MessageChatRun,
 } from "@/features/ai/domain";
-import type { MediaType } from "@/features/media/domain";
+import type { AssetKind } from "@/features/assets/domain";
 import type { Message, MessageGeneration, NewMessage } from "../../domain";
 
 export interface MessageListCursor {
@@ -21,7 +21,7 @@ export interface CreateMessageForConversationInput {
 export const CreateMessageResultType = {
   CREATED: "created",
   CONVERSATION_NOT_FOUND: "conversationNotFound",
-  MEDIA_NOT_FOUND: "mediaNotFound",
+  ASSET_NOT_FOUND: "assetNotFound",
 } as const;
 
 export type CreateMessageForConversationResult =
@@ -30,7 +30,7 @@ export type CreateMessageForConversationResult =
       message: Message;
     }
   | { type: typeof CreateMessageResultType.CONVERSATION_NOT_FOUND }
-  | { type: typeof CreateMessageResultType.MEDIA_NOT_FOUND };
+  | { type: typeof CreateMessageResultType.ASSET_NOT_FOUND };
 
 export interface ListMessagesInput {
   userId: number;
@@ -94,7 +94,7 @@ export interface CompleteChatReplyInput {
 export interface CompleteChatGenerationInput {
   runId: string;
   claimVersion: Date;
-  type: MediaType;
+  type: AssetKind;
   config: AiGenerationConfig;
 }
 

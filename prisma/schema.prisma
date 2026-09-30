@@ -15,7 +15,7 @@ model User {
   updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
   profile   UserProfile?
   projects  Project[]
-  media     Media[]
+  assets    Asset[]
 
   @@map("users")
 }
@@ -66,11 +66,11 @@ enum MessageRole {
   @@map("message_role")
 }
 
-enum MediaType {
+enum AssetKind {
   image
   video
 
-  @@map("media_type")
+  @@map("asset_kind")
 }
 
 enum AiGenerationStatus {
@@ -110,7 +110,7 @@ model AiGeneration {
   id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   triggerMessageId String             @unique @map("trigger_message_id") @db.Uuid
   resultMessageId  String?            @unique @map("result_message_id") @db.Uuid
-  type             MediaType
+  type             AssetKind
   status           AiGenerationStatus @default(pending)
   configSnapshot   Json               @map("config_snapshot") @db.JsonB
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -130,7 +130,7 @@ model Message {
   content             String?        @db.Text
   createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   conversation        Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  mediaLinks          MessageMedia[]
+  assetLinks          MessageAsset[]
   triggeredGeneration AiGeneration?  @relation("AiGenerationTrigger")
   generationResult    AiGeneration?  @relation("AiGenerationResult")
   triggeredChatRun    ChatRun?       @relation("ChatRunTrigger")
@@ -140,31 +140,32 @@ model Message {
   @@map("messages")
 }
 
-model MessageMedia {
+model MessageAsset {
   messageId String  @map("message_id") @db.Uuid
-  mediaId   String  @map("media_id") @db.Uuid
+  assetId   String  @map("asset_id") @db.Uuid
   position  Int
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  asset     Asset   @relation(fields: [assetId], references: [id], onDelete: Restrict)
 
-  @@id([messageId, mediaId])
+  @@id([messageId, assetId])
   @@unique([messageId, position])
-  @@index([mediaId])
-  @@map("message_media")
+  @@index([assetId])
+  @@map("message_assets")
 }
 
-model Media {
+model Asset {
   id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       Int            @map("user_id")
-  type         MediaType
+  kind         AssetKind
   storageKey   String         @unique @map("storage_key") @db.Text
   mimeType     String         @map("mime_type") @db.VarChar(255)
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messageLinks MessageMedia[]
+  messageLinks MessageAsset[]
 
-  @@index([userId])
-  @@map("media")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, kind, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("assets")
 }
 
 /// One row per revoked refresh token (`token:<jti>`) or revoked session

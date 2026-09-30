@@ -1,4 +1,4 @@
-import type { MediaType } from "@/features/media/domain";
+import type { AssetKind } from "@/features/assets/domain";
 import type { Message } from "@/features/messages/domain";
 import type { AiGenerationConfig } from "../../domain";
 
@@ -8,7 +8,7 @@ export interface ClaimedAiGeneration {
   conversationId: string;
   userId: number;
   prompt: string | null;
-  type: MediaType;
+  type: AssetKind;
   config: AiGenerationConfig;
   claimVersion: Date;
 }

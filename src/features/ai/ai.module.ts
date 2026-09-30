@@ -1,5 +1,5 @@
 import { config } from "@/config";
-import type { MediaStorage } from "@/features/media/infrastructure";
+import type { AssetStorage } from "@/features/assets/infrastructure";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { logger } from "@/shared/logger";
 import { ProcessAiGenerationUseCase } from "./application";
@@ -15,7 +15,7 @@ import {
 
 export function createAiModule(
   prisma: PrismaClient,
-  storage: MediaStorage,
+  storage: AssetStorage,
   chatClient?: ChatClient,
   mediaGenerationClient?: MediaGenerationClient,
 ) {

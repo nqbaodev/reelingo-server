@@ -1,8 +1,9 @@
 # Chat feature
 
 This document owns the current product and backend decisions for conversations,
-messages, and chat media. The implementation and `src/openapi.ts` remain the
-executable API contract; update this document when those decisions change.
+messages, assets, and generated media. The implementation and `src/openapi.ts`
+remain the executable API contract; update this document when those decisions
+change.
 
 ## Scope and ownership
 
@@ -10,13 +11,14 @@ executable API contract; update this document when those decisions change.
   updates. See [Projects](projects.md).
 - `features/conversations` owns conversation creation from the first text message,
   project-scoped listing, and name updates.
-- `features/messages` owns message validation, persistence, listing, ordered media
+- `features/messages` owns message validation, persistence, listing, ordered asset
   attachments, durable chat runs, and persistence of the AI decision.
-- `features/media` owns the shared image/video media type, authenticated image
-  upload, local file storage, media persistence, and owned media retrieval.
+- `features/assets` owns the shared image/video asset kind, authenticated image
+  upload, local file storage, asset persistence, owned asset listing, and content
+  retrieval.
 - `features/ai` owns chat routing, generation statuses, configuration semantics,
-  and the Gemini adapter. Image/video provider execution is not wired yet; a media
-  tool call only persists a pending generation request for a future worker.
+  and the Gemini adapter. A media tool call persists a generation request; when
+  enabled, the background worker stores its output through the assets feature.
 - Every conversation belongs to one project. Conversation and nested message
   operations are authenticated and scoped through the project owner. A missing or
   non-owned project or conversation returns the same 404 outcome and must not
@@ -45,7 +47,7 @@ executable API contract; update this document when those decisions change.
   first message ID before calling its response endpoint.
 - The initial name is derived synchronously from the first 120 Unicode characters
   of the trimmed message content. Users may rename it through the update endpoint.
-- Creating a conversation from a media-only first message is deferred until its
+- Creating a conversation from an asset-only first message is deferred until its
   initial naming behavior is defined.
 
 Current endpoints:
@@ -69,9 +71,9 @@ Create from the first text message:
 - `Message.id` is a database-generated UUID.
 - `role` is either `user` or `assistant`. The public send-message endpoint always
   assigns `user`; clients cannot choose or spoof the role.
-- A message contains `content`, up to four uploaded `mediaIds`, or both. At least
+- A message contains `content`, up to four uploaded `assetIds`, or both. At least
   one must be present. Duplicate IDs are rejected.
-- Every `mediaId` must reference media owned by the authenticated user. If any ID
+- Every `assetId` must reference an asset owned by the authenticated user. If any ID
   is missing or non-owned, the request returns 404 without revealing which record
   failed ownership validation.
 - The client does not send a chat/image/video mode. Sending a message stores the
@@ -118,7 +120,7 @@ Create from the first text message:
 - The generation worker creates media and requests a concise completion text in
   parallel. Completion text is best-effort and may be null, so a secondary text
   request cannot discard successfully generated media. One transaction creates a
-  single `assistant` message and its ordered `MessageMedia` rows, completes the
+  single `assistant` message and its ordered `MessageAsset` rows, completes the
   generation, and assigns the message to both generation and chat run
   `resultMessageId` fields.
 - Image generation sends at most two provider requests concurrently. A multi-image
@@ -155,12 +157,12 @@ Text-only request:
 }
 ```
 
-Text with uploaded media:
+Text with an uploaded asset:
 
 ```json
 {
   "content": "What is in this image?",
-  "mediaIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
+  "assetIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
@@ -168,13 +170,13 @@ Image-only message:
 
 ```json
 {
-  "mediaIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
+  "assetIds": ["6aa7ba5e-5bf0-43ec-bb58-068e21cad413"]
 }
 ```
 
-Upload the image first with `POST /api/v1/media`, then send the returned `id` as
-an item in `mediaIds`. The message endpoint never accepts raw file bytes, storage paths, URLs,
-MIME types, or file sizes.
+Upload the image first with `POST /api/v1/assets`, then send the returned `id` as
+an item in `assetIds`. The message endpoint never accepts raw file bytes, storage
+paths, URLs, MIME types, or file sizes.
 
 Prompt requesting image generation:
 
@@ -280,59 +282,62 @@ PostgreSQL. The client reloads messages, calls `POST` for a pending or failed ch
 run, and polls `GET` while chat routing or media generation is still processing.
 Only temporary local typing and queue animations are lost on reload.
 
-## Media
+## Assets
 
-- `POST /api/v1/media` accepts exactly one `multipart/form-data` field named
+- `POST /api/v1/assets` accepts exactly one `multipart/form-data` field named
   `file`. It currently accepts JPEG, PNG, or WebP images up to 2 MiB.
-- The worker may create image or video `Media` rows. Generated output is available
-  through the same authenticated `GET /api/v1/media/:mediaId` endpoint; video
+- The worker may create image or video `Asset` rows. Generated output is available
+  through the same authenticated `GET /api/v1/assets/:assetId` endpoint; video
   upload from clients remains unsupported.
 - The upload boundary checks the actual file signature and does not trust the
   client-provided filename or MIME type. The detected MIME type is persisted.
-- `Media.id` is a database-generated UUID. The initial table stores only `id`,
-  `userId`, `type`, `storageKey`, `mimeType`, and `createdAt`.
+- `Asset.id` is a database-generated UUID. The initial table stores only `id`,
+  `userId`, `kind`, `storageKey`, `mimeType`, and `createdAt`.
 - `sizeBytes`, original filename, width, height, duration, status, and public URL
   are intentionally not stored. Image size is enforced directly from the uploaded
   bytes before persistence.
-- Uploaded files are stored under `STORAGE_ROOT/media/uploads/{userId}` and AI
-  output under `STORAGE_ROOT/media/generated/{userId}`. A Docker image uses
+- New uploaded files are stored under `STORAGE_ROOT/assets/uploads/{userId}` and AI
+  output under `STORAGE_ROOT/assets/generated/{userId}`. Existing `media/`,
+  `images/`, and `videos/` storage keys remain readable. A Docker image uses
   `/app/storage`; mount a Docker volume there so files survive container replacement.
 - The upload response contains a stable authenticated API `path` and an absolute
   `url` derived from `PUBLIC_BASE_URL`. Neither value is persisted.
-- `GET /api/v1/media/:mediaId` returns the image bytes only to the owner.
-- `POST /api/v1/media/delete` accepts up to 50 IDs as
-  `{ "mediaIds": ["..."] }` and deletes owned media that is not attached to any
+- `GET /api/v1/assets` lists owned assets newest first with cursor pagination and
+  an optional `kind=image|video` filter.
+- `GET /api/v1/assets/:assetId` returns the asset bytes only to the owner.
+- `POST /api/v1/assets/delete` accepts up to 50 IDs as
+  `{ "assetIds": ["..."] }` and deletes owned assets that are not attached to any
   message. The response contains only `{ "deletedIds": [...] }`; missing,
-  non-owned, duplicate, and already attached media IDs are skipped.
+  non-owned, duplicate, and already attached asset IDs are skipped.
 - If the file write succeeds but the database insert fails, the upload use case
   attempts to delete the stored file before propagating the failure.
-- A future S3/R2 adapter can replace local storage through the media storage
+- A future S3/R2 adapter can replace local storage through the asset storage
   contract without changing the upload use case or API response.
 - Upload and message creation are separate requests. An upload remains unattached
-  until its `id` is used in a message's `mediaIds`.
+  until its `id` is used in a message's `assetIds`.
 
 ## Persistence invariants
 
 PostgreSQL constraints enforce the valid stored shapes:
 
-- text-only: non-empty `content` and no media links;
-- media with optional text: one to four ordered `MessageMedia` rows referencing
-  `Media`;
+- text-only: non-empty `content` and no asset links;
+- assets with optional text: one to four ordered `MessageAsset` rows referencing
+  `Asset`;
 - generation: exactly one generation per trigger message and at most one result
   message per generation;
 - generation worker claims must condition their updates on both status and
   `updatedAt` so only one worker owns the current lease;
 - deleting a conversation cascades to its messages;
-- deleting media referenced by a message is restricted.
+- deleting an asset referenced by a message is restricted.
 
 The database can validate non-empty text but cannot express “content or at least
 one row in another table” as a row-level check. The HTTP/application boundary
-therefore enforces that every message has content or at least one media item.
+therefore enforces that every message has content or at least one asset.
 
 Creating a conversation verifies the owned project and uses one transaction for
 the conversation and its first user message. Sending a later message uses one
-transaction to verify conversation and media ownership and insert the user message,
-ordered media links, and pending chat run. Conversation activity is derived from
+transaction to verify conversation and asset ownership and insert the user message,
+ordered asset links, and pending chat run. Conversation activity is derived from
 the newest message; message writes do not modify the parent conversation timestamp. The response
 endpoint claims that run before calling Gemini outside every database transaction.
 Gemini's streaming adapter emits text deltas without persisting each chunk. A
@@ -344,7 +349,7 @@ When enabled, one background worker polls for jobs, atomically claims a pending 
 stale generation, and renews its lease while provider work runs outside a database
 transaction. It creates image/video outputs first and then generates the final
 assistant text. Files are stored before one short completion transaction inserts
-the `Media` and `MessageMedia` rows, creates the assistant message, and conditionally
+the `Asset` and `MessageAsset` rows, creates the assistant message, and conditionally
 completes the still-owned generation. Failed or lost claims clean up stored files
 when possible. Worker shutdown aborts in-flight local work; its processing row is
 left for stale-lease recovery.
@@ -361,6 +366,7 @@ endpoint without creating another prompt.
 ## Cursor pagination
 
 - All list responses use `{ "items": [...], "nextCursor": string | null }`.
+- Assets order by `createdAt DESC, id DESC` and may be filtered by `kind`.
 - Conversations use an opaque cursor containing `lastMessageAt` and
   `conversationId`.
 - Messages order by `createdAt DESC, id DESC` and use those fields in the opaque
@@ -374,14 +380,14 @@ endpoint without creating another prompt.
 
 The following behavior is intentionally not implemented yet:
 
-- replacing local media storage with an object-storage provider;
+- replacing local asset storage with an object-storage provider;
 - supporting video upload and video-specific metadata such as duration and a
   thumbnail;
 - adding previous messages or a conversation summary to AI context;
 - sending uploaded media bytes to a multimodal chat model (current AI context
   includes a text marker for attachments, not their contents);
 - replacing the initial name with an AI-generated summary;
-- creating a conversation from a media-only first message;
+- creating a conversation from an asset-only first message;
 - message edits and message deletion.
 
 ## Change checklist

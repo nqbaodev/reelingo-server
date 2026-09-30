@@ -21,10 +21,10 @@ export const endpoints = {
     byConversation: "/conversations/:conversationId/messages",
     response: "/conversations/:conversationId/messages/:messageId/response",
   },
-  media: {
-    upload: "/media",
-    delete: "/media/delete",
-    byId: "/media/:mediaId",
+  assets: {
+    root: "/assets",
+    delete: "/assets/delete",
+    byId: "/assets/:assetId",
   },
   health: {
     liveness: "/health",
