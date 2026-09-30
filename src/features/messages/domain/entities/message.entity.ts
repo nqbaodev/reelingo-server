@@ -4,7 +4,7 @@ import type {
   ChatContext,
   MessageChatRun,
 } from "@/features/ai/domain";
-import type { MediaType } from "@/features/media/domain";
+import type { AssetKind } from "@/features/assets/domain";
 
 export const MessageRole = {
   USER: "user",
@@ -16,7 +16,7 @@ export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];
 export interface MessageGeneration {
   id: string;
   triggerMessageId: string;
-  type: MediaType;
+  type: AssetKind;
   status: AiGenerationStatus;
   config: AiGenerationConfig;
   resultMessageId: string | null;
@@ -24,7 +24,7 @@ export interface MessageGeneration {
 
 export interface MessagePayload {
   content: string | null;
-  mediaIds: string[];
+  assetIds: string[];
 }
 
 export interface CreateMessagePayload extends MessagePayload {
@@ -36,7 +36,7 @@ interface MessageBase {
   conversationId: string;
   role: MessageRole;
   content: string | null;
-  mediaIds: string[];
+  assetIds: string[];
   generation: MessageGeneration | null;
   chatRun: MessageChatRun | null;
   createdAt: Date;

@@ -5,7 +5,7 @@ import {
   type AiGenerationConfig,
   type ChatContext,
 } from "@/features/ai/domain";
-import { MediaType } from "@/features/media/domain";
+import { AssetKind } from "@/features/assets/domain";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { isPrismaRecordNotFound } from "@/shared/database/prisma-error";
 import { MessageRole, type Message } from "../../domain";
@@ -27,7 +27,7 @@ import type {
 import { ClaimChatResultType, CreateMessageResultType } from "./message.repository";
 
 const messageRelations = {
-  mediaLinks: { orderBy: { position: "asc" } },
+  assetLinks: { orderBy: { position: "asc" } },
   triggeredGeneration: true,
   generationResult: true,
   triggeredChatRun: true,
@@ -39,20 +39,20 @@ interface CompleteChatInput {
   claimVersion: Date;
   content?: string;
   generation?: {
-    type: MediaType;
+    type: AssetKind;
     config: AiGenerationConfig;
   };
 }
 
 function toChatContextSnapshot(context: ChatContext): Prisma.InputJsonObject {
-  const imageConfig = context.generationSettings[MediaType.IMAGE];
-  const videoConfig = context.generationSettings[MediaType.VIDEO];
+  const imageConfig = context.generationSettings[AssetKind.IMAGE];
+  const videoConfig = context.generationSettings[AssetKind.VIDEO];
 
   return {
     intentHint: context.intentHint,
     generationSettings: {
-      ...(imageConfig ? { [MediaType.IMAGE]: { ...imageConfig } } : {}),
-      ...(videoConfig ? { [MediaType.VIDEO]: { ...videoConfig } } : {}),
+      ...(imageConfig ? { [AssetKind.IMAGE]: { ...imageConfig } } : {}),
+      ...(videoConfig ? { [AssetKind.VIDEO]: { ...videoConfig } } : {}),
     },
   };
 }
@@ -75,12 +75,12 @@ export class MessagePrismaRepository implements MessageRepository {
           return { type: CreateMessageResultType.CONVERSATION_NOT_FOUND };
         }
 
-        if (message.mediaIds.length > 0) {
-          const ownedMediaCount = await transaction.media.count({
-            where: { id: { in: message.mediaIds }, userId },
+        if (message.assetIds.length > 0) {
+          const ownedAssetCount = await transaction.asset.count({
+            where: { id: { in: message.assetIds }, userId },
           });
-          if (ownedMediaCount !== message.mediaIds.length) {
-            return { type: CreateMessageResultType.MEDIA_NOT_FOUND };
+          if (ownedAssetCount !== message.assetIds.length) {
+            return { type: CreateMessageResultType.ASSET_NOT_FOUND };
           }
         }
 
@@ -89,9 +89,9 @@ export class MessagePrismaRepository implements MessageRepository {
             conversationId: message.conversationId,
             role: message.role,
             content: message.content,
-            mediaLinks: {
-              create: message.mediaIds.map((mediaId, position) => ({
-                mediaId,
+            assetLinks: {
+              create: message.assetIds.map((assetId, position) => ({
+                assetId,
                 position,
               })),
             },

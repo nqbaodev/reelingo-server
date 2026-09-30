@@ -3,13 +3,14 @@ import {
   config,
   MAX_CONVERSATION_NAME_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
-  MAX_MEDIA_DELETE_COUNT,
+  MAX_ASSET_DELETE_COUNT,
+  MAX_MESSAGE_ASSET_COUNT,
   MAX_MESSAGE_CONTENT_LENGTH,
   MAX_POSTGRES_INTEGER,
   MAX_PROJECT_TITLE_LENGTH,
 } from "@/config";
 import { cursorTokenSchema, paginationLimitSchema } from "@/core/pagination";
-import { DATE_ONLY_FORMAT, SUPPORTED_IMAGE_MIME_TYPES } from "@/core/utils";
+import { DATE_ONLY_FORMAT } from "@/core/utils";
 import { endpoints } from "@/shared/http/endpoints";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/core/i18n";
 import {
@@ -37,9 +38,10 @@ import {
   messageResponseParamsSchema,
 } from "@/features/messages/presentation/dtos/message.dto";
 import {
-  deleteMediaSchema,
-  mediaParamsSchema,
-} from "@/features/media/presentation/dtos/media.dto";
+  assetKindSchema,
+  assetParamsSchema,
+  deleteAssetsSchema,
+} from "@/features/assets/presentation/dtos/asset.dto";
 import {
   projectParamsSchema,
   projectTitleSchema,
@@ -244,7 +246,7 @@ const message = z.object({
   conversationId: z.uuid(),
   role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
   content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
-  mediaIds: z.array(z.uuid()).max(4),
+  assetIds: z.array(z.uuid()).max(MAX_MESSAGE_ASSET_COUNT),
   generation: messageGeneration.nullable(),
   chatRun: messageChatRun.nullable(),
   createdAt: z.iso.datetime(),
@@ -267,15 +269,19 @@ const messageTurnSuccess = z.object({
   message: z.string(),
   data: messageTurn,
 });
-const media = z.object({
+const asset = z.object({
   id: z.uuid(),
-  type: z.literal("image"),
+  kind: z.enum(["image", "video"]),
   path: z.string().startsWith("/"),
   url: z.url(),
-  mimeType: z.enum(SUPPORTED_IMAGE_MIME_TYPES),
+  mimeType: z.string().min(1),
   createdAt: z.iso.datetime(),
 });
-const deletedMedia = z.object({
+const assetList = z.object({
+  items: z.array(asset),
+  nextCursor: z.string().nullable(),
+});
+const deletedAssets = z.object({
   deletedIds: z.array(z.uuid()),
 });
 const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
@@ -683,11 +689,33 @@ export const openApiDocument = {
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.media.upload}`]: {
+    [`${endpoints.apiPrefix}${endpoints.assets.root}`]: {
+      get: {
+        tags: ["Assets"],
+        operationId: "listAssets",
+        summary: "List owned assets",
+        description:
+          "Assets are ordered from newest to oldest and may be filtered by kind.",
+        parameters: [
+          ...languageParameters,
+          ...cursorPaginationParameters,
+          {
+            name: "kind",
+            in: "query",
+            required: false,
+            schema: jsonSchema(assetKindSchema),
+          },
+        ],
+        responses: {
+          200: success(assetList),
+          ...errors(422),
+          ...protectedErrors,
+        },
+      },
       post: {
-        tags: ["Media"],
+        tags: ["Assets"],
         operationId: "uploadImage",
-        summary: "Upload one image",
+        summary: "Upload one image asset",
         description: `Accepts one JPEG, PNG, or WebP image in the file field. The actual file signature is inspected and the image is limited to ${MAX_IMAGE_SIZE_BYTES} bytes.`,
         parameters: languageParameters,
         requestBody: {
@@ -709,44 +737,44 @@ export const openApiDocument = {
           },
         },
         responses: {
-          201: success(media, "Media uploaded"),
+          201: success(asset, "Asset uploaded"),
           ...errors(400, 413, 415, 422),
           ...protectedErrors,
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.media.delete}`]: {
+    [`${endpoints.apiPrefix}${endpoints.assets.delete}`]: {
       post: {
-        tags: ["Media"],
-        operationId: "deleteMedia",
-        summary: "Delete unattached uploaded media",
-        description: `Deletes up to ${MAX_MEDIA_DELETE_COUNT} owned media items that are not attached to a message. Non-owned, missing, duplicate, and already attached media IDs are skipped; the response only contains IDs that were deleted.`,
+        tags: ["Assets"],
+        operationId: "deleteAssets",
+        summary: "Delete unattached assets",
+        description: `Deletes up to ${MAX_ASSET_DELETE_COUNT} owned assets that are not attached to a message. Non-owned, missing, duplicate, and already attached asset IDs are skipped; the response only contains IDs that were deleted.`,
         parameters: languageParameters,
-        requestBody: requestBody(deleteMediaSchema),
+        requestBody: requestBody(deleteAssetsSchema),
         responses: {
-          200: success(deletedMedia, "Media deleted"),
+          200: success(deletedAssets, "Assets deleted"),
           ...errors(400, 413, 415, 422),
           ...protectedErrors,
         },
       },
     },
-    [`${endpoints.apiPrefix}${endpoints.media.byId}`.replace(":mediaId", "{mediaId}")]: {
+    [`${endpoints.apiPrefix}${endpoints.assets.byId}`.replace(":assetId", "{assetId}")]: {
       get: {
-        tags: ["Media"],
-        operationId: "getMedia",
-        summary: "Get owned media content",
+        tags: ["Assets"],
+        operationId: "getAssetContent",
+        summary: "Get owned asset content",
         parameters: [
           ...languageParameters,
           {
-            name: "mediaId",
+            name: "assetId",
             in: "path",
             required: true,
-            schema: jsonSchema(mediaParamsSchema.shape.mediaId),
+            schema: jsonSchema(assetParamsSchema.shape.assetId),
           },
         ],
         responses: {
           200: {
-            description: "Image bytes",
+            description: "Asset bytes",
             headers: responseHeaders,
             content: {
               "image/jpeg": { schema: { type: "string", format: "binary" } },

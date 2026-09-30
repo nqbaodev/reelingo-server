@@ -2,7 +2,7 @@ import type {
   AiGeneration as PrismaAiGeneration,
   ChatRun as PrismaChatRun,
   Message as PrismaMessage,
-  MessageMedia,
+  MessageAsset,
 } from "@/generated/prisma/client";
 import {
   AiGenerationStatus,
@@ -10,14 +10,11 @@ import {
   parseAiGenerationConfig,
   type MessageChatRun,
 } from "@/features/ai/domain";
-import { MediaType } from "@/features/media/domain";
-import {
-  MessageRole,
-  type Message,
-} from "../../domain";
+import { AssetKind } from "@/features/assets/domain";
+import { MessageRole, type Message } from "../../domain";
 
 export type MessageRecord = PrismaMessage & {
-  mediaLinks: MessageMedia[];
+  assetLinks: MessageAsset[];
   triggeredGeneration: PrismaAiGeneration | null;
   generationResult: PrismaAiGeneration | null;
   triggeredChatRun: PrismaChatRun | null;
@@ -33,18 +30,16 @@ function toMessageRole(role: PrismaMessage["role"]): Message["role"] {
   }
 }
 
-function toGenerationType(type: PrismaAiGeneration["type"]): MediaType {
+function toGenerationType(type: PrismaAiGeneration["type"]): AssetKind {
   switch (type) {
-    case MediaType.IMAGE:
-      return MediaType.IMAGE;
-    case MediaType.VIDEO:
-      return MediaType.VIDEO;
+    case AssetKind.IMAGE:
+      return AssetKind.IMAGE;
+    case AssetKind.VIDEO:
+      return AssetKind.VIDEO;
   }
 }
 
-function toGenerationStatus(
-  status: PrismaAiGeneration["status"],
-): AiGenerationStatus {
+function toGenerationStatus(status: PrismaAiGeneration["status"]): AiGenerationStatus {
   switch (status) {
     case AiGenerationStatus.PENDING:
       return AiGenerationStatus.PENDING;
@@ -89,7 +84,7 @@ export function toEntity(record: MessageRecord): Message {
     conversationId: record.conversationId,
     role: toMessageRole(record.role),
     content: record.content,
-    mediaIds: record.mediaLinks.map(({ mediaId }) => mediaId),
+    assetIds: record.assetLinks.map(({ assetId }) => assetId),
     generation: generation
       ? {
           id: generation.id,

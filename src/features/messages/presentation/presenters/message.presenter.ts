@@ -21,7 +21,7 @@ export function toMessageResponse(message: Message): MessageResponseDto {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
-    mediaIds: message.mediaIds,
+    assetIds: message.assetIds,
     generation: message.generation,
     chatRun: message.chatRun,
     createdAt: message.createdAt.toISOString(),

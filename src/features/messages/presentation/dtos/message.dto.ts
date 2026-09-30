@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_MEDIA_COUNT } from "@/config";
+import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_ASSET_COUNT } from "@/config";
 import { createCursorSchema, paginationLimitSchema } from "@/core/pagination";
 import { containsNullByte } from "@/core/utils";
 import {
@@ -7,12 +7,8 @@ import {
   videoGenerationConfigSchema,
 } from "@/features/ai/presentation/dtos/ai-generation.dto";
 import type { MessageChatRun } from "@/features/ai/domain";
-import { MediaType } from "@/features/media/domain";
-import type {
-  CreateMessagePayload,
-  Message,
-  MessageGeneration,
-} from "../../domain";
+import { AssetKind } from "@/features/assets/domain";
+import type { CreateMessagePayload, Message, MessageGeneration } from "../../domain";
 
 export const messageContentSchema = z
   .string()
@@ -22,21 +18,21 @@ export const messageContentSchema = z
   .refine((content) => !containsNullByte(content));
 
 const aiGenerationSettingsSchema = z.strictObject({
-  [MediaType.IMAGE]: imageGenerationConfigSchema.optional(),
-  [MediaType.VIDEO]: videoGenerationConfigSchema.optional(),
+  [AssetKind.IMAGE]: imageGenerationConfigSchema.optional(),
+  [AssetKind.VIDEO]: videoGenerationConfigSchema.optional(),
 });
 
 const aiContextSchema = z.strictObject({
-  intentHint: z.enum([MediaType.IMAGE, MediaType.VIDEO]).optional(),
+  intentHint: z.enum([AssetKind.IMAGE, AssetKind.VIDEO]).optional(),
   generationSettings: aiGenerationSettingsSchema.optional(),
 });
 
 const rawCreateMessageSchema = z
   .strictObject({
     content: messageContentSchema.optional(),
-    mediaIds: z
+    assetIds: z
       .array(z.uuid())
-      .max(MAX_MESSAGE_MEDIA_COUNT)
+      .max(MAX_MESSAGE_ASSET_COUNT)
       .refine((ids) => new Set(ids).size === ids.length)
       .optional(),
     aiContext: aiContextSchema.optional(),
@@ -44,13 +40,13 @@ const rawCreateMessageSchema = z
   .refine(
     (input) =>
       input.content !== undefined ||
-      (input.mediaIds !== undefined && input.mediaIds.length > 0),
+      (input.assetIds !== undefined && input.assetIds.length > 0),
   );
 
 export const createMessageSchema = rawCreateMessageSchema.transform(
   (input): CreateMessagePayload => ({
     content: input.content ?? null,
-    mediaIds: input.mediaIds ?? [],
+    assetIds: input.assetIds ?? [],
     aiContext: {
       intentHint: input.aiContext?.intentHint ?? null,
       generationSettings: input.aiContext?.generationSettings ?? {},
@@ -99,7 +95,7 @@ export interface MessageResponseDto {
   conversationId: string;
   role: Message["role"];
   content: string | null;
-  mediaIds: string[];
+  assetIds: string[];
   generation: {
     id: string;
     triggerMessageId: string;

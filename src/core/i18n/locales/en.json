@@ -7,8 +7,8 @@
   "projectCreated": "Project created successfully",
   "conversationCreated": "Conversation created successfully",
   "messageSent": "Message sent successfully",
-  "mediaUploaded": "Media uploaded successfully",
-  "mediaDeleted": "Media deleted successfully",
+  "assetUploaded": "Asset uploaded successfully",
+  "assetsDeleted": "Assets deleted successfully",
 
   "routeNotFound": "Route not found",
   "validationFailed": "Request validation failed",
@@ -28,9 +28,9 @@
   "conversationNotFound": "Conversation not found",
   "messageNotFound": "Message not found",
   "chatAlreadyProcessing": "AI response is already processing",
-  "mediaNotFound": "Media not found",
-  "mediaFileRequired": "An image file is required",
-  "invalidMediaUpload": "Media upload is invalid",
+  "assetNotFound": "Asset not found",
+  "assetFileRequired": "An image file is required",
+  "invalidAssetUpload": "Asset upload is invalid",
   "unsupportedImageType": "Only JPEG, PNG, and WebP images are supported",
   "emailInUse": "Email {email} is already in use",
   "serviceUnavailable": "{service} is unavailable"

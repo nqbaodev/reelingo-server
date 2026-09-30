@@ -1,6 +1,6 @@
-import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_MEDIA_COUNT } from "@/config";
+import { MAX_MESSAGE_CONTENT_LENGTH, MAX_MESSAGE_ASSET_COUNT } from "@/config";
 import { normalizeBoundedText } from "@/core/utils";
-import type { MediaStorage } from "@/features/media/infrastructure";
+import type { AssetStorage } from "@/features/assets/infrastructure";
 import type { AiGenerationEvents } from "../events/ai-generation-events";
 import { AiGenerationEventType } from "../events/ai-generation-events";
 import type {
@@ -72,7 +72,7 @@ export class ProcessAiGenerationUseCase {
   constructor(
     private readonly generations: AiGenerationRepository,
     private readonly generator: MediaGenerationClient,
-    private readonly storage: MediaStorage,
+    private readonly storage: AssetStorage,
     private readonly events: AiGenerationEvents,
     private readonly leaseMs: number,
   ) {}
@@ -122,7 +122,7 @@ export class ProcessAiGenerationUseCase {
           .then(normalizeCompletionText)
           .catch(() => null),
       ]);
-      if (outputs.length < 1 || outputs.length > MAX_MESSAGE_MEDIA_COUNT) {
+      if (outputs.length < 1 || outputs.length > MAX_MESSAGE_ASSET_COUNT) {
         throw new Error("AI media provider returned an invalid output count");
       }
       const storedMedia = [];

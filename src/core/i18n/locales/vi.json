@@ -7,8 +7,8 @@
   "projectCreated": "Tạo dự án thành công",
   "conversationCreated": "Tạo cuộc trò chuyện thành công",
   "messageSent": "Gửi tin nhắn thành công",
-  "mediaUploaded": "Tải media lên thành công",
-  "mediaDeleted": "Xóa media thành công",
+  "assetUploaded": "Tải tài nguyên lên thành công",
+  "assetsDeleted": "Xóa tài nguyên thành công",
 
   "routeNotFound": "Không tìm thấy đường dẫn",
   "validationFailed": "Dữ liệu yêu cầu không hợp lệ",
@@ -28,9 +28,9 @@
   "conversationNotFound": "Không tìm thấy cuộc trò chuyện",
   "messageNotFound": "Không tìm thấy tin nhắn",
   "chatAlreadyProcessing": "Phản hồi AI đang được xử lý",
-  "mediaNotFound": "Không tìm thấy media",
-  "mediaFileRequired": "Cần cung cấp một tệp ảnh",
-  "invalidMediaUpload": "Dữ liệu tải media không hợp lệ",
+  "assetNotFound": "Không tìm thấy tài nguyên",
+  "assetFileRequired": "Cần cung cấp một tệp ảnh",
+  "invalidAssetUpload": "Dữ liệu tải tài nguyên không hợp lệ",
   "unsupportedImageType": "Chỉ hỗ trợ ảnh JPEG, PNG và WebP",
   "emailInUse": "Email {email} đã được sử dụng",
   "serviceUnavailable": "{service} tạm thời không khả dụng"

@@ -1,4 +1,4 @@
-import { MediaType } from "@/features/media/domain";
+import { AssetKind } from "@/features/assets/domain";
 import { parseAiGenerationConfig, type AiGenerationConfig } from "./ai-generation.entity";
 
 export const CHAT_RUN_LEASE_BUFFER_MS = 30_000;
@@ -13,8 +13,8 @@ export const ChatRunStatus = {
 export type ChatRunStatus = (typeof ChatRunStatus)[keyof typeof ChatRunStatus];
 
 export interface ChatContext {
-  intentHint: MediaType | null;
-  generationSettings: Partial<Record<MediaType, AiGenerationConfig>>;
+  intentHint: AssetKind | null;
+  generationSettings: Partial<Record<AssetKind, AiGenerationConfig>>;
 }
 
 export interface MessageChatRun {
@@ -25,7 +25,7 @@ export interface MessageChatRun {
 
 export interface ChatInput {
   content: string;
-  intentHint: MediaType | null;
+  intentHint: AssetKind | null;
 }
 
 export const ChatResultType = {
@@ -39,7 +39,7 @@ export type ChatResult =
   | { type: typeof ChatResultType.REPLY; content: string }
   | {
       type: typeof ChatResultType.GENERATION;
-      mediaType: MediaType;
+      mediaType: AssetKind;
     };
 
 export function parseChatContext(value: unknown): ChatContext {
@@ -51,8 +51,8 @@ export function parseChatContext(value: unknown): ChatContext {
   const intentHint = context.intentHint;
   if (
     intentHint !== null &&
-    intentHint !== MediaType.IMAGE &&
-    intentHint !== MediaType.VIDEO
+    intentHint !== AssetKind.IMAGE &&
+    intentHint !== AssetKind.VIDEO
   ) {
     throw new Error("Chat context snapshot has an invalid intent hint");
   }
@@ -70,15 +70,15 @@ export function parseChatContext(value: unknown): ChatContext {
   return {
     intentHint,
     generationSettings: {
-      ...(settings[MediaType.IMAGE] === undefined
+      ...(settings[AssetKind.IMAGE] === undefined
         ? {}
         : {
-            [MediaType.IMAGE]: parseAiGenerationConfig(settings[MediaType.IMAGE]),
+            [AssetKind.IMAGE]: parseAiGenerationConfig(settings[AssetKind.IMAGE]),
           }),
-      ...(settings[MediaType.VIDEO] === undefined
+      ...(settings[AssetKind.VIDEO] === undefined
         ? {}
         : {
-            [MediaType.VIDEO]: parseAiGenerationConfig(settings[MediaType.VIDEO]),
+            [AssetKind.VIDEO]: parseAiGenerationConfig(settings[AssetKind.VIDEO]),
           }),
     },
   };

@@ -4,7 +4,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { GoogleGenAI, ThinkingLevel, type GenerateVideosOperation } from "@google/genai";
 import { detectSupportedImage, matchesFileSignature } from "@/core/utils";
-import { MediaType } from "@/features/media/domain";
+import { AssetKind } from "@/features/assets/domain";
 import {
   IMAGE_GENERATION_ASPECT_RATIOS,
   IMAGE_GENERATION_RESOLUTIONS,
@@ -235,7 +235,7 @@ export class GeminiMediaGenerationClient implements MediaGenerationClient {
     const signal = combineWithTimeout(input.signal, this.config.generationTimeoutMs);
 
     try {
-      return input.type === MediaType.IMAGE
+      return input.type === AssetKind.IMAGE
         ? await this.generateImages(input, signal)
         : await this.generateVideos(input, signal);
     } catch (err) {

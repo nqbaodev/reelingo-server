@@ -1,8 +1,8 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { AiGenerationStatus as PrismaAiGenerationStatus } from "@/generated/prisma/enums";
-import { MAX_MESSAGE_MEDIA_COUNT } from "@/config";
+import { MAX_MESSAGE_ASSET_COUNT } from "@/config";
 import { isValidDate } from "@/core/utils";
-import { MediaType } from "@/features/media/domain";
+import { AssetKind } from "@/features/assets/domain";
 import { MessageRole, type Message } from "@/features/messages/domain";
 import { AiGenerationStatus, parseAiGenerationConfig } from "../../domain";
 import type {
@@ -29,12 +29,12 @@ interface ClaimVersionRow {
 
 class AiGenerationClaimLostError extends Error {}
 
-function toMediaType(type: string): MediaType {
+function toAssetKind(type: string): AssetKind {
   switch (type) {
-    case MediaType.IMAGE:
-      return MediaType.IMAGE;
-    case MediaType.VIDEO:
-      return MediaType.VIDEO;
+    case AssetKind.IMAGE:
+      return AssetKind.IMAGE;
+    case AssetKind.VIDEO:
+      return AssetKind.VIDEO;
     default:
       throw new Error(`AI generation has unsupported media type: ${type}`);
   }
@@ -51,7 +51,7 @@ function toClaimedGeneration(row: ClaimedAiGenerationRow): ClaimedAiGeneration {
     conversationId: row.conversationId,
     userId: row.userId,
     prompt: row.prompt,
-    type: toMediaType(row.type),
+    type: toAssetKind(row.type),
     config: parseAiGenerationConfig(row.configSnapshot),
     claimVersion: row.claimVersion,
   };
@@ -164,9 +164,9 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
     content,
     media,
   }: CompleteAiGenerationInput): Promise<Message | null> {
-    if (media.length < 1 || media.length > MAX_MESSAGE_MEDIA_COUNT) {
+    if (media.length < 1 || media.length > MAX_MESSAGE_ASSET_COUNT) {
       throw new RangeError(
-        `AI generation result must contain between 1 and ${MAX_MESSAGE_MEDIA_COUNT} media items`,
+        `AI generation result must contain between 1 and ${MAX_MESSAGE_ASSET_COUNT} media items`,
       );
     }
 
@@ -196,13 +196,13 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
         });
         if (!generation) return null;
 
-        const mediaRecords = [];
+        const assetRecords = [];
         for (const output of media) {
-          mediaRecords.push(
-            await transaction.media.create({
+          assetRecords.push(
+            await transaction.asset.create({
               data: {
                 userId: generation.triggerMessage.conversation.project.userId,
-                type: generation.type,
+                kind: generation.type,
                 storageKey: output.storageKey,
                 mimeType: output.mimeType,
               },
@@ -216,9 +216,9 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
             conversationId: generation.triggerMessage.conversationId,
             role: MessageRole.ASSISTANT,
             content,
-            mediaLinks: {
-              create: mediaRecords.map(({ id: mediaId }, position) => ({
-                mediaId,
+            assetLinks: {
+              create: assetRecords.map(({ id: assetId }, position) => ({
+                assetId,
                 position,
               })),
             },
@@ -254,11 +254,11 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
           conversationId: generation.triggerMessage.conversationId,
           role: MessageRole.ASSISTANT,
           content,
-          mediaIds: mediaRecords.map(({ id: mediaId }) => mediaId),
+          assetIds: assetRecords.map(({ id: assetId }) => assetId),
           generation: {
             id: generation.id,
             triggerMessageId: generation.triggerMessageId,
-            type: toMediaType(generation.type),
+            type: toAssetKind(generation.type),
             status: AiGenerationStatus.COMPLETED,
             config: parseAiGenerationConfig(generation.configSnapshot),
             resultMessageId: resultMessage.id,

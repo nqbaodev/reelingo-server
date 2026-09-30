@@ -5,7 +5,7 @@ import {
   type FunctionDeclaration,
 } from "@google/genai";
 import { ChatResultType, type ChatInput, type ChatResult } from "../../domain";
-import { MediaType } from "@/features/media/domain";
+import { AssetKind } from "@/features/assets/domain";
 import {
   type ChatClient,
   type ChatTextDeltaHandler,
@@ -108,13 +108,13 @@ export class GeminiClient implements ChatClient {
       if (functionName === GENERATE_IMAGE_TOOL) {
         return {
           type: ChatResultType.GENERATION,
-          mediaType: MediaType.IMAGE,
+          mediaType: AssetKind.IMAGE,
         };
       }
       if (functionName === GENERATE_VIDEO_TOOL) {
         return {
           type: ChatResultType.GENERATION,
-          mediaType: MediaType.VIDEO,
+          mediaType: AssetKind.VIDEO,
         };
       }
       if (functionName) {
