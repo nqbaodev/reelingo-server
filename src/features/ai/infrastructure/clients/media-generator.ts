@@ -1,11 +1,20 @@
-import type { AiGenerationConfig } from "../../domain";
 import type { AssetKind } from "@/features/assets/domain";
+import type { AiGenerationConfig, AiModelRoute } from "../../domain";
 
 export interface GenerateMediaInput {
   generationId: string;
   prompt: string;
   type: AssetKind;
   config: AiGenerationConfig;
+  route: AiModelRoute;
+  signal: AbortSignal;
+}
+
+export interface GenerateProviderMediaInput {
+  generationId: string;
+  prompt: string;
+  config: AiGenerationConfig;
+  model: string;
   signal: AbortSignal;
 }
 
@@ -14,7 +23,7 @@ export interface GeneratedMedia {
   mimeType: string;
 }
 
-export interface MediaGenerationClient {
+export interface MediaGenerator {
   generate(input: GenerateMediaInput): Promise<GeneratedMedia[]>;
 }
 

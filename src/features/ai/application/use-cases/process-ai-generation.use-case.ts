@@ -1,10 +1,21 @@
-import { MAX_MESSAGE_ASSET_COUNT } from "@/config";
+import { MAX_MESSAGE_ASSET_COUNT, MAX_MESSAGE_CONTENT_LENGTH } from "@/config";
+import { normalizeBoundedText } from "@/core/utils";
 import type { AssetStorage } from "@/features/assets/infrastructure";
 import type {
   AiGenerationRepository,
   ClaimedAiGeneration,
-  MediaGenerationClient,
+  MediaGenerator,
+  TextGenerator,
 } from "../../infrastructure";
+
+function normalizeCompletionText(content: string): string {
+  const bounded = normalizeBoundedText(content, MAX_MESSAGE_CONTENT_LENGTH);
+  if (!bounded) {
+    throw new Error("AI generation completion text is empty");
+  }
+
+  return bounded;
+}
 
 class AiGenerationClaimLease {
   private claimVersion: Date;
@@ -14,7 +25,7 @@ class AiGenerationClaimLease {
   private readonly timer: NodeJS.Timeout;
 
   constructor(
-    private readonly generations: AiGenerationRepository,
+    private readonly generationRepository: AiGenerationRepository,
     generationId: string,
     claimVersion: Date,
     renewalIntervalMs: number,
@@ -39,7 +50,7 @@ class AiGenerationClaimLease {
       if (!this.active || this.lost) return;
 
       try {
-        const renewedVersion = await this.generations.renewClaim(
+        const renewedVersion = await this.generationRepository.renewClaim(
           this.generationId,
           this.claimVersion,
         );
@@ -56,16 +67,17 @@ class AiGenerationClaimLease {
   }
 }
 
-export class ProcessAiGenerationUseCase {
+export class ProcessNextAiGenerationUseCase {
   constructor(
-    private readonly generations: AiGenerationRepository,
-    private readonly generator: MediaGenerationClient,
-    private readonly storage: AssetStorage,
+    private readonly generationRepository: AiGenerationRepository,
+    private readonly mediaGenerator: MediaGenerator,
+    private readonly textGenerator: TextGenerator,
+    private readonly assetStorage: AssetStorage,
     private readonly leaseMs: number,
   ) {}
 
   async execute(signal: AbortSignal): Promise<boolean> {
-    const generation = await this.generations.claimNext({
+    const generation = await this.generationRepository.claimNext({
       staleBefore: new Date(Date.now() - this.leaseMs),
     });
     if (!generation) return false;
@@ -79,7 +91,7 @@ export class ProcessAiGenerationUseCase {
     signal: AbortSignal,
   ): Promise<void> {
     const lease = new AiGenerationClaimLease(
-      this.generations,
+      this.generationRepository,
       generation.id,
       generation.claimVersion,
       Math.max(1, Math.floor(this.leaseMs / 3)),
@@ -91,19 +103,31 @@ export class ProcessAiGenerationUseCase {
         throw new Error("AI generation requires a text prompt");
       }
 
-      const outputs = await this.generator.generate({
-        generationId: generation.id,
-        prompt: generation.prompt,
-        type: generation.type,
-        config: generation.config,
-        signal,
-      });
+      const [outputs, completionText] = await Promise.all([
+        this.mediaGenerator.generate({
+          generationId: generation.id,
+          prompt: generation.prompt,
+          type: generation.type,
+          config: generation.config,
+          route: generation.route,
+          signal,
+        }),
+        this.textGenerator
+          .generateText({
+            prompt: generation.prompt,
+            type: generation.type,
+            outputCount: generation.config.outputCount,
+            signal,
+          })
+          .then(normalizeCompletionText)
+          .catch(() => null),
+      ]);
       if (outputs.length < 1 || outputs.length > MAX_MESSAGE_ASSET_COUNT) {
         throw new Error("AI media provider returned an invalid output count");
       }
       const storedMedia = [];
       for (const output of outputs) {
-        const storageKey = await this.storage.storeGenerated({
+        const storageKey = await this.assetStorage.storeGenerated({
           userId: generation.userId,
           bytes: output.bytes,
           mimeType: output.mimeType,
@@ -124,10 +148,10 @@ export class ProcessAiGenerationUseCase {
         return;
       }
 
-      const message = await this.generations.completeClaim({
+      const message = await this.generationRepository.completeClaim({
         id: generation.id,
         claimVersion,
-        content: null,
+        content: completionText,
         media: storedMedia,
       });
       if (!message) {
@@ -145,7 +169,7 @@ export class ProcessAiGenerationUseCase {
       const secondaryFailures = await this.deleteStoredMedia(storedKeys);
       if (!signal.aborted && claimVersion) {
         try {
-          await this.generations.failClaim(generation.id, claimVersion);
+          await this.generationRepository.failClaim(generation.id, claimVersion);
         } catch (failureError) {
           secondaryFailures.push(failureError);
         }
@@ -163,7 +187,7 @@ export class ProcessAiGenerationUseCase {
 
   private async deleteStoredMedia(storageKeys: readonly string[]): Promise<unknown[]> {
     const results = await Promise.allSettled(
-      storageKeys.map((storageKey) => this.storage.delete(storageKey)),
+      storageKeys.map((storageKey) => this.assetStorage.delete(storageKey)),
     );
     return results
       .filter((result): result is PromiseRejectedResult => result.status === "rejected")

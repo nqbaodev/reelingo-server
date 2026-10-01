@@ -3,6 +3,7 @@ import { ConflictError, NotFoundError } from "@/core/errors";
 import { I18n } from "@/core/i18n";
 import { normalizeBoundedText } from "@/core/utils";
 import { ChatResultType, createDefaultAiGenerationConfig } from "@/features/ai/domain";
+import type { MediaGenerationRouteResolver } from "@/features/ai/application";
 import { type ChatClient, ChatUnavailableError } from "@/features/ai/infrastructure";
 import {
   ClaimChatResultType,
@@ -41,6 +42,7 @@ export class GenerateAssistantResponseUseCase {
   constructor(
     private readonly messages: MessageRepository,
     private readonly chat: ChatClient,
+    private readonly mediaRouteResolver: MediaGenerationRouteResolver,
     private readonly leaseMs: number,
   ) {}
 
@@ -98,6 +100,7 @@ export class GenerateAssistantResponseUseCase {
               runId: claim.runId,
               claimVersion: claim.claimVersion,
               type: result.mediaType,
+              route: this.mediaRouteResolver.resolveRoute(result.mediaType),
               config:
                 claim.context.generationSettings[result.mediaType] ??
                 createDefaultAiGenerationConfig(),

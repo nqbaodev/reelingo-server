@@ -8,6 +8,28 @@ export const AiGenerationStatus = {
 export type AiGenerationStatus =
   (typeof AiGenerationStatus)[keyof typeof AiGenerationStatus];
 
+export const AiProviderId = {
+  GEMINI: "gemini",
+} as const;
+
+export type AiProviderId = (typeof AiProviderId)[keyof typeof AiProviderId];
+
+export interface AiModelRoute {
+  readonly providerId: AiProviderId;
+  readonly model: string;
+}
+
+export function parseAiModelRoute(providerId: unknown, model: unknown): AiModelRoute {
+  if (providerId !== AiProviderId.GEMINI) {
+    throw new Error("AI model route has an unsupported provider");
+  }
+  if (typeof model !== "string" || model.trim().length === 0) {
+    throw new Error("AI model route has an invalid model");
+  }
+
+  return { providerId, model };
+}
+
 export const MIN_AI_GENERATION_OUTPUT_COUNT = 1;
 export const MAX_AI_GENERATION_OUTPUT_COUNT = 4;
 export const DEFAULT_AI_GENERATION_OUTPUT_COUNT = 1;

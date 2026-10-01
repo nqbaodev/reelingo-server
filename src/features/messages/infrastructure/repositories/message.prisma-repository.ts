@@ -3,6 +3,7 @@ import {
   ChatRunStatus,
   parseChatContext,
   type AiGenerationConfig,
+  type AiModelRoute,
   type ChatContext,
 } from "@/features/ai/domain";
 import { AssetKind } from "@/features/assets/domain";
@@ -43,6 +44,7 @@ interface CompleteChatInput {
   content?: string;
   generation?: {
     type: AssetKind;
+    route: AiModelRoute;
     config: AiGenerationConfig;
   };
 }
@@ -301,12 +303,13 @@ export class MessagePrismaRepository implements MessageRepository {
     runId,
     claimVersion,
     type,
+    route,
     config,
   }: CompleteChatGenerationInput): Promise<ChatTurn | null> {
     return this.completeChat({
       runId,
       claimVersion,
-      generation: { type, config },
+      generation: { type, route, config },
     });
   }
 
@@ -356,6 +359,8 @@ export class MessagePrismaRepository implements MessageRepository {
                 triggeredGeneration: {
                   create: {
                     type: generation.type,
+                    provider: generation.route.providerId,
+                    model: generation.route.model,
                     configSnapshot: { ...generation.config },
                   },
                 },

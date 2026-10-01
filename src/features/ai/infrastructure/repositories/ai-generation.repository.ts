@@ -1,6 +1,6 @@
 import type { AssetKind } from "@/features/assets/domain";
 import type { Message } from "@/features/messages/domain";
-import type { AiGenerationConfig } from "../../domain";
+import type { AiGenerationConfig, AiModelRoute } from "../../domain";
 
 export interface ClaimedAiGeneration {
   id: string;
@@ -10,6 +10,7 @@ export interface ClaimedAiGeneration {
   prompt: string | null;
   type: AssetKind;
   config: AiGenerationConfig;
+  route: AiModelRoute;
   claimVersion: Date;
 }
 

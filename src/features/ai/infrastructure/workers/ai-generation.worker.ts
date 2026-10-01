@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import type { ProcessAiGenerationUseCase } from "../../application";
+import type { ProcessNextAiGenerationUseCase } from "../../application";
 
 interface WorkerLogger {
   error(bindings: { err: unknown }, message: string): void;
@@ -10,7 +10,7 @@ export class AiGenerationWorker {
   private running: Promise<void> | undefined;
 
   constructor(
-    private readonly processGeneration: ProcessAiGenerationUseCase,
+    private readonly processNextGeneration: ProcessNextAiGenerationUseCase,
     private readonly pollIntervalMs: number,
     private readonly logger: WorkerLogger,
   ) {}
@@ -33,7 +33,7 @@ export class AiGenerationWorker {
     while (!signal.aborted) {
       let processed = false;
       try {
-        processed = await this.processGeneration.execute(signal);
+        processed = await this.processNextGeneration.execute(signal);
       } catch (err) {
         if (!signal.aborted) {
           this.logger.error({ err }, "AI generation worker failed to process a job");
