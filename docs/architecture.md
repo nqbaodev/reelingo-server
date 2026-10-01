@@ -12,23 +12,23 @@ that feature. Files belong to the feature whose business behavior they support, 
 to the layer whose work they perform. Sharing data or calling a dependency does not
 permit one layer to take over another layer's work.
 
-| Layer | Owns | Must not do |
-| --- | --- | --- |
-| `features/<feature>/domain` | Entities, value types, and business rules that can run without frameworks | Import Express, Prisma, Zod, configuration, provider SDKs, repositories, or HTTP concerns |
-| `features/<feature>/application` | Use-case orchestration, business decisions spanning entities/ports, and application outcomes | Parse HTTP, format responses, call Prisma/SDKs directly, construct adapters, or decide logging/transport policy |
-| `features/<feature>/infrastructure` | Repository ports/adapters, Prisma/provider mapping, external clients, stores, workers, and storage owned by the feature | Read Express request state, format HTTP responses, localize client messages, or decide business outcomes that belong to a use case |
-| `features/<feature>/presentation` | Routes, authentication/validation middleware, controllers, request/response DTOs, presenters, and HTTP error mapping | Query Prisma, call provider SDKs directly, construct infrastructure, or contain business/persistence rules |
-| `features/<feature>/<feature>.module.ts` | Composition root that constructs concrete dependencies and exposes routers/middleware | Implement request handling, business rules, database queries, or provider behavior |
+| Layer                                    | Owns                                                                                                                    | Must not do                                                                                                                        |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `features/<feature>/domain`              | Entities, value types, and business rules that can run without frameworks                                               | Import Express, Prisma, Zod, configuration, provider SDKs, repositories, or HTTP concerns                                          |
+| `features/<feature>/application`         | Use-case orchestration, business decisions spanning entities/ports, and application outcomes                            | Parse HTTP, format responses, call Prisma/SDKs directly, construct adapters, or decide logging/transport policy                    |
+| `features/<feature>/infrastructure`      | Repository ports/adapters, Prisma/provider mapping, external clients, stores, workers, and storage owned by the feature | Read Express request state, format HTTP responses, localize client messages, or decide business outcomes that belong to a use case |
+| `features/<feature>/presentation`        | Routes, authentication/validation middleware, controllers, request/response DTOs, presenters, and HTTP error mapping    | Query Prisma, call provider SDKs directly, construct infrastructure, or contain business/persistence rules                         |
+| `features/<feature>/<feature>.module.ts` | Composition root that constructs concrete dependencies and exposes routers/middleware                                   | Implement request handling, business rules, database queries, or provider behavior                                                 |
 
 Each layer groups files into responsibility-based subfolders. These subfolders are
 navigation categories, not additional architectural layers:
 
-| Layer | Common subfolders |
-| --- | --- |
-| `domain` | `entities`, `value-objects`, `rules` |
-| `application` | `use-cases`, `events` |
+| Layer            | Common subfolders                                                              |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `domain`         | `entities`, `value-objects`, `rules`                                           |
+| `application`    | `use-cases`, `events`                                                          |
 | `infrastructure` | `repositories`, `mappers`, `clients`, `stores`, `storage`, `events`, `workers` |
-| `presentation` | `controllers`, `dtos`, `presenters`, `routes`, `middlewares` |
+| `presentation`   | `controllers`, `dtos`, `presenters`, `routes`, `middlewares`                   |
 
 Create only categories that contain current code, and name any new category after
 the concrete responsibility it groups. Keep each layer's `index.ts` at the layer
@@ -63,17 +63,17 @@ user, and presentation shapes the auth-token response.
 
 ## Project-wide locations
 
-| Location | Responsibility |
-| --- | --- |
-| `config` | `app-config.ts` owns validated environment-backed settings; `config.ts` exposes the public facade imported by the app |
-| `core` | Cross-cutting abstractions independent of any feature (`AppError`, `validate`, pagination, `i18n`) |
-| `core/utils` | Pure technical helpers and their constants; no feature, config, database, or HTTP-response dependencies |
-| `core/i18n` | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
-| `services` | Standalone technical services and their owned public types; services do not import feature code |
-| `shared` | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware) |
-| `app.ts` | Mounts feature routers and cross-cutting middleware |
-| `server.ts` | Starts the HTTP server and handles graceful shutdown |
-| `.agents/skills` | Agent-only task guidance; skills route agents to the owning docs and must not introduce architecture decisions on their own |
+| Location         | Responsibility                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config`         | `app-config.ts` owns validated environment-backed settings; `config.ts` exposes the public facade imported by the app                                          |
+| `core`           | Cross-cutting abstractions independent of any feature (`AppError`, `validate`, pagination, `i18n`)                                                             |
+| `core/utils`     | Pure technical helpers and their constants; no feature, config, database, or HTTP-response dependencies                                                        |
+| `core/i18n`      | `translate(key, language, params)` is the port; `translator.ts` is the only file that imports i18next, so the library can be swapped without touching features |
+| `services`       | Standalone technical services and their owned public types; services do not import feature code                                                                |
+| `shared`         | Shared technical infrastructure (Prisma client, logger, error/rate-limit middleware)                                                                           |
+| `app.ts`         | Mounts feature routers and cross-cutting middleware                                                                                                            |
+| `server.ts`      | Starts the HTTP server and handles graceful shutdown                                                                                                           |
+| `.agents/skills` | Agent-only task guidance; skills route agents to the owning docs and must not introduce architecture decisions on their own                                    |
 
 ## Services and shared ownership
 
@@ -87,6 +87,9 @@ business decisions and HTTP behavior.
 - `services/jwt` owns JWT signing, verification, and token claims.
 - `services/google-identity` owns Google ID-token verification and its verified
   identity type.
+- `services/ai` owns capability-specific provider contracts, the provider registry,
+  normalized generation errors, and the `AiService` routing facade. Provider SDK
+  adapters may remain in an owning feature when their behavior is feature-specific.
 - `shared` remains the home for cross-cutting infrastructure that is not modeled as
   a standalone service, such as the Prisma client, logging, and HTTP middleware.
 - `admin-logs` owns the Basic-authenticated operational HTTP boundary and reads
@@ -107,13 +110,13 @@ Apply these principles to new and changed code in proportion to its responsibili
 They guide design decisions; they do not require a class, interface, or extra layer
 for every operation. Existing code is not automatically certified as conforming.
 
-| Principle | Application in this project |
-| --- | --- |
+| Principle             | Application in this project                                                                                                                                                                                                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Single Responsibility | Keep HTTP handling, business decisions, persistence, and provider integration separate. Each function and module has one cohesive reason to change. Name the exact outcome and avoid combined actions such as `createOrUpdate`; see [function naming](backend.md#function-naming-and-responsibility). |
-| Open/Closed | When a real requirement introduces interchangeable behavior, extend through a stable contract or composed function. Do not build a plugin framework for hypothetical variants. |
-| Liskov Substitution | Implementations of a contract preserve its accepted inputs, outputs, error semantics, and side-effect guarantees. Do not offer an implementation that throws “not supported” for required operations. Test meaningful contract behavior when alternatives exist. |
-| Interface Segregation | Expose the operations consumers actually need. Avoid large generic service/repository interfaces and dependencies on unrelated capabilities. |
-| Dependency Inversion | Business orchestration should depend on small capability contracts at external boundaries. Keep SDK/Prisma types in adapters and inject implementations through the composition root. A function type can be a contract; an abstract class is not required. |
+| Open/Closed           | When a real requirement introduces interchangeable behavior, extend through a stable contract or composed function. Do not build a plugin framework for hypothetical variants.                                                                                                                        |
+| Liskov Substitution   | Implementations of a contract preserve its accepted inputs, outputs, error semantics, and side-effect guarantees. Do not offer an implementation that throws “not supported” for required operations. Test meaningful contract behavior when alternatives exist.                                      |
+| Interface Segregation | Expose the operations consumers actually need. Avoid large generic service/repository interfaces and dependencies on unrelated capabilities.                                                                                                                                                          |
+| Dependency Inversion  | Business orchestration should depend on small capability contracts at external boundaries. Keep SDK/Prisma types in adapters and inject implementations through the composition root. A function type can be a contract; an abstract class is not required.                                           |
 
 Repository ports retain their location in `infrastructure` under this project's
 convention. For new or materially changed external integrations, prefer a small,
@@ -127,13 +130,13 @@ judgment, while this document continues to own layer placement.
 
 Select patterns by the problem they solve:
 
-| Pattern | Use when |
-| --- | --- |
-| Repository | A use case needs persistence operations expressed without Prisma details; keep the existing ports and adapters. |
-| Adapter | A provider SDK or external payload must conform to the feature's contract. |
-| Strategy | A current requirement has interchangeable algorithms or policies; a typed function is sufficient for simple strategies. |
+| Pattern                    | Use when                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Repository                 | A use case needs persistence operations expressed without Prisma details; keep the existing ports and adapters.                                  |
+| Adapter                    | A provider SDK or external payload must conform to the feature's contract.                                                                       |
+| Strategy                   | A current requirement has interchangeable algorithms or policies; a typed function is sufficient for simple strategies.                          |
 | Factory / composition root | Construction must consistently wire dependencies or choose an actual implementation; use the feature module before adding a factory abstraction. |
-| Decorator | An existing contract needs a composable concern such as metrics or bounded retry; preserve its semantics and avoid duplicate SDK behavior. |
+| Decorator                  | An existing contract needs a composable concern such as metrics or bounded retry; preserve its semantics and avoid duplicate SDK behavior.       |
 
 Prefer composition over inheritance. Add inheritance only for a genuine
 substitutability relationship, not just code reuse. Do not introduce mandatory
@@ -189,13 +192,13 @@ do not need an entity mapper.
 Reuse does not automatically mean global sharing. Place a helper at the narrowest
 scope that owns its meaning:
 
-| Kind | Location |
-| --- | --- |
-| One caller and no separately meaningful rule | Keep the logic in the caller |
-| Reusable business/domain rule for one feature | The owning feature's `domain` or `application` layer |
+| Kind                                            | Location                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| One caller and no separately meaningful rule    | Keep the logic in the caller                                  |
+| Reusable business/domain rule for one feature   | The owning feature's `domain` or `application` layer          |
 | Reusable mapper/parser for one feature boundary | The owning feature's `infrastructure` or `presentation` layer |
-| Pure feature-neutral technical transformation | `core/utils/<purpose>.ts` |
-| Feature-neutral stateful or I/O capability | An appropriate `shared` module/service, not `core/utils` |
+| Pure feature-neutral technical transformation   | `core/utils/<purpose>.ts`                                     |
+| Feature-neutral stateful or I/O capability      | An appropriate `shared` module/service, not `core/utils`      |
 
 Create a helper only when it has a clear contract and cohesive responsibility,
 removes real duplication, names a non-obvious rule, or needs independent tests.
@@ -281,8 +284,17 @@ Implement domain/application/infrastructure/presentation only for a concrete
 business requirement — do not add sample logic to fill out a layer. Express
 serves the HTTP API; Prisma is the only persistence adapter currently wired
 up. Google Identity and Gemini are the wired external services, and the `auth`
-feature owns authentication. The `ai` feature owns the in-process media-generation
-worker; PostgreSQL generation rows are its durable queue and lease state.
+feature owns authentication. Top-level `services/ai` owns capability-specific
+provider contracts, the provider registry, and the provider-routing facade. The
+`ai` feature owns its Gemini adapter, model-route selection, and in-process
+media-generation worker; PostgreSQL generation rows are its durable queue, lease
+state, and provider/model route snapshot. Providers implement only their supported
+text, image, or video contracts. `AiProviderRegistry` registers each capability
+separately, so routing cannot select a provider for an operation that it does not
+implement. `AiService` delegates text generation to the configured text provider
+and media generation to the stored provider/model route without changing generation
+orchestration. Persisted provider identifiers remain open to new adapters and are
+checked against the configured capability registry when a worker executes the route.
 
 For a standalone technical service (email delivery, token signing, cache), put its
 implementation and provider-facing types under top-level `services` and inject it

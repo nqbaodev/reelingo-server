@@ -1,11 +1,43 @@
-import type { AiGenerationConfig } from "../../domain";
-import type { AssetKind } from "@/features/assets/domain";
+export type AiProviderId = string;
+export type AiMediaType = "image" | "video";
+
+export interface AiModelRoute {
+  readonly providerId: AiProviderId;
+  readonly model: string;
+}
+
+export interface AiGenerationOptions {
+  aspectRatio: string | null;
+  resolution: string | null;
+  outputCount: number;
+  enhancePrompt: boolean;
+}
+
+export interface GenerateTextInput {
+  prompt: string;
+  type: AiMediaType;
+  outputCount: number;
+  signal: AbortSignal;
+}
+
+export interface TextGenerator {
+  generateText(input: GenerateTextInput): Promise<string>;
+}
 
 export interface GenerateMediaInput {
   generationId: string;
   prompt: string;
-  type: AssetKind;
-  config: AiGenerationConfig;
+  type: AiMediaType;
+  config: AiGenerationOptions;
+  route: AiModelRoute;
+  signal: AbortSignal;
+}
+
+export interface GenerateProviderMediaInput {
+  generationId: string;
+  prompt: string;
+  config: AiGenerationOptions;
+  model: string;
   signal: AbortSignal;
 }
 
@@ -14,7 +46,7 @@ export interface GeneratedMedia {
   mimeType: string;
 }
 
-export interface MediaGenerationClient {
+export interface MediaGenerator {
   generate(input: GenerateMediaInput): Promise<GeneratedMedia[]>;
 }
 

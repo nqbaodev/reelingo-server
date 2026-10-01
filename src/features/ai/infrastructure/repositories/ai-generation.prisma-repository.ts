@@ -4,7 +4,11 @@ import { MAX_MESSAGE_ASSET_COUNT } from "@/config";
 import { isValidDate } from "@/core/utils";
 import { AssetKind } from "@/features/assets/domain";
 import { MessageRole, type Message } from "@/features/messages/domain";
-import { AiGenerationStatus, parseAiGenerationConfig } from "../../domain";
+import {
+  AiGenerationStatus,
+  parseAiGenerationConfig,
+  parseAiModelRoute,
+} from "../../domain";
 import type {
   AiGenerationRepository,
   ClaimedAiGeneration,
@@ -19,6 +23,8 @@ interface ClaimedAiGenerationRow {
   userId: number;
   prompt: string | null;
   type: string;
+  provider: string;
+  model: string;
   configSnapshot: unknown;
   claimVersion: Date;
 }
@@ -53,6 +59,7 @@ function toClaimedGeneration(row: ClaimedAiGenerationRow): ClaimedAiGeneration {
     prompt: row.prompt,
     type: toAssetKind(row.type),
     config: parseAiGenerationConfig(row.configSnapshot),
+    route: parseAiModelRoute(row.provider, row.model),
     claimVersion: row.claimVersion,
   };
 }
@@ -103,6 +110,8 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
           generation."id",
           generation."trigger_message_id",
           generation."type",
+          generation."provider",
+          generation."model",
           generation."config_snapshot",
           generation."updated_at"
       )
@@ -113,6 +122,8 @@ export class AiGenerationPrismaRepository implements AiGenerationRepository {
         project."user_id" AS "userId",
         message."content" AS "prompt",
         claimed."type"::text AS "type",
+        claimed."provider",
+        claimed."model",
         claimed."config_snapshot" AS "configSnapshot",
         claimed."updated_at" AS "claimVersion"
       FROM claimed

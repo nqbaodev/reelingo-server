@@ -1,6 +1,7 @@
 import type { CursorPage } from "@/core/pagination";
 import type {
   AiGenerationConfig,
+  AiModelRoute,
   ChatContext,
   MessageChatRun,
 } from "@/features/ai/domain";
@@ -114,6 +115,7 @@ export interface CompleteChatGenerationInput {
   runId: string;
   claimVersion: Date;
   type: AssetKind;
+  route: AiModelRoute;
   config: AiGenerationConfig;
 }
 

@@ -9,8 +9,8 @@ import { createAiModule } from "@/features/ai/ai.module";
 import type {
   AiGenerationWorker,
   ChatClient,
-  MediaGenerationClient,
 } from "@/features/ai/infrastructure";
+import type { MediaGenerationRouteResolver } from "@/features/ai/application";
 import { createAuthModule } from "@/features/auth/auth.module";
 import { createConversationsModule } from "@/features/conversations/conversations.module";
 import { createHealthModule } from "@/features/health/health.module";
@@ -21,6 +21,7 @@ import { createUsersModule } from "@/features/users/users.module";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/shared/database";
 import { httpLogger, recentLogStore } from "@/shared/logger";
+import type { MediaGenerator, TextGenerator } from "@/services/ai";
 import {
   createApiRateLimiter,
   errorHandler,
@@ -33,7 +34,9 @@ import { openApiDocument } from "@/openapi";
 
 interface CreateAppOptions {
   chatClient?: ChatClient;
-  mediaGenerationClient?: MediaGenerationClient;
+  textGenerator?: TextGenerator;
+  mediaGenerator?: MediaGenerator;
+  mediaRouteResolver?: MediaGenerationRouteResolver;
   database?: PrismaClient;
 }
 
@@ -67,13 +70,12 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
   const healthModule = createHealthModule(database);
   const conversationsModule = createConversationsModule(database);
   const assetsModule = createAssetsModule(database);
-  const aiModule = createAiModule(
+  const aiModule = createAiModule(database, assetsModule.storage, options);
+  const messagesModule = createMessagesModule(
     database,
-    assetsModule.storage,
-    options.chatClient,
-    options.mediaGenerationClient,
+    aiModule.chatClient,
+    aiModule.mediaRouteResolver,
   );
-  const messagesModule = createMessagesModule(database, aiModule.client);
   const projectsModule = createProjectsModule(database);
   const usersModule = createUsersModule(database);
   const adminLoggerCredentials = config.logger.admin.credentials;

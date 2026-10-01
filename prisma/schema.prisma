@@ -112,6 +112,8 @@ model AiGeneration {
   resultMessageId  String?            @unique @map("result_message_id") @db.Uuid
   type             AssetKind
   status           AiGenerationStatus @default(pending)
+  provider         String             @db.VarChar(50)
+  model            String             @db.VarChar(255)
   configSnapshot   Json               @map("config_snapshot") @db.JsonB
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)

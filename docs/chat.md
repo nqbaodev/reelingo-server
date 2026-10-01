@@ -17,8 +17,9 @@ change.
   upload, local file storage, asset persistence, owned asset listing, and content
   retrieval.
 - `features/ai` owns chat routing, generation statuses, configuration semantics,
-  the Gemini adapters, and the background image/video generation worker, which
-  stores its output through the assets feature.
+  model-route selection, and provider integrations. Gemini is the currently wired
+  provider. A media tool call persists a generation request; when enabled, the
+  background worker stores its output through the assets feature.
 - Every conversation belongs to one project. Conversation and nested message
   operations are authenticated and scoped through the project owner. A missing or
   non-owned project or conversation returns the same 404 outcome and must not
@@ -88,7 +89,9 @@ POST /api/v1/conversations
   `720p`/`1080p`/`4k`, exactly one output, and optional prompt enhancement. They
   are not persisted for ordinary chat. When the AI
   chooses a media tool, the matching image/video settings are copied into the new
-  generation row as an immutable JSONB snapshot. Missing settings use server
+  generation row as an immutable JSONB snapshot. The selected media provider and
+  model are stored on the same row so pending or reclaimed work keeps its original
+  execution route after configuration changes. Missing settings use server
   defaults.
 - The prompt is not duplicated in the generation table: `triggerMessageId`
   points to the user message containing it.
@@ -111,11 +114,17 @@ POST /api/v1/conversations
   newer claim.
 - The response endpoint is read-only. It returns durable chat-run, generation, and
   assistant-message state but never claims, starts, resumes, or retries AI work.
-- The generation worker creates media without making a second text-generation
-  request after provider output is ready. One transaction creates a single
-  `assistant` message and its ordered `MessageAsset` rows, completes the
+- The generation worker creates media and requests a concise completion text in
+  parallel. Completion text is best-effort and may be null, so a secondary text
+  request cannot discard successfully generated media. One transaction creates a
+  single `assistant` message and its ordered `MessageAsset` rows, completes the
   generation, and assigns the message to both generation and chat run
-  `resultMessageId` fields.
+  `resultMessageId` fields. Media generation and completion text use separate
+  inputs on capability-specific provider contracts. A provider implements only the
+  text, image, or video operations it supports. `AiService` dispatches text through
+  the configured provider and media through the stored provider/model route using
+  capability-specific registry entries. Unsupported operations are rejected during
+  registration/routing rather than by inherited provider methods.
 - Image generation sends at most two provider requests concurrently. A multi-image
   request succeeds when at least one image is valid, preserving successful outputs
   instead of discarding the whole batch when a sibling request fails.
@@ -324,15 +333,15 @@ terminal request SSE event is sent only after this transaction commits.
 
 When enabled, one background worker polls for jobs, atomically claims a pending or
 stale generation, and renews its lease while provider work runs outside a database
-transaction. It creates image/video outputs without a follow-up text request. Files
-are stored before one short completion transaction inserts the `Asset` and
-`MessageAsset` rows, creates the assistant message, and conditionally
+transaction. It creates image/video output and best-effort completion text in
+parallel. Files are stored before one short completion transaction inserts the
+`Asset` and `MessageAsset` rows, creates the assistant message, and conditionally
 completes the still-owned generation. Failed or lost claims clean up stored files
 when possible. Worker shutdown aborts in-flight local work; its processing row is
 left for stale-lease recovery.
 
 Generation claims provide at-least-once processing rather than an exactly-once
-provider guarantee. A future provider adapter must use the generation ID as an
+provider guarantee. A future provider implementation must use the generation ID as an
 idempotency key when supported, because a process can stop after an external
 provider accepts work but before the local completion transaction commits.
 
