@@ -1,7 +1,7 @@
 import {
   MediaGenerationFailureType,
   MediaGenerationUnavailableError,
-} from "./media-generator";
+} from "@/services/ai";
 
 const BLOCKED_PROVIDER_CODES = new Set([
   "blocklist",

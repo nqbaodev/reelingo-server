@@ -22,15 +22,21 @@ import {
   type ChatInput,
   type ChatResult,
 } from "../../domain";
-import { BaseAiProvider } from "./base-ai-provider";
+import type {
+  AiProviderIdentity,
+  GeneratedMedia,
+  GenerateProviderMediaInput,
+  GenerateTextInput,
+  ImageGenerator,
+  TextGenerator,
+  VideoGenerator,
+} from "@/services/ai";
 import {
   type ChatClient,
   type ChatTextDeltaHandler,
   ChatUnavailableError,
 } from "./chat.client";
-import type { GenerateTextInput } from "./text-generator";
 import { toGeminiMediaGenerationError } from "./gemini-media-generation-error";
-import type { GeneratedMedia, GenerateProviderMediaInput } from "./media-generator";
 
 interface GeminiProviderConfig {
   apiKey: string;
@@ -115,11 +121,13 @@ function calculateVideoPollDelay(initialIntervalMs: number, attempt: number): nu
   return Math.max(1, Math.min(maximum, Math.round(base + jitter)));
 }
 
-export class GeminiProvider extends BaseAiProvider implements ChatClient {
+export class GeminiProvider
+  implements AiProviderIdentity, ChatClient, TextGenerator, ImageGenerator, VideoGenerator
+{
+  readonly id = AiProviderId.GEMINI;
   private readonly sdkClient: GoogleGenAI;
 
   constructor(private readonly config: GeminiProviderConfig) {
-    super(AiProviderId.GEMINI, "Gemini");
     this.sdkClient = new GoogleGenAI({
       apiKey: config.apiKey,
       httpOptions: {
@@ -207,7 +215,7 @@ export class GeminiProvider extends BaseAiProvider implements ChatClient {
     }
   }
 
-  override async generateText({
+  async generateText({
     prompt,
     type,
     outputCount,
@@ -240,7 +248,7 @@ export class GeminiProvider extends BaseAiProvider implements ChatClient {
     }
   }
 
-  override async generateImage(
+  async generateImage(
     input: GenerateProviderMediaInput,
   ): Promise<GeneratedMedia[]> {
     return this.runMediaGeneration(
@@ -291,7 +299,7 @@ export class GeminiProvider extends BaseAiProvider implements ChatClient {
     );
   }
 
-  override async generateVideo(
+  async generateVideo(
     input: GenerateProviderMediaInput,
   ): Promise<GeneratedMedia> {
     return this.runMediaGeneration(

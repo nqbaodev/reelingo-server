@@ -120,11 +120,11 @@ POST /api/v1/conversations
   single `assistant` message and its ordered `MessageAsset` rows, completes the
   generation, and assigns the message to both generation and chat run
   `resultMessageId` fields. Media generation and completion text use separate
-  inputs on the common provider contract. Each provider facade inherits the public
-  `generateText`/`generateImage`/`generateVideo` methods and overrides the operations
-  it supports; calling an unsupported inherited operation returns a typed capability
-  error. `RoutedMediaGenerator` dispatches the stored provider/model route through
-  one provider registry.
+  inputs on capability-specific provider contracts. A provider implements only the
+  text, image, or video operations it supports. `AiService` dispatches text through
+  the configured provider and media through the stored provider/model route using
+  capability-specific registry entries. Unsupported operations are rejected during
+  registration/routing rather than by inherited provider methods.
 - Image generation sends at most two provider requests concurrently. A multi-image
   request succeeds when at least one image is valid, preserving successful outputs
   instead of discarding the whole batch when a sibling request fails.

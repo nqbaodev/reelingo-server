@@ -12,7 +12,7 @@ export const AiProviderId = {
   GEMINI: "gemini",
 } as const;
 
-export type AiProviderId = (typeof AiProviderId)[keyof typeof AiProviderId];
+export type AiProviderId = string;
 
 export interface AiModelRoute {
   readonly providerId: AiProviderId;
@@ -20,14 +20,14 @@ export interface AiModelRoute {
 }
 
 export function parseAiModelRoute(providerId: unknown, model: unknown): AiModelRoute {
-  if (providerId !== AiProviderId.GEMINI) {
-    throw new Error("AI model route has an unsupported provider");
+  if (typeof providerId !== "string" || providerId.trim().length === 0) {
+    throw new Error("AI model route has an invalid provider");
   }
   if (typeof model !== "string" || model.trim().length === 0) {
     throw new Error("AI model route has an invalid model");
   }
 
-  return { providerId, model };
+  return { providerId: providerId.trim(), model: model.trim() };
 }
 
 export const MIN_AI_GENERATION_OUTPUT_COUNT = 1;

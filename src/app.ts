@@ -9,8 +9,6 @@ import { createAiModule } from "@/features/ai/ai.module";
 import type {
   AiGenerationWorker,
   ChatClient,
-  MediaGenerator,
-  TextGenerator,
 } from "@/features/ai/infrastructure";
 import type { MediaGenerationRouteResolver } from "@/features/ai/application";
 import { createAuthModule } from "@/features/auth/auth.module";
@@ -23,6 +21,7 @@ import { createUsersModule } from "@/features/users/users.module";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/shared/database";
 import { httpLogger, recentLogStore } from "@/shared/logger";
+import type { MediaGenerator, TextGenerator } from "@/services/ai";
 import {
   createApiRateLimiter,
   errorHandler,

@@ -2,6 +2,12 @@ import { config } from "@/config";
 import type { AssetStorage } from "@/features/assets/infrastructure";
 import { AssetKind } from "@/features/assets/domain";
 import type { PrismaClient } from "@/generated/prisma/client";
+import {
+  AiProviderRegistry,
+  AiService,
+  type MediaGenerator,
+  type TextGenerator,
+} from "@/services/ai";
 import { logger } from "@/shared/logger";
 import {
   ConfiguredMediaGenerationRouteResolver,
@@ -13,10 +19,7 @@ import {
   AiGenerationPrismaRepository,
   AiGenerationWorker,
   GeminiProvider,
-  RoutedMediaGenerator,
   type ChatClient,
-  type MediaGenerator,
-  type TextGenerator,
 } from "./infrastructure";
 
 interface CreateAiModuleOptions {
@@ -51,10 +54,13 @@ export function createAiModule(
         model: config.ai.generation.videoModel,
       },
     });
-  const mediaGenerator =
-    options.mediaGenerator ??
-    new RoutedMediaGenerator(new Map([[geminiProvider.id, geminiProvider]]));
-  const textGenerator = options.textGenerator ?? geminiProvider;
+  const providers = new AiProviderRegistry()
+    .registerText(geminiProvider)
+    .registerImage(geminiProvider)
+    .registerVideo(geminiProvider);
+  const aiService = new AiService(providers, AiProviderId.GEMINI);
+  const mediaGenerator = options.mediaGenerator ?? aiService;
+  const textGenerator = options.textGenerator ?? aiService;
   const processNextGeneration = new ProcessNextAiGenerationUseCase(
     new AiGenerationPrismaRepository(prisma),
     mediaGenerator,

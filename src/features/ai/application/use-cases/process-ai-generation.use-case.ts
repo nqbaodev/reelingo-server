@@ -1,11 +1,10 @@
 import { MAX_MESSAGE_ASSET_COUNT, MAX_MESSAGE_CONTENT_LENGTH } from "@/config";
 import { normalizeBoundedText } from "@/core/utils";
 import type { AssetStorage } from "@/features/assets/infrastructure";
+import type { MediaGenerator, TextGenerator } from "@/services/ai";
 import type {
   AiGenerationRepository,
   ClaimedAiGeneration,
-  MediaGenerator,
-  TextGenerator,
 } from "../../infrastructure";
 
 function normalizeCompletionText(content: string): string {

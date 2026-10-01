@@ -87,6 +87,9 @@ business decisions and HTTP behavior.
 - `services/jwt` owns JWT signing, verification, and token claims.
 - `services/google-identity` owns Google ID-token verification and its verified
   identity type.
+- `services/ai` owns capability-specific provider contracts, the provider registry,
+  normalized generation errors, and the `AiService` routing facade. Provider SDK
+  adapters may remain in an owning feature when their behavior is feature-specific.
 - `shared` remains the home for cross-cutting infrastructure that is not modeled as
   a standalone service, such as the Prisma client, logging, and HTTP middleware.
 - `admin-logs` owns the Basic-authenticated operational HTTP boundary and reads
@@ -281,17 +284,17 @@ Implement domain/application/infrastructure/presentation only for a concrete
 business requirement — do not add sample logic to fill out a layer. Express
 serves the HTTP API; Prisma is the only persistence adapter currently wired
 up. Google Identity and Gemini are the wired external services, and the `auth`
-feature owns authentication. The `ai` feature owns capability-specific provider
-contracts, provider facades built on the common `BaseAiProvider` capability surface,
-model-route selection, and the in-process media-generation worker; PostgreSQL
-generation rows are its durable queue, lease state, and provider/model route
-snapshot. `BaseAiProvider` exposes `generateText`, `generateImage`, and
-`generateVideo` methods while concrete providers override their supported
-SDK-specific operations.
-An operation left unsupported returns `UnsupportedAiCapabilityError`.
-`RoutedMediaGenerator` selects a provider from the registry without changing
-generation orchestration. Provider objects use the `AiProvider` contract, while
-persisted and configured identifiers use `AiProviderId`.
+feature owns authentication. Top-level `services/ai` owns capability-specific
+provider contracts, the provider registry, and the provider-routing facade. The
+`ai` feature owns its Gemini adapter, model-route selection, and in-process
+media-generation worker; PostgreSQL generation rows are its durable queue, lease
+state, and provider/model route snapshot. Providers implement only their supported
+text, image, or video contracts. `AiProviderRegistry` registers each capability
+separately, so routing cannot select a provider for an operation that it does not
+implement. `AiService` delegates text generation to the configured text provider
+and media generation to the stored provider/model route without changing generation
+orchestration. Persisted provider identifiers remain open to new adapters and are
+checked against the configured capability registry when a worker executes the route.
 
 For a standalone technical service (email delivery, token signing, cache), put its
 implementation and provider-facing types under top-level `services` and inject it
