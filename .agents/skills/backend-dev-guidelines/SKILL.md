@@ -14,7 +14,7 @@ repository's documented contract.
 
 - Read [architecture](../../../docs/architecture.md) when adding/moving code,
   changing dependencies, reviewing SOLID, selecting a pattern, or deciding between
-  a feature, layer, `core`, and `shared`.
+  a business area, layer, application interface, infrastructure adapter, or utility.
 - Read [backend guidance](../../../docs/backend.md) for TypeScript/function naming,
   input validation, errors, async work, persistence, auth, secrets, and security.
 - Read [engineering workflow](../../../docs/workflow.md) before selecting tests
@@ -35,7 +35,7 @@ repository's documented contract.
    fields, security behavior, or performance guarantees.
 2. Assign each responsibility to its layer before editing. Presentation owns HTTP;
    application owns use-case orchestration; domain owns business concepts/rules;
-   infrastructure owns Prisma/providers; the feature module owns construction.
+   infrastructure owns Prisma/providers; `container.ts` owns construction.
    Database-specific mechanics still belong in infrastructure even when a use
    case owns the business outcome.
 3. Define narrow inputs, outputs, errors, and side effects at boundaries. Keep
@@ -44,11 +44,12 @@ repository's documented contract.
    Do not introduce combined actions such as `createOrUpdate`, `validateAndSave`,
    or `fetchAndTransform`; compose focused operations in the use case.
 5. Keep reusable logic at the narrowest owning scope. Move only pure,
-   feature-neutral transformations to `core/utils`; put feature-neutral stateful
-   or I/O capabilities in `shared`. Never create a helper for hypothetical reuse.
+   area-neutral transformations to `utils`; model stateful or I/O capabilities as
+   application contracts with infrastructure implementations. Never create a
+   helper for hypothetical reuse.
 6. Apply SOLID or a design pattern only when it solves a concrete boundary,
-   variation, or testability problem. Prefer composition and existing feature
-   modules over base classes, service locators, and one-interface-per-class code.
+   variation, or testability problem. Prefer composition through `container.ts`
+   over base classes, service locators, and one-interface-per-class code.
 7. Implement the smallest complete change. For an API contract change, update the
    route, boundary validation, presenter, errors, and OpenAPI together. For a schema
    change, update the Prisma schema and migration together before relying on the

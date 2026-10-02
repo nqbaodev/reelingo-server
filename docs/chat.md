@@ -1,22 +1,23 @@
 # Chat feature
 
 This document owns the current product and backend decisions for conversations,
-messages, assets, and generated media. The implementation and `src/openapi.ts`
+messages, assets, and generated media. The implementation and
+`src/presentation/http/openapi.ts`
 remain the executable API contract; update this document when those decisions
 change.
 
 ## Scope and ownership
 
-- `features/projects` owns private project creation, listing, lookup, title
+- The `projects` area across the four layers owns private project creation, listing, lookup, title
   updates. See [Projects](projects.md).
-- `features/conversations` owns project-scoped listing and name updates.
-- `features/messages` owns the send flow, including conversation creation from the
+- The `conversations` area owns project-scoped listing and name updates.
+- The `messages` area owns the send flow, including conversation creation from the
   first text message, message validation, persistence, listing, ordered asset
   attachments, durable chat runs, and persistence of the AI decision.
-- `features/assets` owns the shared image/video asset kind, authenticated image
+- The `assets` area owns the shared image/video asset kind, authenticated image
   upload, local file storage, asset persistence, owned asset listing, and content
   retrieval.
-- `features/ai` owns chat routing, generation statuses, configuration semantics,
+- The `ai` area owns chat routing, generation statuses, configuration semantics,
   model-route selection, and provider integrations. Gemini is the currently wired
   provider. A media tool call persists a generation request; when enabled, the
   background worker stores its output through the assets feature.
@@ -386,6 +387,6 @@ When changing this feature, keep the affected surfaces aligned:
 - domain discriminated unions and infrastructure mapper;
 - request DTO schema, presenter, routes, and localized response messages;
 - repository ownership, transaction, and cursor conditions;
-- `src/openapi.ts`, this document, and the README endpoint summary;
+- `src/presentation/http/openapi.ts`, this document, and the README endpoint summary;
 - companion-app request adapters and runtime decoders when that repository is in
   scope.

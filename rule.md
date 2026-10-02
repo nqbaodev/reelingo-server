@@ -22,27 +22,27 @@ and ownership are clear; follow the
 
 ## Architecture
 
-Use feature-first organization with the layer responsibilities in
-[architecture](docs/architecture.md). This is the project's chosen convention,
-not a requirement that every feature contain every layer.
+Use layer-first Clean Architecture with the responsibilities and dependency rule
+in [architecture](docs/architecture.md). Inside each layer, group code first by
+responsibility and then by business area. An area does not need files in every
+responsibility folder or layer.
 
-- Keep business behavior with its owning feature. Choose placement by responsibility
+- Keep business behavior with its owning area. Choose placement by responsibility
   and dependencies, not by suffixes such as `Service`.
 - Keep layer responsibilities separate. Presentation handles HTTP, application
   coordinates use cases, domain defines business concepts and rules, infrastructure
-  implements persistence/providers, and the feature module wires dependencies.
+  implements persistence/providers, and `container.ts` wires dependencies.
   A dependency on another layer does not transfer that layer's responsibility.
 - Communicate across layers through explicit inputs, outputs, and narrow contracts.
   Do not pass Express requests, Prisma records/clients, SDK payloads, or raw provider
   errors into domain/application behavior.
-- Keep repository ports beside their adapters in infrastructure and wire concrete
-  dependencies only in `<feature>.module.ts`.
+- Keep repository and provider contracts in `application/interfaces`; keep concrete
+  adapters in `infrastructure` and wire them only in `container.ts`.
 - Do not call Prisma or construct SDK clients in routes, controllers, or use cases.
-- Keep feature behavior in its owning feature. Standalone technical services live
-  in top-level `services` regardless of consumer count and must not import feature
-  code. Put only feature-neutral pure helpers in `core/utils` and cross-cutting
-  technical infrastructure that is not a service in `shared`. Do not move feature
-  policy into generic code to bypass ownership.
+- Keep area behavior in its owning layer/area path. Put feature-neutral pure
+  helpers in `utils`, application-facing contracts in `application/interfaces`,
+  and cross-cutting I/O implementations in a named `infrastructure` category. Do
+  not move business policy into generic code to bypass ownership.
 - When changing an architectural decision, update its owning document and affected
   imports together. External examples do not silently override project decisions.
 - Apply [SOLID and design patterns](docs/architecture.md#solid-and-design-patterns)

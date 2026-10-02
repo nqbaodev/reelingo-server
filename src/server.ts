@@ -1,7 +1,7 @@
 import { createApplication } from "@/app";
 import { config } from "@/config";
-import { prisma } from "@/shared/database";
-import { logger } from "@/shared/logger";
+import { prisma } from "@/infrastructure/database/prisma";
+import { logger } from "@/infrastructure/logging";
 
 const { app, generationWorker } = createApplication();
 

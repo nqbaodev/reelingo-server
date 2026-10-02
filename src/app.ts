@@ -3,53 +3,31 @@ import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
 import { config } from "@/config";
-import { adminOpenApiDocument } from "@/admin-openapi";
-import { createAdminLogsModule } from "@/features/admin-logs/admin-logs.module";
-import { createAiModule } from "@/features/ai/ai.module";
-import type {
-  AiGenerationWorker,
-  ChatClient,
-} from "@/features/ai/infrastructure";
-import type { MediaGenerationRouteResolver } from "@/features/ai/application";
-import { createAuthModule } from "@/features/auth/auth.module";
-import { createConversationsModule } from "@/features/conversations/conversations.module";
-import { createHealthModule } from "@/features/health/health.module";
-import { createAssetsModule } from "@/features/assets/assets.module";
-import { createMessagesModule } from "@/features/messages/messages.module";
-import { createProjectsModule } from "@/features/projects/projects.module";
-import { createUsersModule } from "@/features/users/users.module";
-import type { PrismaClient } from "@/generated/prisma/client";
-import { prisma } from "@/shared/database";
-import { httpLogger, recentLogStore } from "@/shared/logger";
-import type { MediaGenerator, TextGenerator } from "@/services/ai";
+import {
+  createContainer,
+  type CreateContainerOptions,
+  type WorkerLifecycle,
+} from "@/container";
+import { endpoints } from "@/presentation/http/endpoints";
 import {
   createApiRateLimiter,
   errorHandler,
   notFoundHandler,
-} from "@/shared/middlewares";
-import { languageMiddleware } from "@/shared/middlewares/language";
-import { createDocsRouter } from "@/shared/http/docs.routes";
-import { endpoints } from "@/shared/http/endpoints";
-import { openApiDocument } from "@/openapi";
-
-interface CreateAppOptions {
-  chatClient?: ChatClient;
-  textGenerator?: TextGenerator;
-  mediaGenerator?: MediaGenerator;
-  mediaRouteResolver?: MediaGenerationRouteResolver;
-  database?: PrismaClient;
-}
+} from "@/presentation/middlewares";
+import { languageMiddleware } from "@/presentation/middlewares/language";
 
 export interface ApplicationRuntime {
   app: Express;
-  generationWorker: AiGenerationWorker;
+  generationWorker: WorkerLifecycle;
 }
 
-export function createApplication(options: CreateAppOptions = {}): ApplicationRuntime {
+export function createApplication(
+  options: CreateContainerOptions = {},
+): ApplicationRuntime {
   const app = express();
+  const container = createContainer(options);
 
-  // Global middleware
-  app.use(httpLogger);
+  app.use(container.httpLogger);
   app.use(helmet());
   app.use(
     cors({
@@ -65,50 +43,29 @@ export function createApplication(options: CreateAppOptions = {}): ApplicationRu
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  const database = options.database ?? prisma;
-  const authModule = createAuthModule(database);
-  const healthModule = createHealthModule(database);
-  const conversationsModule = createConversationsModule(database);
-  const assetsModule = createAssetsModule(database);
-  const aiModule = createAiModule(database, assetsModule.storage, options);
-  const messagesModule = createMessagesModule(
-    database,
-    aiModule.chatClient,
-    aiModule.mediaRouteResolver,
-  );
-  const projectsModule = createProjectsModule(database);
-  const usersModule = createUsersModule(database);
-  const adminLoggerCredentials = config.logger.admin.credentials;
-  const adminLogsModule = adminLoggerCredentials
-    ? createAdminLogsModule(recentLogStore, adminLoggerCredentials, adminOpenApiDocument)
-    : null;
+  app.use(container.healthRouter);
+  app.use(container.docsRouter);
+  if (container.adminLogsRouter) app.use(container.adminLogsRouter);
 
-  // Public routes
-  app.use(healthModule.router);
-  app.use(createDocsRouter(openApiDocument));
-  if (adminLogsModule) app.use(adminLogsModule.router);
-
-  // API routes
   app.use(
     endpoints.apiPrefix,
     createApiRateLimiter(),
-    authModule.publicRouter,
-    authModule.authenticate,
-    authModule.protectedRouter,
-    usersModule.router,
-    projectsModule.router,
-    conversationsModule.router,
-    assetsModule.router,
-    messagesModule.router,
+    container.publicAuthRouter,
+    container.authenticate,
+    container.protectedAuthRouter,
+    container.usersRouter,
+    container.projectsRouter,
+    container.conversationsRouter,
+    container.assetsRouter,
+    container.messagesRouter,
   );
 
-  // Error handling
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  return { app, generationWorker: aiModule.worker };
+  return { app, generationWorker: container.generationWorker };
 }
 
-export function createApp(options: CreateAppOptions = {}): Express {
+export function createApp(options: CreateContainerOptions = {}): Express {
   return createApplication(options).app;
 }

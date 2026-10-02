@@ -11,8 +11,8 @@ Read [rule.md](rule.md) before changing code. Use
 
 Read task-specific guidance as needed:
 
-- [Architecture](docs/architecture.md): feature ownership, services, shared code,
-  dependency direction, and mapping.
+- [Architecture](docs/architecture.md): layer and business-area ownership,
+  dependency direction, interfaces, DTOs, and mapping.
 - [Backend](docs/backend.md): HTTP, async errors, localization, configuration,
   persistence, authentication, and secrets.
 - [App integration](docs/app-integration.md): companion frontend references and

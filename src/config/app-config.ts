@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { z } from "zod";
-import { SECOND_MS } from "@/core/utils";
+import { SECOND_MS } from "@/utils";
 
 const baseEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

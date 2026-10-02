@@ -1,42 +1,55 @@
 # reelingo-server
 
 Backend API for Reelingo — Node.js + Express + TypeScript + Prisma (PostgreSQL),
-organized as **feature-first Clean Architecture**.
+organized as **layer-first clean architecture**.
 
 ## Directory layout
 
 ```
 src/
-  config/             # app-config validates env; domain modules feed the public facade
-  core/               # Shared abstractions, independent of any concrete framework
-    errors/            # AppError and domain errors (NotFoundError, ConflictError, ...)
-    http/               # asyncHandler, validate(), sendSuccess()
-    i18n/               # Typed en/vi messages, translation and language negotiation
-    types/              # Shared types (pagination, ...)
-    utils/              # Pure time helpers/constants and network-error classification
-  shared/             # Infrastructure shared across features
-    database/           # Prisma client singleton
-    http/               # Swagger UI and OpenAPI document delivery
-    logger/             # Pino logger
-    middlewares/        # Request ID, language, rate limit and error handlers
-  features/
-    admin-logs/         # Basic-authenticated operational log viewer
-    <feature>/
-      domain/            # Pure entities (no Prisma / Express imports)
-      application/       # Use cases, depending on the repository interface in infrastructure
-      infrastructure/    # Ports, adapters, and *.mapper.ts exports named toEntity
-      presentation/       # Express router, controller, request/response DTOs, HTTP presenters
-      <feature>.module.ts # Composition root: wire domain <-> infra <-> presentation
-  app.ts              # Assemble the Express app, mount feature routers
-  admin-openapi.ts    # Admin log API contract
-  openapi.ts          # Public API contract, reusing Zod request DTO schemas
-  server.ts           # Entrypoint: start the HTTP server, graceful shutdown
+  domain/             # Pure business concepts grouped by responsibility
+    entities/<area>/   # Entity definitions grouped by business area
+    value-objects/     # Added only when a real value object is needed
+    rules/             # Added only when a reusable domain rule is needed
+  application/        # Use cases and inward-facing contracts
+    use-cases/<area>/
+    events/<area>/
+    policies/<area>/
+    interfaces/       # Repository, provider, storage, security, and other contracts
+    errors/            # AppError and application errors
+    i18n/              # Typed en/vi messages and translation
+    pagination/        # Cursor primitives
+  infrastructure/     # Concrete I/O implementations
+    repositories/<area>/ # Prisma repository implementations
+    mappers/<area>/    # Persistence/provider-to-domain mappings
+    clients/<area>/    # External provider clients
+    stores/<area>/     # Stateful technical stores
+    storage/<area>/    # File/object storage implementations
+    workers/<area>/    # Background workers
+    database/prisma/   # Prisma client singleton and error classification
+    logging/           # Pino logger and bounded recent-log store
+    security/          # JWT implementation
+    services/          # Technical implementation services such as AI routing
+  presentation/       # Express HTTP boundary by area
+    controllers/<area>/
+    dtos/<area>/
+    presenters/<area>/
+    routes/<area>/
+    middlewares/<area>/
+    validations/<area>/
+    http/              # Shared HTTP primitives, endpoints, docs, and OpenAPI
+    middlewares/       # Request ID, language, rate limit, logging, and errors
+  config/             # Validated environment-backed configuration
+  utils/              # Pure area-neutral transformations
+  container.ts        # Sole production composition root
+  app.ts              # Configure Express and mount middleware/routes
+  server.ts           # Start the process and handle graceful shutdown
 prisma/
   schema.prisma       # Prisma schema (PostgreSQL)
 ```
 
-Dependency rule, why the repository interface lives in `infrastructure` instead
-of `domain`, and the steps to add a new feature are in
+The dependency rule, DTO placement, application interfaces, and the steps to add a
+new business area are in
 [docs/architecture.md](docs/architecture.md).
 
 For the day-to-day workflow (what to read, which check to run for a given
@@ -60,8 +73,8 @@ The first run needs the database role and database to exist already — see
 
 `src/config/app-config.ts` loads and validates environment variables with Zod
 at startup and owns all environment-backed settings. `src/config/config.ts`
-exposes the public `config` facade that application code imports — never
-`process.env`. `src/shared/http/endpoints.ts` owns static route paths.
+exposes the public `config` facade that runtime adapters and composition code import — never
+`process.env`. `src/presentation/http/endpoints.ts` owns static route paths.
 
 | Variable                         | Required | Default                         | Purpose                                                      |
 | -------------------------------- | -------- | ------------------------------- | ------------------------------------------------------------ |
@@ -241,7 +254,7 @@ quits.
 
 ## API
 
-`shared/http/endpoints.ts` defines the shared API prefix (`apiPrefix`, `/api/v1`)
+`presentation/http/endpoints.ts` defines the shared API prefix (`apiPrefix`, `/api/v1`)
 and paths grouped under `auth`, `users`, `projects`, `conversations`, `messages`,
 `assets`, `health`, `docs`, and `adminLogger`.
 Routers and OpenAPI reuse these values. API feature paths are relative to
@@ -435,7 +448,7 @@ Use cases reference messages through the `I18n` handle — never a raw string �
 and put interpolation values in `params`:
 
 ```ts
-import { I18n } from "@/core/i18n";
+import { I18n } from "@/application/i18n";
 
 throw new NotFoundError(I18n.userNotFound);
 throw new ServiceUnavailableError(I18n.serviceUnavailable, {
@@ -456,9 +469,9 @@ success data with a feature presenter, controllers call
 
 ### Message catalogs
 
-Catalogs are plain JSON in `src/core/i18n/locales/{en,vi}.json`, in the format
+Catalogs are plain JSON in `src/application/i18n/locales/{en,vi}.json`, in the format
 [i18next](https://www.i18next.com/) and translation platforms such as Lokalise
-read directly. `src/core/i18n/translator.ts` is the only module that imports
+read directly. `src/application/i18n/translator.ts` is the only module that imports
 i18next; the rest of the app calls `translate(key, language, params)`.
 
 - Keys are flat `camelCase` that abbreviate the English sentence
@@ -469,7 +482,7 @@ i18next; the rest of the app calls `translate(key, language, params)`.
 - `vi.json` must define every key in `en.json`; the catalog map in
   `translator.ts` is typed `Record<MessageKey, string>`, so a missing
   translation is a compile error, not a silent English fallback.
-- Language codes live in `src/core/i18n/language-codes.ts` (`LANGUAGE`,
+- Language codes live in `src/application/i18n/language-codes.ts` (`LANGUAGE`,
   `SUPPORTED_LANGUAGES`, `DEFAULT_LANGUAGE`); header names live in
   `config.i18n.headers` and `config.http.headers`. Nothing else spells out
   `"en"`, `"vi"`, or `"X-Language"`.
@@ -483,7 +496,7 @@ i18next; the rest of the app calls `translate(key, language, params)`.
 Start the server, open `/docs/`, and use **Authorize** to enter a Reelingo access
 token. Swagger serves local assets and reads `/openapi.json`; it does not call
 an external schema validator or persist authorization. Request schemas reuse
-the runtime Zod DTO schemas. Update `src/openapi.ts` when adding endpoints or
+the runtime Zod DTO schemas. Update `src/presentation/http/openapi.ts` when adding endpoints or
 changing presenter output.
 
 `GET /health` checks process liveness without querying dependencies.
