@@ -31,12 +31,7 @@ const baseEnvSchema = z.object({
     })
     .optional(),
   ADMIN_LOGGER_PASSWORD: z.string().min(16).max(1024).optional(),
-  ADMIN_LOGGER_MAX_ENTRIES: z.coerce
-    .number()
-    .int()
-    .min(100)
-    .max(10_000)
-    .default(1_000),
+  ADMIN_LOGGER_MAX_ENTRIES: z.coerce.number().int().min(100).max(10_000).default(1_000),
   CORS_ORIGIN: z.string().default("*"),
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
@@ -44,6 +39,14 @@ const baseEnvSchema = z.object({
   GEMINI_TIMEOUT_MS: z.coerce.number().int().positive().max(300_000).default(30_000),
   GEMINI_IMAGE_MODEL: z.string().min(1).default("gemini-3.1-flash-image"),
   GEMINI_VIDEO_MODEL: z.string().min(1).default("veo-3.1-fast-generate-preview"),
+  AI_AGENT_SERVICE_URL: z.url().optional(),
+  AI_AGENT_SERVICE_TOKEN: z.string().min(32).optional(),
+  AI_AGENT_SERVICE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(300_000)
+    .default(45_000),
   AI_GENERATION_WORKER_ENABLED: z
     .enum(["true", "false"])
     .default("false")
@@ -88,14 +91,25 @@ const baseEnvSchema = z.object({
 const envSchema = baseEnvSchema.superRefine((env, ctx) => {
   const hasUsername = env.ADMIN_LOGGER_USERNAME !== undefined;
   const hasPassword = env.ADMIN_LOGGER_PASSWORD !== undefined;
-  if (hasUsername === hasPassword) return;
+  if (hasUsername !== hasPassword) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "ADMIN_LOGGER_USERNAME and ADMIN_LOGGER_PASSWORD must be configured together",
+      path: hasUsername ? ["ADMIN_LOGGER_PASSWORD"] : ["ADMIN_LOGGER_USERNAME"],
+    });
+  }
 
-  ctx.addIssue({
-    code: "custom",
-    message:
-      "ADMIN_LOGGER_USERNAME and ADMIN_LOGGER_PASSWORD must be configured together",
-    path: hasUsername ? ["ADMIN_LOGGER_PASSWORD"] : ["ADMIN_LOGGER_USERNAME"],
-  });
+  const hasAgentUrl = env.AI_AGENT_SERVICE_URL !== undefined;
+  const hasAgentToken = env.AI_AGENT_SERVICE_TOKEN !== undefined;
+  if (hasAgentUrl !== hasAgentToken) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "AI_AGENT_SERVICE_URL and AI_AGENT_SERVICE_TOKEN must be configured together",
+      path: hasAgentUrl ? ["AI_AGENT_SERVICE_TOKEN"] : ["AI_AGENT_SERVICE_URL"],
+    });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -106,6 +120,14 @@ if (!parsed.success) {
 }
 
 const validatedEnv = parsed.data;
+const aiAgentService =
+  validatedEnv.AI_AGENT_SERVICE_URL && validatedEnv.AI_AGENT_SERVICE_TOKEN
+    ? {
+        baseUrl: validatedEnv.AI_AGENT_SERVICE_URL,
+        serviceToken: validatedEnv.AI_AGENT_SERVICE_TOKEN,
+        timeoutMs: validatedEnv.AI_AGENT_SERVICE_TIMEOUT_MS,
+      }
+    : null;
 
 export const appConfig = {
   nodeEnv: validatedEnv.NODE_ENV,
@@ -182,6 +204,7 @@ export const appConfig = {
   },
 
   ai: {
+    agentService: aiAgentService,
     gemini: {
       apiKey: validatedEnv.GEMINI_API_KEY,
       model: validatedEnv.GEMINI_MODEL,
