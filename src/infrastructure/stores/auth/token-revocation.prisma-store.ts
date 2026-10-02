@@ -1,0 +1,76 @@
+import type { PrismaClient } from "@/generated/prisma/client";
+import { isPrismaUniqueViolation } from "@/infrastructure/database/prisma/prisma-error";
+import {
+  type TokenRevocationStore,
+  TokenRevocationStoreError,
+} from "@/application/interfaces/auth/token-revocation.store";
+
+export class TokenRevocationPrismaStore implements TokenRevocationStore {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async isTokenRevoked(tokenId: string): Promise<boolean> {
+    return this.exists(tokenKey(tokenId));
+  }
+
+  async consumeToken(tokenId: string, expiresAt: Date): Promise<boolean> {
+    if (expiresAt.getTime() <= Date.now()) {
+      return false;
+    }
+    try {
+      await this.prisma.revokedKey.create({
+        data: { key: tokenKey(tokenId), expiresAt },
+      });
+      return true;
+    } catch (err) {
+      // The primary key turns a replayed refresh token into a conflict, which
+      // is the signal that someone already used it.
+      if (isPrismaUniqueViolation(err)) {
+        return false;
+      }
+      throw new TokenRevocationStoreError("Token revocation write failed", {
+        cause: err,
+      });
+    }
+  }
+
+  async isSessionRevoked(sessionId: string): Promise<boolean> {
+    return this.exists(sessionKey(sessionId));
+  }
+
+  async revokeSession(sessionId: string, expiresAt: Date): Promise<void> {
+    if (expiresAt.getTime() <= Date.now()) {
+      return;
+    }
+    try {
+      await this.prisma.revokedKey.upsert({
+        where: { key: sessionKey(sessionId) },
+        create: { key: sessionKey(sessionId), expiresAt },
+        update: { expiresAt },
+      });
+    } catch (err) {
+      throw new TokenRevocationStoreError("Session revocation write failed", {
+        cause: err,
+      });
+    }
+  }
+
+  private async exists(key: string): Promise<boolean> {
+    let record;
+    try {
+      record = await this.prisma.revokedKey.findUnique({ where: { key } });
+    } catch (err) {
+      throw new TokenRevocationStoreError("Token revocation read failed", {
+        cause: err,
+      });
+    }
+    return record !== null && record.expiresAt.getTime() > Date.now();
+  }
+}
+
+function tokenKey(tokenId: string): string {
+  return `token:${tokenId}`;
+}
+
+function sessionKey(sessionId: string): string {
+  return `session:${sessionId}`;
+}

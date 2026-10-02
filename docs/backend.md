@@ -92,22 +92,20 @@ effects must describe the same contract:
 
 ## Architecture
 
-Use feature-first Clean Architecture. Layer responsibilities and the dependency
+Use layer-first clean architecture. Layer responsibilities and the dependency
 rule are defined in [architecture.md](architecture.md).
 
-- Place code in the feature that owns the business behavior; do not move it into
-  `shared` or `core` to bypass feature boundaries.
+- Place code in the layer and business area that own the behavior; do not move
+  business policy into generic infrastructure or utilities.
 - Keep `domain` independent of Express, Prisma, Zod, and any other external
   library — plain TypeScript entities only.
-- Define the repository interface (port) in `infrastructure`, next to its
-  concrete adapter; `application` (use cases) depends on that interface
-  directly. See [architecture.md](architecture.md) for why this
-  project keeps the interface in `infrastructure` instead of `domain`.
-- Wire concrete adapters into use cases inside `<feature>.module.ts`
-  (composition root). Do not construct a repository or call Prisma directly
+- Define repository and provider interfaces in `application/interfaces` and keep
+  concrete adapters under `infrastructure`.
+- Wire concrete adapters into use cases in `container.ts` (the composition root).
+  Do not construct a repository or call Prisma directly
   from a use case, controller, or route.
-- Mount feature routers and cross-cutting middleware in `app.ts`; do not add
-  feature-specific routing logic there.
+- Mount area routers and cross-cutting middleware in `app.ts`; do not add
+  area-specific routing logic there.
 
 ## TypeScript and Node
 
@@ -118,28 +116,28 @@ rule are defined in [architecture.md](architecture.md).
   settings in their owning group directly (for example,
   `config.auth.jwt.algorithm` is the source for both signing and verification).
   Do not turn every constant into an environment variable.
-- Reuse pure technical helpers from `core/utils`, including time conversions
+- Reuse pure technical helpers from `utils`, including time conversions
   and network-error classification. Keep their conversion constants and
   recognized error codes with the helper, not in application config. Narrow
   unknown error values with runtime checks, not casts. Helpers classify or
   transform data; the owning feature decides the business/HTTP outcome.
   See [Architecture → Shared helpers and utilities](architecture.md#shared-helpers-and-utilities).
-- Put persistence/provider-to-entity mapping in the owning feature's
-  `infrastructure/mappers/*.mapper.ts` with a `toEntity` export. Validate in the
+- Put persistence/provider-to-entity mapping in
+  `infrastructure/mappers/<area>/*.mapper.ts` with a `toEntity` export. Validate in the
   adapter before mapping; keep Prisma/SDK types out of `domain`. Import
   mappers directly to avoid collisions between `toEntity` exports. Do not
   create mappers for features that only return primitives.
 - Validate every external input (HTTP body/query/params) with Zod at the
-  presentation boundary (`validate()` in `core/http`); do not trust `req.body`
+  presentation boundary (`validate()` in `presentation/http`); do not trust `req.body`
   or `req.query` downstream of it.
 - Message keys are flat `camelCase` abbreviations of the English sentence
   (`userNotFound`, `serviceUnavailable`) with no feature prefix; reuse an
   existing key before adding one, and put variable parts in `params` with
   `{name}` placeholders. Reference keys through `I18n.<camelCase>` from
-  `@/core/i18n`, never as a string literal. Only `core/i18n/translator.ts`
+  `@/application/i18n`, never as a string literal. Only `application/i18n/translator.ts`
   may import i18next.
 - In application source, language codes come from `LANGUAGE` / `SUPPORTED_LANGUAGES` /
-  `DEFAULT_LANGUAGE` in `core/i18n`; HTTP header names come from
+  `DEFAULT_LANGUAGE` in `application/i18n`; HTTP header names come from
   `config.http.headers` and `config.i18n.headers`. Contract tests and documented
   HTTP examples may use literal values to verify the public interface independently.
 - Read a validated query string from `req.validatedQuery`, never from
@@ -147,7 +145,7 @@ rule are defined in [architecture.md](architecture.md).
   `validate()` cannot assign the parsed value back onto it — doing so throws
   `TypeError: Cannot set property query` and turns every affected endpoint
   into a 500.
-- Throw `AppError` subclasses (`core/errors`) for expected failures
+- Throw `AppError` subclasses (`application/errors`) for expected failures
   (not found, conflict, validation, unauthorized). Let unexpected errors reach
   `errorHandler` — do not catch-and-swallow them in a use case or controller.
 - Only client-safe error messages reach the client through `AppError`, so they take an `I18n`
@@ -169,7 +167,8 @@ rule are defined in [architecture.md](architecture.md).
 
 ## API contracts
 
-This project generates its public OpenAPI document in `src/openapi.ts` from
+This project generates its public OpenAPI document in
+`src/presentation/http/openapi.ts` from
 project-owned Zod schemas and response definitions. The implementation and OpenAPI
 form one contract and must change together; neither a stale document nor an
 external example overrides the requested behavior.

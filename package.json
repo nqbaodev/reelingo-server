@@ -1,7 +1,7 @@
 {
   "name": "reelingo-server",
   "version": "1.0.0",
-  "description": "Reelingo backend API server (Node + Express + Prisma, feature-first clean architecture)",
+  "description": "Reelingo backend API server (Node + Express + Prisma, layer-first clean architecture)",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

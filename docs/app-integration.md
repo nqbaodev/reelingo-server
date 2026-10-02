@@ -38,5 +38,5 @@ the user is loaded through `/api/v1/auth/me`. The app guide says login verifies
 and backend code, not an end-to-end verification of the current frontend adapter.
 
 Treat that note as a review finding, not an additional API specification. The
-backend's [OpenAPI source](../src/openapi.ts) and implementation define its
+backend's [OpenAPI source](../src/presentation/http/openapi.ts) and implementation define its
 current contract; update this note after checking and aligning the app adapter.
