@@ -97,6 +97,9 @@ exposes the public `config` facade that runtime adapters and composition code im
 | `GEMINI_TIMEOUT_MS`              | no       | `30000`                         | Gemini request timeout; max 300,000 ms                       |
 | `GEMINI_IMAGE_MODEL`             | no       | `gemini-3.1-flash-image`        | Image-generation model id                                    |
 | `GEMINI_VIDEO_MODEL`             | no       | `veo-3.1-fast-generate-preview` | Low-latency video-generation model id                        |
+| `AI_AGENT_SERVICE_URL`           | no       | —                               | Standalone AI agent base URL; requires its service token     |
+| `AI_AGENT_SERVICE_TOKEN`         | no       | —                               | Independent Bearer token shared with the AI agent service    |
+| `AI_AGENT_SERVICE_TIMEOUT_MS`    | no       | `45000`                         | Overall remote chat request timeout; max 300,000 ms          |
 | `AI_GENERATION_WORKER_ENABLED`   | no       | `false`                         | Enables billed background image/video generation             |
 | `AI_GENERATION_POLL_INTERVAL_MS` | no       | `1000`                          | Delay while the generation queue is empty                    |
 | `AI_GENERATION_LEASE_MS`         | no       | `60000`                         | Worker lease duration, renewed while a job is running        |
@@ -116,12 +119,13 @@ exposes the public `config` facade that runtime adapters and composition code im
 Secrets live only in `.env` (gitignored) or the deployment's secret store —
 never in `.env.example`, commits, logs, chat, or pull-request text.
 
-| Secret                  | Where it comes from                                                        | Notes                                                                                                                                                                                                     |
-| ----------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JWT_SECRET`            | Generate locally with the command below                                    | Every environment gets its own value. **Rotating it invalidates every issued access and refresh token**, signing all users out at once — intended when the key is suspected leaked, disruptive otherwise. |
-| `ADMIN_LOGGER_PASSWORD` | Generate a separate random value                                           | Protects operational logs; never reuse a client or database password. Requires HTTPS because Basic Auth does not encrypt credentials.                                                                     |
-| `GOOGLE_CLIENT_ID`      | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID | Not actually secret (it ships in frontend code), but treat the accompanying _client secret_ as one — this server never needs it, so do not store it here.                                                 |
-| `GEMINI_API_KEY`        | Google AI Studio → Get API key                                             | Server-only; billed per call.                                                                                                                                                                             |
+| Secret                   | Where it comes from                                                        | Notes                                                                                                                                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`             | Generate locally with the command below                                    | Every environment gets its own value. **Rotating it invalidates every issued access and refresh token**, signing all users out at once — intended when the key is suspected leaked, disruptive otherwise. |
+| `ADMIN_LOGGER_PASSWORD`  | Generate a separate random value                                           | Protects operational logs; never reuse a client or database password. Requires HTTPS because Basic Auth does not encrypt credentials.                                                                     |
+| `GOOGLE_CLIENT_ID`       | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID | Not actually secret (it ships in frontend code), but treat the accompanying _client secret_ as one — this server never needs it, so do not store it here.                                                 |
+| `GEMINI_API_KEY`         | Google AI Studio → Get API key                                             | Server-only; billed per call.                                                                                                                                                                             |
+| `AI_AGENT_SERVICE_TOKEN` | Generate an independent random value                                       | Shared only between this server and the standalone AI agent; never reuse `JWT_SECRET`.                                                                                                                    |
 
 Generate a fresh `JWT_SECRET`:
 
@@ -340,11 +344,17 @@ invalidates the access token and its refresh token together:
 console for login to succeed; the other auth variables have working defaults
 in `.env.example`.
 
-## Gemini AI
+## AI chat and Gemini
 
 Set `GEMINI_API_KEY` to an API key from Google AI Studio. `GEMINI_MODEL`
 defaults to `gemini-2.5-flash` and can be changed without a code deployment.
 The key is server-only and must not be exposed to clients.
+
+Chat routing uses the local Gemini adapter by default. To run it through the
+standalone TypeScript service in [`reelingo-ai/`](reelingo-ai/README.md), configure both
+`AI_AGENT_SERVICE_URL` and `AI_AGENT_SERVICE_TOKEN`. The server then calls the
+service through its versioned NDJSON streaming contract while continuing to own
+authentication, messages, runs, and durable media state.
 
 `GEMINI_TIMEOUT_MS` sets the provider request timeout (default 30,000 ms;
 maximum 300,000 ms). Requests use one attempt so SDK retries do not extend
@@ -366,17 +376,17 @@ Content-Type: application/json
 
 The body uses `projectId` instead of `conversationId` for a first message so the
 server can create its conversation atomically. The request persists the user
-message, starts Gemini, and streams text or generation-routing progress through the
-same response using streaming `fetch`. The stream ends after the current chat turn
-is persisted; image and video jobs continue in the background. This is the only
-HTTP endpoint that starts AI chat.
+message, starts the configured chat adapter, and streams text or
+generation-routing progress through the same response using streaming `fetch`.
+The stream ends after the current chat turn is persisted; image and video jobs
+continue in the background. This is the only HTTP endpoint that starts AI chat.
 Chat text is persisted as an assistant message. A media tool call creates a pending
 generation without persisting a temporary queue-confirmation message. When
 `AI_GENERATION_WORKER_ENABLED=true`, the worker generates the media and atomically
 persists the successful outputs in one assistant message without a second text call.
-Gemini connectivity, quota, and invalid-response failures during request chat
-return `503 SERVICE_UNAVAILABLE`; background generation outcomes are persisted and
-read through the response-status endpoint.
+AI agent or Gemini connectivity, quota, and invalid-response failures during
+request chat return `503 SERVICE_UNAVAILABLE`; background generation outcomes are
+persisted and read through the response-status endpoint.
 
 If the SSE request is disconnected or the page reloads, the worker continues and
 the client polls

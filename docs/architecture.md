@@ -167,6 +167,9 @@ The same rule applies to external services:
   `application/interfaces/security`.
 - AI capability contracts live in `application/interfaces/ai`; provider registry,
   routing services, and SDK clients are infrastructure implementations.
+- The optional standalone `reelingo-ai/` project is reached through an infrastructure
+  client implementing the same application AI contract. Its transport and provider
+  payloads must not leak into application or domain code.
 - Asset storage implements the contract in `application/interfaces/storage`.
 
 Adapters validate external representations, preserve useful failure causes, and

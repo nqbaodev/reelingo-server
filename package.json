@@ -17,7 +17,9 @@
     "verify": "npm run check && npm test && npm run build",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "ai:dev": "npm --prefix reelingo-ai run dev",
+    "ai:check": "npm --prefix reelingo-ai run check"
   },
   "keywords": [],
   "author": "",

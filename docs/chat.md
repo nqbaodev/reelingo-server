@@ -18,9 +18,11 @@ change.
   upload, local file storage, asset persistence, owned asset listing, and content
   retrieval.
 - The `ai` area owns chat routing, generation statuses, configuration semantics,
-  model-route selection, and provider integrations. Gemini is the currently wired
-  provider. A media tool call persists a generation request; when enabled, the
-  background worker stores its output through the assets feature.
+  model-route selection, and provider integrations. Gemini is the local provider.
+  When the standalone AI agent URL and service token are configured, chat routing
+  uses its versioned streaming contract instead. A media tool call still persists a
+  generation request in this server during the first extraction stage; when enabled,
+  the background worker stores its output through the assets feature.
 - Every conversation belongs to one project. Conversation and nested message
   operations are authenticated and scoped through the project owner. A missing or
   non-owned project or conversation returns the same 404 outcome and must not
@@ -76,11 +78,11 @@ POST /api/v1/conversations
   is missing or non-owned, the request returns 404 without revealing which record
   failed ownership validation.
 - The client does not send a chat/image/video mode. Sending a message stores the
-  user message and a pending `ChatRun` atomically, then starts Gemini in the same
-  SSE request. Gemini receives only that prompt and may return normal
-  text, call `generate_image`, or call `generate_video`. Tool selection uses Gemini
-  function calling in automatic mode, not server-side keyword matching. Previous
-  messages are not included in AI context yet.
+  user message and a pending `ChatRun` atomically, then starts the configured chat
+  adapter in the same SSE request. The adapter receives only that prompt and may
+  return normal text, call `generate_image`, or call `generate_video`. The current
+  local and standalone adapters use Gemini function calling in automatic mode, not
+  server-side keyword matching. Previous messages are not included in AI context yet.
 - Optional `aiContext` carries the user's current session preference and image or
   video settings. `intentHint` is only a hint; it cannot trigger generation on its
   own. If the prompt asks for media but does not identify image or video, the AI

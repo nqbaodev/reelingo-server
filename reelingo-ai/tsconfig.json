@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "baseUrl": ".",
+    "paths": {
+      "@reelingo/contracts/*": ["packages/contracts/src/*"],
+      "@reelingo/agent-core/*": ["packages/agent-core/src/*"],
+      "@reelingo/api/*": ["apps/api/src/*"]
+    },
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "noEmit": true
+  },
+  "include": ["apps", "packages"],
+  "exclude": ["node_modules", "dist"]
+}

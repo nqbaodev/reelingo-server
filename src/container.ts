@@ -41,6 +41,7 @@ import { AiProviderId, CHAT_RUN_LEASE_BUFFER_MS } from "@/domain";
 import { AssetKind } from "@/domain";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { GeminiProvider } from "@/infrastructure/clients/ai";
+import { RemoteAiAgentClient } from "@/infrastructure/clients/ai-agent";
 import { GoogleIdTokenVerifier } from "@/infrastructure/clients/google-identity/google-id-token.verifier";
 import { prisma } from "@/infrastructure/database/prisma";
 import { logger, recentLogStore } from "@/infrastructure/logging";
@@ -138,7 +139,10 @@ export function createContainer(
     .registerImage(geminiProvider)
     .registerVideo(geminiProvider);
   const aiService = new AiService(providers, AiProviderId.GEMINI);
-  const chatClient = options.chatClient ?? geminiProvider;
+  const remoteAiAgent = config.ai.agentService
+    ? new RemoteAiAgentClient(config.ai.agentService)
+    : null;
+  const chatClient = options.chatClient ?? remoteAiAgent ?? geminiProvider;
   const mediaGenerator = options.mediaGenerator ?? aiService;
   const textGenerator = options.textGenerator ?? aiService;
   const mediaRouteResolver =

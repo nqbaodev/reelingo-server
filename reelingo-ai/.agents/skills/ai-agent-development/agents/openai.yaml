@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reelingo AI Development"
+  short_description: "Build and review Reelingo AI services"
+  default_prompt: "Use $ai-agent-development to implement a focused Reelingo AI service change."
