@@ -4,11 +4,9 @@
     "lib": ["ES2022"],
     "module": "CommonJS",
     "moduleResolution": "Node",
-    "baseUrl": ".",
+    "baseUrl": "",
     "paths": {
-      "@reelingo/contracts/*": ["packages/contracts/src/*"],
-      "@reelingo/agent-core/*": ["packages/agent-core/src/*"],
-      "@reelingo/api/*": ["apps/api/src/*"]
+      "@/*": ["src/*"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -18,6 +16,6 @@
     "sourceMap": true,
     "noEmit": true
   },
-  "include": ["apps", "packages"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

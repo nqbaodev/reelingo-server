@@ -1,53 +1,44 @@
 import { z } from "zod";
-import {
-  MAX_ASSET_DELETE_COUNT,
-  MAX_CONVERSATION_NAME_LENGTH,
-  MAX_IMAGE_SIZE_BYTES,
-  MAX_MESSAGE_ASSET_COUNT,
-  MAX_MESSAGE_CONTENT_LENGTH,
-  MAX_POSTGRES_INTEGER,
-  MAX_PROJECT_TITLE_LENGTH,
-} from "@/application/constants";
-import { config } from "@/config";
-import { cursorTokenSchema, paginationLimitSchema } from "@/application/pagination";
-import { DATE_ONLY_FORMAT } from "@/utils";
-import { endpoints } from "@/presentation/http/endpoints";
+import { MAX_ASSET_DELETE_COUNT, MAX_IMAGE_SIZE_BYTES } from "@/application/constants";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "@/application/i18n";
+import { cursorTokenSchema, paginationLimitSchema } from "@/application/pagination";
+import { config } from "@/config";
+import { endpoints } from "@/presentation/http/endpoints";
+import { DATE_ONLY_FORMAT } from "@/utils";
 import {
-  IMAGE_GENERATION_ASPECT_RATIOS,
-  IMAGE_GENERATION_RESOLUTIONS,
-  MAX_AI_GENERATION_OUTPUT_COUNT,
-  MIN_AI_GENERATION_OUTPUT_COUNT,
-  VIDEO_GENERATION_ASPECT_RATIOS,
-  VIDEO_GENERATION_RESOLUTIONS,
-} from "@/domain";
-import { googleLoginSchema, refreshTokenSchema } from "@/presentation/dtos/auth/auth.dto";
+  authTokensResponseSchema as tokenPair,
+  googleLoginSchema,
+  logoutResponseSchema,
+  refreshTokenSchema,
+} from "@/presentation/dtos/auth/auth.dto";
 import {
+  conversationResponseSchema as conversation,
+  conversationSummaryResponseSchema,
   conversationNameSchema,
   conversationParamsSchema,
   projectConversationParamsSchema,
 } from "@/presentation/dtos/conversations/conversation.dto";
-import { MessageRole } from "@/domain";
 import {
+  messageResponseSchema as message,
+  messageResponseStateSchema as messageResponseState,
   messageConversationParamsSchema,
   messageResponseParamsSchema,
-  sendMessageSchema,
+  sendMessageRequestSchema,
 } from "@/presentation/dtos/messages/message.dto";
 import {
+  assetResponseSchema as asset,
   assetKindSchema,
   assetParamsSchema,
   deleteAssetsSchema,
+  deletedAssetsResponseSchema as deletedAssets,
 } from "@/presentation/dtos/assets/asset.dto";
 import {
+  projectResponseSchema as project,
   projectParamsSchema,
   projectTitleSchema,
 } from "@/presentation/dtos/projects/project.dto";
 import {
-  avatarUrlSchema,
-  birthDateSchema,
-  countryCodeSchema,
-  displayNameSchema,
-  phoneNumberSchema,
+  currentUserResponseSchema as currentUser,
   updateProfileSchema,
 } from "@/presentation/dtos/users/user.dto";
 
@@ -166,113 +157,22 @@ function requestBody(schema: z.ZodType) {
   };
 }
 
-const currentUser = z.object({
-  id: z.number().int().positive().max(MAX_POSTGRES_INTEGER),
-  email: z.email(),
-  displayName: displayNameSchema,
-  avatarUrl: avatarUrlSchema.nullable(),
-  countryCode: countryCodeSchema.nullable(),
-  phoneNumber: phoneNumberSchema.nullable(),
-  birthDate: birthDateSchema.nullable(),
-});
-const project = z.object({
-  id: z.uuid(),
-  title: z.string().min(1).max(MAX_PROJECT_TITLE_LENGTH),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
 const projectList = z.object({
   items: z.array(project),
   nextCursor: z.string().nullable(),
 });
-const conversation = z.object({
-  id: z.uuid(),
-  projectId: z.uuid(),
-  name: z.string().min(1).max(MAX_CONVERSATION_NAME_LENGTH),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
-const conversationSummary = conversation.extend({
-  lastMessageAt: z.iso.datetime(),
-});
 const conversationList = z.object({
-  items: z.array(conversationSummary),
+  items: z.array(conversationSummaryResponseSchema),
   nextCursor: z.string().nullable(),
-});
-const imageGenerationConfig = z.object({
-  aspectRatio: z.enum(IMAGE_GENERATION_ASPECT_RATIOS).nullable(),
-  resolution: z.enum(IMAGE_GENERATION_RESOLUTIONS).nullable(),
-  outputCount: z
-    .number()
-    .int()
-    .min(MIN_AI_GENERATION_OUTPUT_COUNT)
-    .max(MAX_AI_GENERATION_OUTPUT_COUNT),
-  enhancePrompt: z.literal(false),
-});
-const videoGenerationConfig = z.object({
-  aspectRatio: z.enum(VIDEO_GENERATION_ASPECT_RATIOS).nullable(),
-  resolution: z.enum(VIDEO_GENERATION_RESOLUTIONS).nullable(),
-  outputCount: z.literal(1),
-  enhancePrompt: z.boolean(),
-});
-const generationBase = {
-  id: z.uuid(),
-  triggerMessageId: z.uuid(),
-  status: z.enum(["pending", "processing", "completed", "failed"]),
-  resultMessageId: z.uuid().nullable(),
-};
-const messageGeneration = z.discriminatedUnion("type", [
-  z.object({
-    ...generationBase,
-    type: z.literal("image"),
-    config: imageGenerationConfig,
-  }),
-  z.object({
-    ...generationBase,
-    type: z.literal("video"),
-    config: videoGenerationConfig,
-  }),
-]);
-const messageChatRun = z.object({
-  id: z.uuid(),
-  status: z.enum(["pending", "processing", "completed", "failed"]),
-  resultMessageId: z.uuid().nullable(),
-});
-const message = z.object({
-  id: z.uuid(),
-  conversationId: z.uuid(),
-  role: z.enum([MessageRole.USER, MessageRole.ASSISTANT]),
-  content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
-  assetIds: z.array(z.uuid()).max(MAX_MESSAGE_ASSET_COUNT),
-  generation: messageGeneration.nullable(),
-  chatRun: messageChatRun.nullable(),
-  createdAt: z.iso.datetime(),
 });
 const messageList = z.object({
   items: z.array(message),
   nextCursor: z.string().nullable(),
 });
-const messageResponseState = z.object({
-  chatRun: messageChatRun,
-  generation: messageGeneration.nullable(),
-  assistantMessage: message.nullable(),
-});
-const asset = z.object({
-  id: z.uuid(),
-  kind: z.enum(["image", "video"]),
-  path: z.string().startsWith("/"),
-  url: z.url(),
-  mimeType: z.string().min(1),
-  createdAt: z.iso.datetime(),
-});
 const assetList = z.object({
   items: z.array(asset),
   nextCursor: z.string().nullable(),
 });
-const deletedAssets = z.object({
-  deletedIds: z.array(z.uuid()),
-});
-const tokenPair = z.object({ accessToken: z.string(), refreshToken: z.string() });
 const authErrors = errors(400, 401, 413, 415, 422, 429, 500, 503);
 const protectedErrors = errors(401, 429, 500, 503);
 export const openApiDocument = {
@@ -358,7 +258,7 @@ export const openApiDocument = {
         summary: "Revoke the current session",
         parameters: languageParameters,
         responses: {
-          200: success(z.object({ loggedOut: z.literal(true) })),
+          200: success(logoutResponseSchema),
           ...protectedErrors,
         },
       },
@@ -510,7 +410,7 @@ export const openApiDocument = {
         operationId: "streamConversation",
         summary: "Create or continue a conversation and stream its AI response",
         description:
-          "This is the only HTTP endpoint that starts AI chat. Requires Accept: text/event-stream. Provide projectId to atomically create a conversation, its first user message, and pending chat run, or provide conversationId to append a message to an owned conversation. Exactly one target is required. After persistence, the request starts Gemini and streams message.created followed by the current AI text or routing progress. message.created exposes conversationId, messageId, and runId for read-only history and response-status requests; chat.completed also exposes assistantMessageId when one exists. The stream ends at chat.completed and does not wait for background image or video generation. A first message requires text content so its conversation name can be derived.",
+          "This is the only HTTP endpoint that starts AI chat. Requires Accept: text/event-stream. Provide projectId to atomically create a conversation, its first user message, and pending AI session, or provide conversationId to append a message to an owned conversation. Exactly one target is required. After persistence, the request starts Gemini and streams message.created followed by the current AI text or routing progress. message.created exposes conversationId, messageId, and sessionId for read-only history and response-status requests; chat.completed also exposes assistantMessageId when one exists. Each user message creates a new AI session within the conversation. The stream ends at chat.completed and does not wait for background image or video generation. A first message requires text content so its conversation name can be derived.",
         parameters: [
           ...languageParameters,
           {
@@ -521,7 +421,7 @@ export const openApiDocument = {
             schema: { type: "string", const: "text/event-stream" },
           },
         ],
-        requestBody: requestBody(sendMessageSchema),
+        requestBody: requestBody(sendMessageRequestSchema),
         responses: {
           200: {
             description: "Conversation message and AI response event stream",
@@ -530,7 +430,7 @@ export const openApiDocument = {
               "text/event-stream": {
                 schema: { type: "string" },
                 example:
-                  'event: message.created\ndata: {"v":1,"conversationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","messageId":"85eb57ee-3525-4f77-8758-5a409bf765e5","runId":"49bb81cd-cd9f-455f-a9f8-3875969613a8","message":{},"createdConversation":{}}\n\nevent: chat.started\ndata: {"v":1,"runId":"49bb81cd-cd9f-455f-a9f8-3875969613a8"}\n\nevent: assistant.delta\ndata: {"v":1,"delta":"Hello"}\n\nevent: chat.completed\ndata: {"v":1,"conversationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","messageId":"85eb57ee-3525-4f77-8758-5a409bf765e5","assistantMessageId":"834c554f-f6da-40b1-bad5-d01398d9337c","runId":"49bb81cd-cd9f-455f-a9f8-3875969613a8","userMessage":{},"assistantMessage":{}}\n\n',
+                  'event: message.created\ndata: {"v":3,"conversationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","messageId":"85eb57ee-3525-4f77-8758-5a409bf765e5","sessionId":"49bb81cd-cd9f-455f-a9f8-3875969613a8","message":{},"createdConversation":{}}\n\nevent: chat.started\ndata: {"v":3,"sessionId":"49bb81cd-cd9f-455f-a9f8-3875969613a8"}\n\nevent: assistant.delta\ndata: {"v":3,"delta":"Hello"}\n\nevent: chat.completed\ndata: {"v":3,"conversationId":"f8a81760-c5fe-4aad-b040-15dbf72ffde8","messageId":"85eb57ee-3525-4f77-8758-5a409bf765e5","assistantMessageId":"834c554f-f6da-40b1-bad5-d01398d9337c","sessionId":"49bb81cd-cd9f-455f-a9f8-3875969613a8","userMessage":{},"assistantMessage":{}}\n\n',
               },
             },
           },

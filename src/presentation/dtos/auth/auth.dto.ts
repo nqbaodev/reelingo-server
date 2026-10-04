@@ -12,11 +12,12 @@ export const refreshTokenSchema = z.object({
 
 export type RefreshTokenRequestDto = z.infer<typeof refreshTokenSchema>;
 
-export interface AuthTokensResponseDto {
-  accessToken: string;
-  refreshToken: string;
-}
+export const authTokensResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+});
 
-export interface LogoutResponseDto {
-  loggedOut: true;
-}
+export const logoutResponseSchema = z.object({ loggedOut: z.literal(true) });
+
+export type AuthTokensResponseDto = z.infer<typeof authTokensResponseSchema>;
+export type LogoutResponseDto = z.infer<typeof logoutResponseSchema>;

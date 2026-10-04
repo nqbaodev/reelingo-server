@@ -3,16 +3,17 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/application/pagination";
-import type { Project } from "@/domain";
 import type { ProjectListCursor } from "@/application/interfaces/repositories/project.repository";
+import type { Project } from "@/domain";
 import type { ProjectResponseDto } from "@/presentation/dtos/projects/project.dto";
+import { toUnixMilliseconds } from "@/utils";
 
 export function toProjectResponse(project: Project): ProjectResponseDto {
   return {
     id: project.id,
     title: project.title,
-    createdAt: project.createdAt.toISOString(),
-    updatedAt: project.updatedAt.toISOString(),
+    createdAt: toUnixMilliseconds(project.createdAt),
+    updatedAt: toUnixMilliseconds(project.updatedAt),
   };
 }
 

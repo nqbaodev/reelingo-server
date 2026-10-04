@@ -4,18 +4,22 @@ import {
   MAX_MESSAGE_CONTENT_LENGTH,
 } from "@/application/constants";
 import { createCursorSchema, paginationLimitSchema } from "@/application/pagination";
+import { unixTimestampMillisecondsSchema } from "@/presentation/http";
 import { containsNullByte } from "@/utils";
 import {
+  imageGenerationConfigRequestSchema,
+  imageGenerationConfigResponseSchema,
   imageGenerationConfigSchema,
+  videoGenerationConfigRequestSchema,
+  videoGenerationConfigResponseSchema,
   videoGenerationConfigSchema,
 } from "@/presentation/dtos/ai/ai-generation.dto";
-import type { MessageChatRun } from "@/domain";
-import { AssetKind } from "@/domain";
+import { AiGenerationStatus, AssetKind, ChatRunStatus, MessageRole } from "@/domain";
 import {
   MessageTargetType,
   type CreateMessageCommand,
 } from "@/application/use-cases/messages/create-message.use-case";
-import type { CreateMessagePayload, Message, MessageGeneration } from "@/domain";
+import type { CreateMessagePayload } from "@/domain";
 
 const messageContentSchema = z
   .string()
@@ -32,6 +36,16 @@ const aiGenerationSettingsSchema = z.strictObject({
 const aiContextSchema = z.strictObject({
   intentHint: z.enum([AssetKind.IMAGE, AssetKind.VIDEO]).optional(),
   generationSettings: aiGenerationSettingsSchema.optional(),
+});
+
+const aiContextRequestSchema = z.strictObject({
+  intentHint: z.enum([AssetKind.IMAGE, AssetKind.VIDEO]).optional(),
+  generationSettings: z
+    .strictObject({
+      [AssetKind.IMAGE]: imageGenerationConfigRequestSchema.optional(),
+      [AssetKind.VIDEO]: videoGenerationConfigRequestSchema.optional(),
+    })
+    .optional(),
 });
 
 const messageInputShape = {
@@ -78,6 +92,23 @@ const existingConversationMessageSchema = z
     ...messageInputShape,
   })
   .refine(hasMessagePayload);
+
+export const sendMessageRequestSchema = z.union([
+  z.strictObject({
+    projectId: z.uuid(),
+    content: messageContentSchema,
+    assetIds: messageInputShape.assetIds,
+    aiContext: aiContextRequestSchema.optional(),
+  }),
+  z
+    .strictObject({
+      conversationId: z.uuid(),
+      content: messageInputShape.content,
+      assetIds: messageInputShape.assetIds,
+      aiContext: aiContextRequestSchema.optional(),
+    })
+    .refine(hasMessagePayload),
+]);
 
 export const sendMessageSchema = z
   .union([newConversationMessageSchema, existingConversationMessageSchema])
@@ -136,31 +167,58 @@ export type MessageConversationParamsDto = z.infer<
 export type MessageResponseParamsDto = z.infer<typeof messageResponseParamsSchema>;
 export type ListMessagesQueryDto = z.infer<typeof listMessagesQuerySchema>;
 
-export interface MessageResponseDto {
-  id: string;
-  conversationId: string;
-  role: Message["role"];
-  content: string | null;
-  assetIds: string[];
-  generation: {
-    id: string;
-    triggerMessageId: string;
-    type: MessageGeneration["type"];
-    status: MessageGeneration["status"];
-    config: MessageGeneration["config"];
-    resultMessageId: string | null;
-  } | null;
-  chatRun: Message["chatRun"];
-  createdAt: string;
-}
+const generationResponseBase = {
+  id: z.uuid(),
+  triggerMessageId: z.uuid(),
+  status: z.enum(AiGenerationStatus),
+  resultMessageId: z.uuid().nullable(),
+};
 
-export interface MessageTurnResponseDto {
-  userMessage: MessageResponseDto;
-  assistantMessage: MessageResponseDto | null;
-}
+export const messageGenerationResponseSchema = z.discriminatedUnion("type", [
+  z.object({
+    ...generationResponseBase,
+    type: z.literal(AssetKind.IMAGE),
+    config: imageGenerationConfigResponseSchema,
+  }),
+  z.object({
+    ...generationResponseBase,
+    type: z.literal(AssetKind.VIDEO),
+    config: videoGenerationConfigResponseSchema,
+  }),
+]);
 
-export interface MessageResponseStateDto {
-  chatRun: MessageChatRun;
-  generation: MessageGeneration | null;
-  assistantMessage: MessageResponseDto | null;
-}
+export const aiSessionResponseSchema = z.object({
+  id: z.uuid(),
+  status: z.enum(ChatRunStatus),
+  resultMessageId: z.uuid().nullable(),
+});
+
+export const messageResponseSchema = z.object({
+  id: z.uuid(),
+  conversationId: z.uuid(),
+  role: z.enum(MessageRole),
+  content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).nullable(),
+  assetIds: z.array(z.uuid()).max(MAX_MESSAGE_ASSET_COUNT),
+  generation: messageGenerationResponseSchema.nullable(),
+  session: aiSessionResponseSchema.nullable(),
+  createdAt: unixTimestampMillisecondsSchema,
+});
+
+export const messageTurnResponseSchema = z.object({
+  userMessage: messageResponseSchema,
+  assistantMessage: messageResponseSchema.nullable(),
+});
+
+export const messageResponseStateSchema = z.object({
+  session: aiSessionResponseSchema,
+  generation: messageGenerationResponseSchema.nullable(),
+  assistantMessage: messageResponseSchema.nullable(),
+});
+
+export type AiSessionResponseDto = z.infer<typeof aiSessionResponseSchema>;
+export type MessageGenerationResponseDto = z.infer<
+  typeof messageGenerationResponseSchema
+>;
+export type MessageResponseDto = z.infer<typeof messageResponseSchema>;
+export type MessageTurnResponseDto = z.infer<typeof messageTurnResponseSchema>;
+export type MessageResponseStateDto = z.infer<typeof messageResponseStateSchema>;

@@ -3,8 +3,9 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/application/pagination";
-import type { Conversation, ConversationSummary } from "@/domain";
 import type { ConversationListCursor } from "@/application/interfaces/repositories/conversation.repository";
+import type { Conversation, ConversationSummary } from "@/domain";
+import { toUnixMilliseconds } from "@/utils";
 import type {
   ConversationResponseDto,
   ConversationSummaryResponseDto,
@@ -17,8 +18,8 @@ export function toConversationResponse(
     id: conversation.id,
     projectId: conversation.projectId,
     name: conversation.name,
-    createdAt: conversation.createdAt.toISOString(),
-    updatedAt: conversation.updatedAt.toISOString(),
+    createdAt: toUnixMilliseconds(conversation.createdAt),
+    updatedAt: toUnixMilliseconds(conversation.updatedAt),
   };
 }
 
@@ -28,7 +29,7 @@ export function toConversationListResponse(
   return {
     items: page.items.map((conversation) => ({
       ...toConversationResponse(conversation),
-      lastMessageAt: conversation.lastMessageAt.toISOString(),
+      lastMessageAt: toUnixMilliseconds(conversation.lastMessageAt),
     })),
     nextCursor: page.nextCursor
       ? encodeCursor({

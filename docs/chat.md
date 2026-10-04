@@ -1,28 +1,25 @@
 # Chat feature
 
 This document owns the current product and backend decisions for conversations,
-messages, assets, and generated media. The implementation and
-`src/presentation/http/openapi.ts`
+messages, assets, and generated media. The implementation and `src/openapi.ts`
 remain the executable API contract; update this document when those decisions
 change.
 
 ## Scope and ownership
 
-- The `projects` area across the four layers owns private project creation, listing, lookup, title
+- `features/projects` owns private project creation, listing, lookup, title
   updates. See [Projects](projects.md).
-- The `conversations` area owns project-scoped listing and name updates.
-- The `messages` area owns the send flow, including conversation creation from the
+- `features/conversations` owns project-scoped listing and name updates.
+- `features/messages` owns the send flow, including conversation creation from the
   first text message, message validation, persistence, listing, ordered asset
   attachments, durable chat runs, and persistence of the AI decision.
-- The `assets` area owns the shared image/video asset kind, authenticated image
+- `features/assets` owns the shared image/video asset kind, authenticated image
   upload, local file storage, asset persistence, owned asset listing, and content
   retrieval.
-- The `ai` area owns chat routing, generation statuses, configuration semantics,
-  model-route selection, and provider integrations. Gemini is the local provider.
-  When the standalone AI agent URL and service token are configured, chat routing
-  uses its versioned streaming contract instead. A media tool call still persists a
-  generation request in this server during the first extraction stage; when enabled,
-  the background worker stores its output through the assets feature.
+- `features/ai` owns chat routing, generation statuses, configuration semantics,
+  model-route selection, and provider integrations. Gemini is the currently wired
+  provider. A media tool call persists a generation request; when enabled, the
+  background worker stores its output through the assets feature.
 - Every conversation belongs to one project. Conversation and nested message
   operations are authenticated and scoped through the project owner. A missing or
   non-owned project or conversation returns the same 404 outcome and must not
@@ -36,8 +33,8 @@ change.
   duplicated on the conversation row.
 - The current name field is `name`, with a maximum length of 120 characters;
   null bytes are rejected before persistence.
-- `createdAt` and `updatedAt` are stored as `TIMESTAMPTZ(3)` and returned as ISO
-  8601 UTC strings. `updatedAt` changes only when the conversation record itself
+- `createdAt` and `updatedAt` are stored as `TIMESTAMPTZ(3)` and returned as Unix
+  epoch milliseconds. `updatedAt` changes only when the conversation record itself
   changes; creating a nested message does not update it.
 - Conversation list items include `lastMessageAt`, derived from the newest
   message's `createdAt` without storing a duplicate timestamp on the conversation.
@@ -78,11 +75,13 @@ POST /api/v1/conversations
   is missing or non-owned, the request returns 404 without revealing which record
   failed ownership validation.
 - The client does not send a chat/image/video mode. Sending a message stores the
-  user message and a pending `ChatRun` atomically, then starts the configured chat
-  adapter in the same SSE request. The adapter receives only that prompt and may
-  return normal text, call `generate_image`, or call `generate_video`. The current
-  local and standalone adapters use Gemini function calling in automatic mode, not
-  server-side keyword matching. Previous messages are not included in AI context yet.
+  user message and a pending internal `ChatRun` atomically, then starts Gemini in
+  the same SSE request. The public API exposes that run as an AI session: each user
+  message creates one `sessionId`, and a conversation contains many sessions.
+  Gemini receives only that prompt and may return normal
+  text, call `generate_image`, or call `generate_video`. Tool selection uses Gemini
+  function calling in automatic mode, not server-side keyword matching. Previous
+  messages are not included in AI context yet.
 - Optional `aiContext` carries the user's current session preference and image or
   video settings. `intentHint` is only a hint; it cannot trigger generation on its
   own. If the prompt asks for media but does not identify image or video, the AI
@@ -214,16 +213,18 @@ The conversation endpoint requires `Accept: text/event-stream` and normal Bearer
 authorization. Exactly one target is required: `projectId` creates a conversation
 from the first prompt, while `conversationId` appends to an existing conversation.
 A non-streaming request is rejected with 406 before persistence or AI starts. The
-server responds with versioned SSE data using these ordered events:
+server responds with versioned SSE data using these ordered events. The public
+rename from `runId` to `sessionId` is SSE contract version 2; numeric `...At`
+timestamps are contract version 3:
 
 - `message.created` after the transaction commits; it includes top-level
-  `conversationId`, `messageId`, and `runId`, the persisted user message, and the
+  `conversationId`, `messageId`, and `sessionId`, the persisted user message, and the
   newly created conversation, or `null` for an existing one;
-- `chat.started` after the pending run is claimed;
+- `chat.started` after the pending AI session is claimed;
 - zero or more `assistant.delta` events for ordinary text output;
 - `generation.queued` after a media-generation request is committed;
 - `chat.completed` after the text reply or generation request is committed; it
-  repeats `conversationId`, `messageId`, and `runId`, and includes
+  repeats `conversationId`, `messageId`, and `sessionId`, and includes
   `assistantMessageId` when an assistant message is already available;
 - `chat.failed` when processing fails after streaming has started.
 
@@ -239,13 +240,13 @@ turn and closes after `chat.completed`; it does not remain open for background
 image or video generation.
 
 Polling uses `GET` on the same response path. It is a read-only recovery endpoint
-and returns only the durable run state plus the result when available. Its
+and returns only the durable AI-session state plus the result when available. Its
 `messageId` path parameter is the user-message ID from `message.created`, not the
 `assistantMessageId` emitted at completion:
 
 ```json
 {
-  "chatRun": {
+  "session": {
     "id": "f8a81760-c5fe-4aad-b040-15dbf72ffde8",
     "status": "processing",
     "resultMessageId": null
@@ -389,6 +390,6 @@ When changing this feature, keep the affected surfaces aligned:
 - domain discriminated unions and infrastructure mapper;
 - request DTO schema, presenter, routes, and localized response messages;
 - repository ownership, transaction, and cursor conditions;
-- `src/presentation/http/openapi.ts`, this document, and the README endpoint summary;
+- `src/openapi.ts`, this document, and the README endpoint summary;
 - companion-app request adapters and runtime decoders when that repository is in
   scope.

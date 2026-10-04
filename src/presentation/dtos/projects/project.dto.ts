@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_PROJECT_TITLE_LENGTH } from "@/application/constants";
 import { createCursorSchema, paginationLimitSchema } from "@/application/pagination";
+import { unixTimestampMillisecondsSchema } from "@/presentation/http";
 import { containsNullByte } from "@/utils";
 
 export const projectTitleSchema = z.strictObject({
@@ -35,9 +36,11 @@ export type ProjectTitleRequestDto = z.infer<typeof projectTitleSchema>;
 export type ProjectParamsDto = z.infer<typeof projectParamsSchema>;
 export type ListProjectsQueryDto = z.infer<typeof listProjectsQuerySchema>;
 
-export interface ProjectResponseDto {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export const projectResponseSchema = z.object({
+  id: z.uuid(),
+  title: projectTitleSchema.shape.title,
+  createdAt: unixTimestampMillisecondsSchema,
+  updatedAt: unixTimestampMillisecondsSchema,
+});
+
+export type ProjectResponseDto = z.infer<typeof projectResponseSchema>;

@@ -3,10 +3,23 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
+  {
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "src/generated/**",
+      "prisma/generated/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ["src/**/*.ts", "tests/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -16,7 +29,4 @@ export default tseslint.config(
     },
   },
   prettier,
-  {
-    ignores: ["dist/**", "node_modules/**", "src/generated/**", "prisma/generated/**"],
-  },
 );

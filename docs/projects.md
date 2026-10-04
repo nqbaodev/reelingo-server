@@ -19,9 +19,9 @@ shared project assets in the current scope.
 - `Project.id` is a database-generated UUID and is the public identifier.
 - `title` is trimmed, non-empty, rejects null bytes, and is limited to 120
   characters. Titles are display values and do not have to be unique.
-- `createdAt` and `updatedAt` use `TIMESTAMPTZ(3)` and are returned publicly.
-  Renaming a project updates `updatedAt`; nested conversation or message writes
-  do not.
+- `createdAt` and `updatedAt` use `TIMESTAMPTZ(3)` and are returned publicly as
+  Unix epoch milliseconds. Renaming a project updates `updatedAt`; nested
+  conversation or message writes do not.
 - Project lists order by `updatedAt DESC, id DESC` and use both values in the
   opaque cursor.
 

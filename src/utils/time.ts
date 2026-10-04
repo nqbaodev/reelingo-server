@@ -6,6 +6,11 @@ export function isValidDate(value: unknown): value is Date {
   return value instanceof Date && !Number.isNaN(value.getTime());
 }
 
+/** Converts a date to Unix epoch milliseconds. */
+export function toUnixMilliseconds(date: Date): number {
+  return date.getTime();
+}
+
 /** Converts a date to whole Unix seconds, rounding down. */
 export function toSeconds(date: Date): number {
   return Math.floor(date.getTime() / SECOND_MS);

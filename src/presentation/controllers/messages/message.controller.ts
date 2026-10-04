@@ -114,7 +114,7 @@ function createEventStream(req: Request, res: Response): ServerSentEventStream {
   });
 }
 
-const STREAM_EVENT_VERSION = 1;
+const STREAM_EVENT_VERSION = 3;
 const MessageStreamEvent = {
   MESSAGE_CREATED: "message.created",
   STARTED: "chat.started",
@@ -134,7 +134,7 @@ async function publishProgressEvent(
         v: STREAM_EVENT_VERSION,
         conversationId: event.message.conversationId,
         messageId: event.message.id,
-        runId: event.runId,
+        sessionId: event.runId,
         message: toMessageResponse(event.message),
         createdConversation: event.createdConversation
           ? toConversationResponse(event.createdConversation)
@@ -144,7 +144,7 @@ async function publishProgressEvent(
     case ChatProgressEventType.STARTED:
       await stream.sendJson(MessageStreamEvent.STARTED, {
         v: STREAM_EVENT_VERSION,
-        runId: event.runId,
+        sessionId: event.runId,
       });
       return;
     case ChatProgressEventType.TEXT_DELTA:
@@ -165,7 +165,7 @@ async function publishProgressEvent(
         conversationId: event.turn.userMessage.conversationId,
         messageId: event.turn.userMessage.id,
         assistantMessageId: event.turn.assistantMessage?.id ?? null,
-        runId: event.runId,
+        sessionId: event.runId,
         ...toMessageTurnResponse(event.turn),
       });
   }

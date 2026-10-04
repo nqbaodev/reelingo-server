@@ -218,7 +218,9 @@ external example overrides the requested behavior.
 
 - Store instants in PostgreSQL as `TIMESTAMPTZ(3)` and interpret existing migrated
   timestamps as UTC only after confirming their prior semantics. Prisma models use
-  `DateTime @db.Timestamptz(3)`, and HTTP presenters expose ISO 8601 UTC strings.
+  `DateTime @db.Timestamptz(3)`. HTTP presenters expose public instant fields ending
+  in `At` as non-negative Unix epoch milliseconds. Opaque pagination cursors may
+  retain ISO 8601 strings internally because clients do not inspect their payloads.
   Use `DATE` for date-only concepts rather than converting them to timestamps.
 
 - Enforce uniqueness and relationships in PostgreSQL. A read followed by a create

@@ -18,8 +18,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "ai:dev": "npm --prefix reelingo-ai run dev",
-    "ai:check": "npm --prefix reelingo-ai run check"
+    "ai:dev": "npm --prefix ../reelingo-ai run dev",
+    "ai:check": "npm --prefix ../reelingo-ai run check"
   },
   "keywords": [],
   "author": "",

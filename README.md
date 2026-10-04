@@ -76,6 +76,10 @@ at startup and owns all environment-backed settings. `src/config/config.ts`
 exposes the public `config` facade that runtime adapters and composition code import — never
 `process.env`. `src/presentation/http/endpoints.ts` owns static route paths.
 
+Public instant fields ending in `At` are JSON numbers containing Unix epoch
+milliseconds. PostgreSQL continues to store those instants as `TIMESTAMPTZ(3)`;
+opaque pagination cursors retain their private encoding.
+
 | Variable                         | Required | Default                         | Purpose                                                      |
 | -------------------------------- | -------- | ------------------------------- | ------------------------------------------------------------ |
 | `DATABASE_URL`                   | yes      | —                               | PostgreSQL connection string                                 |
@@ -351,7 +355,7 @@ defaults to `gemini-2.5-flash` and can be changed without a code deployment.
 The key is server-only and must not be exposed to clients.
 
 Chat routing uses the local Gemini adapter by default. To run it through the
-standalone TypeScript service in [`reelingo-ai/`](reelingo-ai/README.md), configure both
+standalone TypeScript service in [`reelingo-ai/`](../reelingo-ai/README.md), configure both
 `AI_AGENT_SERVICE_URL` and `AI_AGENT_SERVICE_TOKEN`. The server then calls the
 service through its versioned NDJSON streaming contract while continuing to own
 authentication, messages, runs, and durable media state.
@@ -391,11 +395,12 @@ persisted and read through the response-status endpoint.
 If the SSE request is disconnected or the page reloads, the worker continues and
 the client polls
 `GET /api/v1/conversations/:conversationId/messages/:messageId/response`. The
-response includes durable chat-run and generation status and returns
+response includes durable AI-session and generation status and returns
 `assistantMessage` as `null` until processing completes. Polling reads state only;
 it never starts or retries Gemini processing. The initial `message.created` event
-provides `conversationId`, `messageId`, and `runId`; use the conversation and
-message IDs to list history or poll this response endpoint. `chat.completed` also
+provides `conversationId`, `messageId`, and `sessionId`; use the conversation and
+message IDs to list history or poll this response endpoint. Each user message has
+one AI session within its conversation. `chat.completed` also
 provides `assistantMessageId` when an assistant message has already been persisted.
 
 ## Request tracing

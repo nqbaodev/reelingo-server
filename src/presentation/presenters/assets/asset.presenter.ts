@@ -4,9 +4,10 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/application/pagination";
-import { endpoints } from "@/presentation/http/endpoints";
-import type { Asset } from "@/domain";
 import type { AssetListCursor } from "@/application/interfaces/repositories/asset.repository";
+import type { Asset } from "@/domain";
+import { endpoints } from "@/presentation/http/endpoints";
+import { toUnixMilliseconds } from "@/utils";
 import type {
   AssetLinkDto,
   AssetResponseDto,
@@ -31,7 +32,7 @@ export function toAssetResponse(asset: Asset): AssetResponseDto {
     path: contentPath,
     url: new URL(contentPath, config.server.publicBaseUrl).toString(),
     mimeType: asset.mimeType,
-    createdAt: asset.createdAt.toISOString(),
+    createdAt: toUnixMilliseconds(asset.createdAt),
   };
 }
 

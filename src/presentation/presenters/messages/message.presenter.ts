@@ -3,17 +3,46 @@ import {
   type CursorListResponse,
   type CursorPage,
 } from "@/application/pagination";
-import type { Message } from "@/domain";
+import type { Message, MessageChatRun, MessageGeneration } from "@/domain";
+import { toUnixMilliseconds } from "@/utils";
 import type {
   ChatTurn,
   MessageListCursor,
   MessageResponseState,
 } from "@/application/interfaces/repositories/message.repository";
 import type {
+  AiSessionResponseDto,
+  MessageGenerationResponseDto,
   MessageResponseDto,
   MessageResponseStateDto,
   MessageTurnResponseDto,
 } from "@/presentation/dtos/messages/message.dto";
+
+function toAiSessionResponse(session: MessageChatRun): AiSessionResponseDto {
+  return {
+    id: session.id,
+    status: session.status,
+    resultMessageId: session.resultMessageId,
+  };
+}
+
+function toMessageGenerationResponse(
+  generation: MessageGeneration,
+): MessageGenerationResponseDto {
+  return {
+    id: generation.id,
+    triggerMessageId: generation.triggerMessageId,
+    type: generation.type,
+    status: generation.status,
+    config: {
+      aspectRatio: generation.config.aspectRatio,
+      resolution: generation.config.resolution,
+      outputCount: generation.config.outputCount,
+      enhancePrompt: generation.config.enhancePrompt,
+    },
+    resultMessageId: generation.resultMessageId,
+  };
+}
 
 export function toMessageResponse(message: Message): MessageResponseDto {
   return {
@@ -22,9 +51,11 @@ export function toMessageResponse(message: Message): MessageResponseDto {
     role: message.role,
     content: message.content,
     assetIds: message.assetIds,
-    generation: message.generation,
-    chatRun: message.chatRun,
-    createdAt: message.createdAt.toISOString(),
+    generation: message.generation
+      ? toMessageGenerationResponse(message.generation)
+      : null,
+    session: message.chatRun ? toAiSessionResponse(message.chatRun) : null,
+    createdAt: toUnixMilliseconds(message.createdAt),
   };
 }
 
@@ -32,8 +63,10 @@ export function toMessageResponseStateResponse(
   response: MessageResponseState,
 ): MessageResponseStateDto {
   return {
-    chatRun: response.chatRun,
-    generation: response.generation,
+    session: toAiSessionResponse(response.chatRun),
+    generation: response.generation
+      ? toMessageGenerationResponse(response.generation)
+      : null,
     assistantMessage: response.assistantMessage
       ? toMessageResponse(response.assistantMessage)
       : null,
